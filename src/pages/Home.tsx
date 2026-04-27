@@ -1,7 +1,23 @@
 import hero from '../assets/hero.jpg'
 import './Home.css'
-
+  import { useEffect } from 'react'
 function Home() {
+  useEffect(() => {
+  const elements = document.querySelectorAll('.reveal')
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active')
+        }
+      })
+    },
+    { threshold: 0.1 }
+  )
+
+  elements.forEach((el) => observer.observe(el))
+}, [])
   return (
     <main>
       <section
@@ -23,7 +39,7 @@ function Home() {
             color: 'white',
           }}
         >
-          <div style={{ maxWidth: '540px' }}>
+          <div className="hero-content" style={{ maxWidth: '540px' }}>
             <h1
               style={{
                 fontSize: '58px',
@@ -56,8 +72,12 @@ function Home() {
             </p>
 
             <div style={{ display: 'flex', gap: '16px', marginTop: '34px' }}>
-              <button style={primaryButton}>Prova gratuita</button>
-              <button style={secondaryButton}>Scopri i corsi</button>
+              <button className="home-button" style={primaryButton}>
+                Prova gratuita
+              </button>
+              <button className="home-button" style={secondaryButton}>
+                Scopri i corsi
+              </button>
             </div>
           </div>
         </div>
@@ -80,17 +100,17 @@ function Home() {
           <h2 style={titleStyle}>Allenamenti per ogni età e livello</h2>
 
           <div style={cardGrid}>
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Bambini</h3>
               <p>Attività educativa, gioco, disciplina e coordinazione.</p>
             </div>
 
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Ragazzi</h3>
               <p>Tecnica, crescita personale, rispetto e preparazione atletica.</p>
             </div>
 
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Adulti</h3>
               <p>Karate tradizionale, benessere, difesa personale e concentrazione.</p>
             </div>
@@ -104,17 +124,17 @@ function Home() {
           <h2 style={titleStyle}>Disciplina. Rispetto. Crescita.</h2>
 
           <div style={cardGrid}>
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Disciplina</h3>
               <p>Imparare costanza, impegno e controllo.</p>
             </div>
 
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Rispetto</h3>
               <p>Per sé stessi, per il maestro, per i compagni.</p>
             </div>
 
-            <div style={cardStyle}>
+            <div className="course-card" style={cardStyle}>
               <h3>Crescita</h3>
               <p>Un percorso personale dentro e fuori dal dojo.</p>
             </div>
@@ -129,7 +149,7 @@ function Home() {
         <p style={{ fontSize: '18px', marginTop: '16px' }}>
           Scopri il Karate con noi. Nessuna esperienza richiesta.
         </p>
-        <button style={{ ...secondaryButton, marginTop: '24px' }}>
+        <button className="home-button" style={{ ...secondaryButton, marginTop: '24px' }}>
           Contattaci
         </button>
       </section>
