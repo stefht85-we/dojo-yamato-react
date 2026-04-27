@@ -11,30 +11,6 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
 }
 
-.home-button:hover {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-}
-
-.course-card {
-  transition: all 0.25s ease;
-}
-
-.course-card:hover {
-  transform: translateY(-6px);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 .course-card {
   transition: all 0.3s ease;
   cursor: pointer;
@@ -43,23 +19,9 @@
 .course-card:hover {
   transform: translateY(-8px) scale(1.02);
   background: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-}
-.hero-content {
-  animation: fadeInUp 0.9s ease-out;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 .reveal {
   opacity: 0;
   transform: translateY(40px);
@@ -77,4 +39,35 @@
 .reveal.active {
   opacity: 1;
   transform: translateY(0);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 42px !important;
+  }
+
+  .hero-text {
+    font-size: 18px !important;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .home-card-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

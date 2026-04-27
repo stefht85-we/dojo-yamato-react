@@ -1,23 +1,25 @@
+import { useEffect } from 'react'
 import hero from '../assets/hero.jpg'
 import './Home.css'
-  import { useEffect } from 'react'
+
 function Home() {
   useEffect(() => {
-  const elements = document.querySelectorAll('.reveal')
+    const elements = document.querySelectorAll('.reveal')
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('active')
-        }
-      })
-    },
-    { threshold: 0.1 }
-  )
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active')
+          }
+        })
+      },
+      { threshold: 0.1 }
+    )
 
-  elements.forEach((el) => observer.observe(el))
-}, [])
+    elements.forEach((el) => observer.observe(el))
+  }, [])
+
   return (
     <main>
       <section
@@ -41,6 +43,7 @@ function Home() {
         >
           <div className="hero-content" style={{ maxWidth: '540px' }}>
             <h1
+              className="hero-title"
               style={{
                 fontSize: '58px',
                 lineHeight: 1.05,
@@ -61,6 +64,7 @@ function Home() {
             />
 
             <p
+              className="hero-text"
               style={{
                 fontSize: '21px',
                 lineHeight: 1.6,
@@ -71,10 +75,14 @@ function Home() {
               Disciplina, rispetto e crescita personale attraverso il Karate Shotokan.
             </p>
 
-            <div style={{ display: 'flex', gap: '16px', marginTop: '34px' }}>
+            <div
+              className="hero-buttons"
+              style={{ display: 'flex', gap: '16px', marginTop: '34px' }}
+            >
               <button className="home-button" style={primaryButton}>
                 Prova gratuita
               </button>
+
               <button className="home-button" style={secondaryButton}>
                 Scopri i corsi
               </button>
@@ -99,18 +107,18 @@ function Home() {
           <p style={labelStyle}>I NOSTRI CORSI</p>
           <h2 style={titleStyle}>Allenamenti per ogni età e livello</h2>
 
-          <div style={cardGrid}>
-            <div className="course-card" style={cardStyle}>
+          <div className="home-card-grid" style={cardGrid}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Bambini</h3>
               <p>Attività educativa, gioco, disciplina e coordinazione.</p>
             </div>
 
-            <div className="course-card" style={cardStyle}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Ragazzi</h3>
               <p>Tecnica, crescita personale, rispetto e preparazione atletica.</p>
             </div>
 
-            <div className="course-card" style={cardStyle}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Adulti</h3>
               <p>Karate tradizionale, benessere, difesa personale e concentrazione.</p>
             </div>
@@ -123,18 +131,18 @@ function Home() {
           <p style={labelStyle}>VALORI</p>
           <h2 style={titleStyle}>Disciplina. Rispetto. Crescita.</h2>
 
-          <div style={cardGrid}>
-            <div className="course-card" style={cardStyle}>
+          <div className="home-card-grid" style={cardGrid}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Disciplina</h3>
               <p>Imparare costanza, impegno e controllo.</p>
             </div>
 
-            <div className="course-card" style={cardStyle}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Rispetto</h3>
               <p>Per sé stessi, per il maestro, per i compagni.</p>
             </div>
 
-            <div className="course-card" style={cardStyle}>
+            <div className="course-card reveal" style={cardStyle}>
               <h3>Crescita</h3>
               <p>Un percorso personale dentro e fuori dal dojo.</p>
             </div>
@@ -142,13 +150,22 @@ function Home() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 32px', background: '#e63946', textAlign: 'center', color: 'white' }}>
+      <section
+        style={{
+          padding: '80px 32px',
+          background: '#e63946',
+          textAlign: 'center',
+          color: 'white',
+        }}
+      >
         <h2 style={{ fontSize: '36px', margin: 0 }}>
           Vieni a provare una lezione gratuita
         </h2>
+
         <p style={{ fontSize: '18px', marginTop: '16px' }}>
           Scopri il Karate con noi. Nessuna esperienza richiesta.
         </p>
+
         <button className="home-button" style={{ ...secondaryButton, marginTop: '24px' }}>
           Contattaci
         </button>
@@ -191,7 +208,7 @@ const cardGrid = {
   gridTemplateColumns: 'repeat(3, 1fr)',
   gap: '24px',
   marginTop: '36px',
-}
+} as React.CSSProperties
 
 const cardStyle = {
   background: 'rgba(255,255,255,0.06)',
@@ -199,7 +216,7 @@ const cardStyle = {
   borderRadius: '16px',
   border: '1px solid rgba(255,255,255,0.08)',
   color: 'white',
-}
+} as React.CSSProperties
 
 const primaryButton = {
   padding: '15px 28px',
@@ -210,7 +227,7 @@ const primaryButton = {
   fontSize: '16px',
   fontWeight: 700,
   cursor: 'pointer',
-}
+} as React.CSSProperties
 
 const secondaryButton = {
   padding: '15px 28px',
@@ -221,6 +238,6 @@ const secondaryButton = {
   fontSize: '16px',
   fontWeight: 700,
   cursor: 'pointer',
-}
+} as React.CSSProperties
 
 export default Home
