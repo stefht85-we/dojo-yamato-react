@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
+import './AreaUtente.css'
 
 function AreaUtente() {
   const [user, setUser] = useState<User | null>(null)
@@ -10,7 +11,7 @@ function AreaUtente() {
   const [cognome, setCognome] = useState('')
   const [message, setMessage] = useState('')
 
-  async function saveProfile(currentUser: User) {
+  async function loadProfile(currentUser: User) {
     await supabase.from('profiles').upsert({
       id: currentUser.id,
       email: currentUser.email,
@@ -36,7 +37,7 @@ function AreaUtente() {
       setUser(currentUser)
 
       if (currentUser) {
-        await saveProfile(currentUser)
+        loadProfile(currentUser)
       }
     }
 
@@ -47,7 +48,7 @@ function AreaUtente() {
       setUser(currentUser)
 
       if (currentUser) {
-        saveProfile(currentUser)
+        loadProfile(currentUser)
       }
     })
 
@@ -58,32 +59,27 @@ function AreaUtente() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
-    setMessage('Registrazione in corso...')
+    setMessage('Registrazione...')
 
     const { error } = await supabase.auth.signUp({ email, password })
 
-    if (error) setMessage(`Errore registrazione: ${error.message}`)
-    else setMessage('Registrazione completata.')
+    if (error) setMessage(error.message)
+    else setMessage('Registrazione completata')
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    setMessage('Login in corso...')
+    setMessage('Login...')
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) setMessage(`Errore login: ${error.message}`)
-    else setMessage('Login effettuato.')
+    if (error) setMessage(error.message)
+    else setMessage('Login effettuato')
   }
 
   async function handleLogout() {
     await supabase.auth.signOut()
     setUser(null)
-    setEmail('')
-    setPassword('')
-    setNome('')
-    setCognome('')
-    setMessage('')
   }
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -91,33 +87,65 @@ function AreaUtente() {
 
     if (!user) return
 
-    setMessage('Salvataggio profilo...')
-
     const { error } = await supabase
       .from('profiles')
-      .update({
-        nome,
-        cognome,
-      })
+      .update({ nome, cognome })
       .eq('id', user.id)
 
-    if (error) {
-      setMessage(`Errore salvataggio: ${error.message}`)
-    } else {
-      setMessage('Profilo salvato correttamente.')
-    }
+    if (error) setMessage(error.message)
+    else setMessage('Profilo salvato')
   }
 
-  if (user) {
+  // 🔴 LOGIN VIEW
+  if (!user) {
     return (
-      <div style={{ maxWidth: '500px', margin: '60px auto', fontFamily: 'Arial' }}>
-        <h1>Area utente</h1>
-        <p>Sei loggato come:</p>
-        <strong>{user.email}</strong>
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>Accesso Dojo Yamato</h1>
+
+          <form style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            <button className="primary-auth-button" onClick={handleLogin}>
+              Login
+            </button>
+
+            <button className="secondary-auth-button" onClick={handleSignup}>
+              Registrati
+            </button>
+          </form>
+
+          {message && <p style={{ marginTop: '16px' }}>{message}</p>}
+        </div>
+      </div>
+    )
+  }
+
+  // 🟢 PROFILO VIEW
+  return (
+    <div className="profile-layout">
+      <div className="profile-card">
+        <h1>Area Utente</h1>
+
+        <p>
+          Loggato come: <strong>{user.email}</strong>
+        </p>
 
         <form
           onSubmit={handleSaveProfile}
-          style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '30px' }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '20px' }}
         >
           <input
             type="text"
@@ -133,44 +161,21 @@ function AreaUtente() {
             onChange={(e) => setCognome(e.target.value)}
           />
 
-          <button type="submit">Salva profilo</button>
+          <button className="primary-auth-button" type="submit">
+            Salva profilo
+          </button>
         </form>
 
-        <br />
-
-        <button onClick={handleLogout}>
+        <button
+          style={{ marginTop: '30px' }}
+          className="secondary-auth-button"
+          onClick={handleLogout}
+        >
           Logout
         </button>
 
-        {message && <p>{message}</p>}
+        {message && <p style={{ marginTop: '16px' }}>{message}</p>}
       </div>
-    )
-  }
-
-  return (
-    <div style={{ maxWidth: '420px', margin: '60px auto', fontFamily: 'Arial' }}>
-      <h1>Accesso Dojo Yamato</h1>
-
-      <form style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button onClick={handleLogin}>Login</button>
-        <button onClick={handleSignup}>Registrati</button>
-      </form>
-
-      {message && <p>{message}</p>}
     </div>
   )
 }

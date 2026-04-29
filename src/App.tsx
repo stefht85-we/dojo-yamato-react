@@ -5,6 +5,7 @@ import ChiSiamo from './pages/ChiSiamo'
 import Corsi from './pages/Corsi'
 import Contatti from './pages/Contatti'
 import AreaUtente from './pages/AreaUtente'
+import Bacheca from './pages/Bacheca'
 import './App.css'
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
             <Link to="/chi-siamo" onClick={closeMenu}>Chi siamo</Link>
             <Link to="/corsi" onClick={closeMenu}>Corsi</Link>
             <Link to="/contatti" onClick={closeMenu}>Contatti</Link>
+            <Link to="/bacheca" onClick={closeMenu}>Bacheca</Link>
 
             <Link
               to="/area-utente"
@@ -54,6 +56,7 @@ function App() {
         <Route path="/chi-siamo" element={<ChiSiamo />} />
         <Route path="/corsi" element={<Corsi />} />
         <Route path="/contatti" element={<Contatti />} />
+        <Route path="/bacheca" element={<Bacheca />} />
         <Route path="/area-utente" element={<AreaUtente />} />
       </Routes>
     </div>
