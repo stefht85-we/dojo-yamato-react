@@ -7,6 +7,7 @@ import Contatti from './pages/Contatti'
 import AreaUtente from './pages/AreaUtente'
 import Bacheca from './pages/Bacheca'
 import './App.css'
+import Galleria from './pages/Galleria'
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -37,6 +38,7 @@ function App() {
             <Link to="/" onClick={closeMenu}>Home</Link>
             <Link to="/chi-siamo" onClick={closeMenu}>Chi siamo</Link>
             <Link to="/corsi" onClick={closeMenu}>Corsi</Link>
+            <Link to="/galleria" onClick={closeMenu}>Galleria</Link>
             <Link to="/contatti" onClick={closeMenu}>Contatti</Link>
             <Link to="/bacheca" onClick={closeMenu}>Bacheca</Link>
 
@@ -55,6 +57,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chi-siamo" element={<ChiSiamo />} />
         <Route path="/corsi" element={<Corsi />} />
+        <Route path="/galleria" element={<Galleria />} />
         <Route path="/contatti" element={<Contatti />} />
         <Route path="/bacheca" element={<Bacheca />} />
         <Route path="/area-utente" element={<AreaUtente />} />
