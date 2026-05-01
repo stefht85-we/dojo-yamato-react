@@ -6,11 +6,22 @@ import './AreaUtente.css'
 
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const NEWS_BUCKET = 'news-images'
+const NEWS_DOCUMENTS_BUCKET = 'news-documents'
 const GALLERY_BUCKET = 'gallery'
 const EVENT_IMAGES_BUCKET = 'event-images'
 const EVENT_DOCUMENTS_BUCKET = 'event-documents'
+const DOCUMENTS_BUCKET = 'documents'
 
 type AdminTab = 'news' | 'galleria' | 'eventi' | 'documenti' | 'difesa'
+
+type NewsDocument = {
+  id: string
+  news_id: string
+  title: string
+  file_url: string
+  file_type: string | null
+  created_at: string
+}
 
 type NewsItem = {
   id: string
@@ -18,7 +29,9 @@ type NewsItem = {
   content: string
   image_url: string | null
   published: boolean
+  news_date: string | null
   created_at: string
+  news_documents?: NewsDocument[]
 }
 
 type GalleryAlbum = {
@@ -71,6 +84,16 @@ type DojoEvent = {
   event_documents?: EventDocument[]
 }
 
+type DojoDocument = {
+  id: string
+  title: string
+  category: string | null
+  file_url: string
+  file_type: string | null
+  visible: boolean
+  created_at: string
+}
+
 function AreaUtente() {
   const [user, setUser] = useState<User | null>(null)
 
@@ -86,10 +109,13 @@ function AreaUtente() {
   const [newsTitle, setNewsTitle] = useState('')
   const [newsContent, setNewsContent] = useState('')
   const [newsPublished, setNewsPublished] = useState(true)
+  const [newsDate, setNewsDate] = useState(new Date().toISOString().slice(0, 10))
   const [newsImageFile, setNewsImageFile] = useState<File | null>(null)
+  const [newsDocumentFiles, setNewsDocumentFiles] = useState<FileList | null>(null)
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null)
   const [existingNewsImageUrl, setExistingNewsImageUrl] = useState<string | null>(null)
   const [newsInputKey, setNewsInputKey] = useState(0)
+  const [newsDocsInputKey, setNewsDocsInputKey] = useState(0)
 
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [media, setMedia] = useState<GalleryMedia[]>([])
@@ -127,6 +153,16 @@ function AreaUtente() {
   const [existingEventImageUrl, setExistingEventImageUrl] = useState<string | null>(null)
   const [eventImageInputKey, setEventImageInputKey] = useState(0)
   const [eventDocsInputKey, setEventDocsInputKey] = useState(0)
+
+  const [documents, setDocuments] = useState<DojoDocument[]>([])
+  const [documentTitle, setDocumentTitle] = useState('')
+  const [documentCategory, setDocumentCategory] = useState('Moduli')
+  const [documentVisible, setDocumentVisible] = useState(true)
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null)
+  const [existingDocumentFileUrl, setExistingDocumentFileUrl] = useState<string | null>(null)
+  const [existingDocumentFileType, setExistingDocumentFileType] = useState<string | null>(null)
+  const [documentInputKey, setDocumentInputKey] = useState(0)
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
@@ -166,7 +202,24 @@ function AreaUtente() {
   async function loadNews() {
     const { data, error } = await supabase
       .from('news')
-      .select('id, title, content, image_url, published, created_at')
+      .select(`
+        id,
+        title,
+        content,
+        image_url,
+        published,
+        news_date,
+        created_at,
+        news_documents (
+          id,
+          news_id,
+          title,
+          file_url,
+          file_type,
+          created_at
+        )
+      `)
+      .order('news_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -174,7 +227,7 @@ function AreaUtente() {
       return
     }
 
-    setNewsList(data ?? [])
+    setNewsList((data ?? []) as NewsItem[])
   }
 
   async function loadAlbums() {
@@ -250,6 +303,20 @@ function AreaUtente() {
     setEvents((data ?? []) as DojoEvent[])
   }
 
+  async function loadDocuments() {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, title, category, file_url, file_type, visible, created_at')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setMessage(`Errore caricamento documenti: ${error.message}`)
+      return
+    }
+
+    setDocuments(data ?? [])
+  }
+
   useEffect(() => {
     async function getUser() {
       const { data } = await supabase.auth.getUser()
@@ -284,6 +351,7 @@ function AreaUtente() {
       loadAlbums()
       loadMedia()
       loadEvents()
+      loadDocuments()
     }
   }, [isAdmin])
 
@@ -356,6 +424,11 @@ function AreaUtente() {
       return
     }
 
+    if (!newsDate) {
+      setMessage('Inserisci la data della news')
+      return
+    }
+
     setMessage(editingNewsId ? 'Aggiornamento news...' : 'Salvataggio news...')
 
     try {
@@ -365,6 +438,8 @@ function AreaUtente() {
         finalImageUrl = await uploadFileToBucket(newsImageFile, NEWS_BUCKET, 'news')
       }
 
+      let newsIdToUse = editingNewsId
+
       if (editingNewsId) {
         const { error } = await supabase
           .from('news')
@@ -373,6 +448,7 @@ function AreaUtente() {
             content: newsContent.trim(),
             image_url: finalImageUrl,
             published: newsPublished,
+            news_date: newsDate,
           })
           .eq('id', editingNewsId)
 
@@ -383,26 +459,68 @@ function AreaUtente() {
 
         setMessage('News aggiornata correttamente')
       } else {
-        const { error } = await supabase.from('news').insert({
-          title: newsTitle.trim(),
-          content: newsContent.trim(),
-          image_url: finalImageUrl,
-          published: newsPublished,
-        })
+        const { data, error } = await supabase
+          .from('news')
+          .insert({
+            title: newsTitle.trim(),
+            content: newsContent.trim(),
+            image_url: finalImageUrl,
+            published: newsPublished,
+            news_date: newsDate,
+          })
+          .select('id')
+          .single()
 
         if (error) {
           setMessage(`Errore salvataggio news: ${error.message}`)
           return
         }
 
+        newsIdToUse = data.id
         setMessage('News salvata correttamente')
+      }
+
+      if (newsIdToUse && newsDocumentFiles && newsDocumentFiles.length > 0) {
+        const filesArray = Array.from(newsDocumentFiles)
+
+        const docsToInsert = []
+
+        for (const file of filesArray) {
+          const fileUrl = await uploadFileToBucket(
+            file,
+            NEWS_DOCUMENTS_BUCKET,
+            `news/${newsIdToUse}`
+          )
+
+          docsToInsert.push({
+            news_id: newsIdToUse,
+            title: file.name,
+            file_url: fileUrl,
+            file_type: file.type || null,
+          })
+        }
+
+        const { error: docsError } = await supabase
+          .from('news_documents')
+          .insert(docsToInsert)
+
+        if (docsError) {
+          setMessage(`News salvata, ma errore documenti: ${docsError.message}`)
+          loadNews()
+          return
+        }
       }
 
       resetNewsForm()
       loadNews()
     } catch (error) {
       console.error(error)
-      setMessage('Errore durante upload immagine o salvataggio news')
+
+      if (error instanceof Error) {
+        setMessage(`Errore durante upload immagine/documenti o salvataggio news: ${error.message}`)
+      } else {
+        setMessage('Errore durante upload immagine/documenti o salvataggio news')
+      }
     }
   }
 
@@ -411,9 +529,12 @@ function AreaUtente() {
     setNewsTitle(item.title)
     setNewsContent(item.content)
     setNewsPublished(item.published)
+    setNewsDate(item.news_date ?? item.created_at.slice(0, 10))
     setExistingNewsImageUrl(item.image_url)
     setNewsImageFile(null)
+    setNewsDocumentFiles(null)
     setNewsInputKey((prev) => prev + 1)
+    setNewsDocsInputKey((prev) => prev + 1)
     setAdminTab('news')
     setMessage('Modifica news in corso')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -424,9 +545,12 @@ function AreaUtente() {
     setNewsTitle('')
     setNewsContent('')
     setNewsPublished(true)
+    setNewsDate(new Date().toISOString().slice(0, 10))
     setNewsImageFile(null)
+    setNewsDocumentFiles(null)
     setExistingNewsImageUrl(null)
     setNewsInputKey((prev) => prev + 1)
+    setNewsDocsInputKey((prev) => prev + 1)
   }
 
   async function handleDeleteNews(id: string) {
@@ -441,6 +565,21 @@ function AreaUtente() {
     }
 
     setMessage('News eliminata')
+    loadNews()
+  }
+
+  async function handleDeleteNewsDocument(id: string) {
+    const confirmDelete = window.confirm('Vuoi eliminare questo documento della news?')
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('news_documents').delete().eq('id', id)
+
+    if (error) {
+      setMessage(`Errore eliminazione documento news: ${error.message}`)
+      return
+    }
+
+    setMessage('Documento news eliminato')
     loadNews()
   }
 
@@ -1012,6 +1151,144 @@ function AreaUtente() {
     return 'Data da definire'
   }
 
+  function resetDocumentForm() {
+    setEditingDocumentId(null)
+    setDocumentTitle('')
+    setDocumentCategory('Moduli')
+    setDocumentVisible(true)
+    setDocumentFile(null)
+    setExistingDocumentFileUrl(null)
+    setExistingDocumentFileType(null)
+    setDocumentInputKey((prev) => prev + 1)
+  }
+
+  async function handleSaveDocument(e: FormEvent) {
+    e.preventDefault()
+
+    if (!isAdmin) {
+      setMessage('Non hai i permessi per gestire i documenti')
+      return
+    }
+
+    if (!documentTitle.trim()) {
+      setMessage('Inserisci il titolo del documento')
+      return
+    }
+
+    if (!editingDocumentId && !documentFile) {
+      setMessage('Seleziona un file da caricare')
+      return
+    }
+
+    setMessage(editingDocumentId ? 'Aggiornamento documento...' : 'Caricamento documento...')
+
+    try {
+      let finalFileUrl = existingDocumentFileUrl
+      let finalFileType = existingDocumentFileType
+
+      if (documentFile) {
+        finalFileUrl = await uploadFileToBucket(
+          documentFile,
+          DOCUMENTS_BUCKET,
+          'documents'
+        )
+
+        finalFileType = documentFile.type || null
+      }
+
+      if (!finalFileUrl) {
+        setMessage('File documento non valido')
+        return
+      }
+
+      const payload = {
+        title: documentTitle.trim(),
+        category: documentCategory.trim() || 'Altro',
+        file_url: finalFileUrl,
+        file_type: finalFileType,
+        visible: documentVisible,
+      }
+
+      if (editingDocumentId) {
+        const { error } = await supabase
+          .from('documents')
+          .update(payload)
+          .eq('id', editingDocumentId)
+
+        if (error) {
+          setMessage(`Errore aggiornamento documento: ${error.message}`)
+          return
+        }
+
+        setMessage('Documento aggiornato correttamente')
+      } else {
+        const { error } = await supabase.from('documents').insert(payload)
+
+        if (error) {
+          setMessage(`Errore caricamento documento: ${error.message}`)
+          return
+        }
+
+        setMessage('Documento caricato correttamente')
+      }
+
+      resetDocumentForm()
+      loadDocuments()
+    } catch (error) {
+      console.error('Errore salvataggio documento:', error)
+
+      if (error instanceof Error) {
+        setMessage(`Errore durante salvataggio documento: ${error.message}`)
+      } else {
+        setMessage('Errore durante salvataggio documento')
+      }
+    }
+  }
+
+  function handleEditDocument(document: DojoDocument) {
+    setEditingDocumentId(document.id)
+    setDocumentTitle(document.title)
+    setDocumentCategory(document.category ?? 'Altro')
+    setDocumentVisible(document.visible)
+    setExistingDocumentFileUrl(document.file_url)
+    setExistingDocumentFileType(document.file_type)
+    setDocumentFile(null)
+    setDocumentInputKey((prev) => prev + 1)
+    setAdminTab('documenti')
+    setMessage('Modifica documento in corso')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleToggleDocumentVisible(document: DojoDocument) {
+    const { error } = await supabase
+      .from('documents')
+      .update({ visible: !document.visible })
+      .eq('id', document.id)
+
+    if (error) {
+      setMessage(`Errore aggiornamento visibilità documento: ${error.message}`)
+      return
+    }
+
+    setMessage('Visibilità documento aggiornata')
+    loadDocuments()
+  }
+
+  async function handleDeleteDocument(id: string) {
+    const confirmDelete = window.confirm('Vuoi eliminare questo documento?')
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('documents').delete().eq('id', id)
+
+    if (error) {
+      setMessage(`Errore eliminazione documento: ${error.message}`)
+      return
+    }
+
+    setMessage('Documento eliminato')
+    loadDocuments()
+  }
+
   function renderTinyMediaPreview(item: GalleryMedia) {
     if (item.media_type === 'youtube') {
       return (
@@ -1104,6 +1381,15 @@ function AreaUtente() {
                   <form onSubmit={handleSaveNews} style={formStyle}>
                     <input type="text" placeholder="Titolo news" value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} />
 
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      <label style={mutedText}>Data news</label>
+                      <input
+                        type="date"
+                        value={newsDate}
+                        onChange={(e) => setNewsDate(e.target.value)}
+                      />
+                    </div>
+
                     <textarea placeholder="Contenuto news" value={newsContent} onChange={(e) => setNewsContent(e.target.value)} rows={6} style={textareaStyle} />
 
                     {existingNewsImageUrl && (
@@ -1118,6 +1404,23 @@ function AreaUtente() {
                       <input key={newsInputKey} type="file" accept="image/*" onChange={(e) => setNewsImageFile(e.target.files?.[0] ?? null)} />
 
                       {newsImageFile && <small style={mutedText}>File selezionato: {newsImageFile.name}</small>}
+                    </div>
+
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      <label style={mutedText}>Documenti news opzionali</label>
+
+                      <input
+                        key={newsDocsInputKey}
+                        type="file"
+                        multiple
+                        onChange={(e) => setNewsDocumentFiles(e.target.files)}
+                      />
+
+                      {newsDocumentFiles && newsDocumentFiles.length > 0 && (
+                        <small style={mutedText}>
+                          Documenti selezionati: {newsDocumentFiles.length}
+                        </small>
+                      )}
                     </div>
 
                     <label style={checkboxLabelStyle}>
@@ -1152,12 +1455,38 @@ function AreaUtente() {
                         <h4 style={{ marginBottom: '8px' }}>{item.title}</h4>
 
                         <small style={mutedText}>
-                          {item.created_at ? new Date(item.created_at).toLocaleDateString('it-IT') : ''} — {item.published ? 'Pubblicata' : 'Bozza'}
+                          {item.news_date
+                            ? new Date(item.news_date).toLocaleDateString('it-IT')
+                            : new Date(item.created_at).toLocaleDateString('it-IT')}
+                          {' '}
+                          — {item.published ? 'Pubblicata' : 'Bozza'}
+                          {' '}
+                          — {item.news_documents?.length ?? 0} allegati
                         </small>
 
                         <p style={mutedText}>
                           {item.content.length > 180 ? item.content.substring(0, 180) + '...' : item.content}
                         </p>
+
+                        {item.news_documents && item.news_documents.length > 0 && (
+                          <div style={eventDocsList}>
+                            {item.news_documents.map((doc) => (
+                              <div key={doc.id} style={eventDocRow}>
+                                <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>
+                                  📄 {doc.title}
+                                </a>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteNewsDocument(doc.id)}
+                                  style={tinyDeleteButton}
+                                >
+                                  X
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         <div style={actionsRow}>
                           <button type="button" className="secondary-auth-button" onClick={() => handleEditNews(item)}>Modifica</button>
@@ -1537,12 +1866,159 @@ function AreaUtente() {
             )}
 
             {adminTab === 'documenti' && (
-              <div style={adminCardStyle}>
-                <h3>Gestione Documenti</h3>
-                <p style={mutedText}>
-                  Qui nel prossimo step aggiungeremo upload PDF/documenti, categoria,
-                  titolo e visualizzazione nella pagina Documenti.
-                </p>
+              <div>
+                <div style={adminCardStyle}>
+                  <h3>{editingDocumentId ? 'Modifica documento' : 'Carica nuovo documento'}</h3>
+
+                  <form onSubmit={handleSaveDocument} style={formStyle}>
+                    <input
+                      type="text"
+                      placeholder="Titolo documento"
+                      value={documentTitle}
+                      onChange={(e) => setDocumentTitle(e.target.value)}
+                    />
+
+                    <select
+                      value={documentCategory}
+                      onChange={(e) => setDocumentCategory(e.target.value)}
+                    >
+                      <option value="Moduli">Moduli</option>
+                      <option value="Regolamenti">Regolamenti</option>
+                      <option value="Documenti ufficiali">Documenti ufficiali</option>
+                      <option value="Altro">Altro</option>
+                    </select>
+
+                    {existingDocumentFileUrl && (
+                      <div style={documentCurrentFileBox}>
+                        <p style={mutedText}>File attuale:</p>
+
+                        <a
+                          href={existingDocumentFileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={documentFileLink}
+                        >
+                          Apri documento attuale
+                        </a>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      <label style={mutedText}>
+                        {editingDocumentId
+                          ? 'Sostituisci file documento opzionale'
+                          : 'File documento'}
+                      </label>
+
+                      <input
+                        key={documentInputKey}
+                        type="file"
+                        onChange={(e) => setDocumentFile(e.target.files?.[0] ?? null)}
+                      />
+
+                      {documentFile && (
+                        <small style={mutedText}>
+                          File selezionato: {documentFile.name}
+                        </small>
+                      )}
+                    </div>
+
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={documentVisible}
+                        onChange={(e) => setDocumentVisible(e.target.checked)}
+                      />
+                      Documento visibile nella pagina pubblica
+                    </label>
+
+                    <div style={actionsRow}>
+                      <button className="primary-auth-button" type="submit">
+                        {editingDocumentId ? 'Aggiorna documento' : 'Carica documento'}
+                      </button>
+
+                      {editingDocumentId && (
+                        <button
+                          className="secondary-auth-button"
+                          type="button"
+                          onClick={resetDocumentForm}
+                        >
+                          Annulla modifica
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                <div style={{ marginTop: '30px' }}>
+                  <h3>Documenti caricati</h3>
+
+                  {documents.length === 0 && (
+                    <p style={mutedText}>Non ci sono ancora documenti caricati.</p>
+                  )}
+
+                  <div style={compactAlbumList}>
+                    {documents.map((document) => (
+                      <article key={document.id} style={compactAlbumCard}>
+                        <div style={compactAlbumMain}>
+                          <div style={compactCoverPlaceholder}>📄</div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h4 style={compactAlbumTitle}>{document.title}</h4>
+
+                            <p style={compactAlbumMeta}>
+                              {document.category || 'Altro'}
+                              {' · '}
+                              {document.visible ? 'Visibile' : 'Nascosto'}
+                              {' · '}
+                              {document.created_at
+                                ? new Date(document.created_at).toLocaleDateString('it-IT')
+                                : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={compactActionsRow}>
+                          <a
+                            href={document.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={smallLinkButton}
+                          >
+                            Apri
+                          </a>
+
+                          <button
+                            type="button"
+                            className="secondary-auth-button"
+                            onClick={() => handleEditDocument(document)}
+                            style={smallAdminButton}
+                          >
+                            Modifica
+                          </button>
+
+                          <button
+                            type="button"
+                            className="secondary-auth-button"
+                            onClick={() => handleToggleDocumentVisible(document)}
+                            style={smallAdminButton}
+                          >
+                            {document.visible ? 'Nascondi' : 'Pubblica'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="primary-auth-button"
+                            onClick={() => handleDeleteDocument(document.id)}
+                            style={smallDangerButton}
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1896,6 +2372,36 @@ const eventDocLink: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+}
+
+const documentCurrentFileBox: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '12px',
+  borderRadius: '12px',
+  background: 'rgba(0,0,0,0.16)',
+}
+
+const documentFileLink: CSSProperties = {
+  color: 'white',
+  textDecoration: 'none',
+  background: 'rgba(255,255,255,0.10)',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  fontWeight: 700,
+  fontSize: '13px',
+  width: 'fit-content',
+}
+
+const smallLinkButton: CSSProperties = {
+  display: 'inline-block',
+  padding: '6px 10px',
+  fontSize: '12px',
+  borderRadius: '999px',
+  background: 'white',
+  color: '#111',
+  textDecoration: 'none',
+  fontWeight: 800,
 }
 
 const userInfoBox: CSSProperties = {
