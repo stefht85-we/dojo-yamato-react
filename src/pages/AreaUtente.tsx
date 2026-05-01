@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 import type { CSSProperties, FormEvent } from 'react'
@@ -31,13 +31,16 @@ type GalleryAlbum = {
   created_at: string
 }
 
-type GalleryPhoto = {
+type GalleryMedia = {
   id: string
   album_id: string
   image_url: string
   caption: string | null
   sort_order: number
   created_at: string
+  media_type: 'image' | 'video' | 'youtube'
+  thumbnail_url: string | null
+  video_url: string | null
 }
 
 function AreaUtente() {
@@ -61,7 +64,8 @@ function AreaUtente() {
   const [newsInputKey, setNewsInputKey] = useState(0)
 
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
-  const [photos, setPhotos] = useState<GalleryPhoto[]>([])
+  const [media, setMedia] = useState<GalleryMedia[]>([])
+
   const [albumTitle, setAlbumTitle] = useState('')
   const [albumDescription, setAlbumDescription] = useState('')
   const [albumCategory, setAlbumCategory] = useState('')
@@ -74,7 +78,25 @@ function AreaUtente() {
   const [galleryFiles, setGalleryFiles] = useState<FileList | null>(null)
   const [galleryInputKey, setGalleryInputKey] = useState(0)
 
+  const [albumYearFilter, setAlbumYearFilter] = useState('all')
+  const [youtubeUrl, setYoutubeUrl] = useState('')
+
   const isAdmin = user?.email === ADMIN_EMAIL
+
+  const selectedAlbum = albums.find((album) => album.id === selectedAlbumId) ?? null
+
+  const selectedAlbumMedia = selectedAlbumId
+    ? media.filter((item) => item.album_id === selectedAlbumId)
+    : []
+
+  const availableYears = useMemo(() => {
+    return Array.from(new Set(albums.map((album) => album.event_year))).sort((a, b) => b - a)
+  }, [albums])
+
+  const filteredAlbums = useMemo(() => {
+    if (albumYearFilter === 'all') return albums
+    return albums.filter((album) => String(album.event_year) === albumYearFilter)
+  }, [albums, albumYearFilter])
 
   async function loadProfile(currentUser: User) {
     await supabase.from('profiles').upsert({
@@ -126,19 +148,21 @@ function AreaUtente() {
     setAlbums(data ?? [])
   }
 
-  async function loadPhotos() {
+  async function loadMedia() {
     const { data, error } = await supabase
       .from('gallery_photos')
-      .select('id, album_id, image_url, caption, sort_order, created_at')
+      .select(
+        'id, album_id, image_url, caption, sort_order, created_at, media_type, thumbnail_url, video_url'
+      )
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
 
     if (error) {
-      setMessage(`Errore caricamento foto: ${error.message}`)
+      setMessage(`Errore caricamento media: ${error.message}`)
       return
     }
 
-    setPhotos(data ?? [])
+    setMedia((data ?? []) as GalleryMedia[])
   }
 
   useEffect(() => {
@@ -173,7 +197,7 @@ function AreaUtente() {
     if (isAdmin) {
       loadNews()
       loadAlbums()
-      loadPhotos()
+      loadMedia()
     }
   }, [isAdmin])
 
@@ -183,11 +207,8 @@ function AreaUtente() {
 
     const { error } = await supabase.auth.signUp({ email, password })
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Registrazione completata')
-    }
+    if (error) setMessage(error.message)
+    else setMessage('Registrazione completata')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -196,11 +217,8 @@ function AreaUtente() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Login effettuato')
-    }
+    if (error) setMessage(error.message)
+    else setMessage('Login effettuato')
   }
 
   async function handleLogout() {
@@ -219,11 +237,8 @@ function AreaUtente() {
       .update({ nome, cognome })
       .eq('id', user.id)
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Profilo salvato')
-    }
+    if (error) setMessage(error.message)
+    else setMessage('Profilo salvato')
   }
 
   async function uploadFileToBucket(file: File, bucket: string, folder: string) {
@@ -235,9 +250,7 @@ function AreaUtente() {
       .from(bucket)
       .upload(filePath, file)
 
-    if (uploadError) {
-      throw uploadError
-    }
+    if (uploadError) throw uploadError
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
 
@@ -414,11 +427,19 @@ function AreaUtente() {
 
       setMessage('Album aggiornato correttamente')
     } else {
-      const { error } = await supabase.from('gallery_albums').insert(payload)
+      const { data, error } = await supabase
+        .from('gallery_albums')
+        .insert(payload)
+        .select('id')
+        .single()
 
       if (error) {
         setMessage(`Errore creazione album: ${error.message}`)
         return
+      }
+
+      if (data?.id) {
+        setSelectedAlbumId(data.id)
       }
 
       setMessage('Album creato correttamente')
@@ -441,6 +462,14 @@ function AreaUtente() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function handleManageAlbumMedia(album: GalleryAlbum) {
+    setSelectedAlbumId(album.id)
+    setAdminTab('galleria')
+    setGalleryFiles(null)
+    setGalleryInputKey((prev) => prev + 1)
+    setMessage(`Gestione media album: ${album.title}`)
+  }
+
   async function handleToggleAlbumVisible(album: GalleryAlbum) {
     const { error } = await supabase
       .from('gallery_albums')
@@ -458,7 +487,7 @@ function AreaUtente() {
 
   async function handleDeleteAlbum(albumId: string) {
     const confirmDelete = window.confirm(
-      'Vuoi davvero eliminare questo album? Verranno eliminate anche tutte le foto collegate.'
+      'Vuoi davvero eliminare questo album? Verranno eliminati anche tutti i media collegati.'
     )
 
     if (!confirmDelete) return
@@ -476,10 +505,10 @@ function AreaUtente() {
 
     setMessage('Album eliminato')
     loadAlbums()
-    loadPhotos()
+    loadMedia()
   }
 
-  async function handleUploadAlbumPhotos(e: FormEvent) {
+  async function handleUploadAlbumMedia(e: FormEvent) {
     e.preventDefault()
 
     if (!isAdmin) {
@@ -493,107 +522,203 @@ function AreaUtente() {
     }
 
     if (!galleryFiles || galleryFiles.length === 0) {
-      setMessage('Seleziona una o più immagini')
+      setMessage('Seleziona una o più immagini/video')
       return
     }
 
-    const selectedAlbum = albums.find((album) => album.id === selectedAlbumId)
+    const album = albums.find((item) => item.id === selectedAlbumId)
 
-    if (!selectedAlbum) {
+    if (!album) {
       setMessage('Album non trovato')
       return
     }
 
-    setMessage(`Caricamento di ${galleryFiles.length} foto...`)
+    setMessage(`Caricamento di ${galleryFiles.length} file...`)
 
     try {
       const filesArray = Array.from(galleryFiles)
-      const uploadedPhotos: { album_id: string; image_url: string; sort_order: number }[] = []
+      const uploadedMedia: {
+        album_id: string
+        image_url: string
+        video_url: string | null
+        thumbnail_url: string | null
+        media_type: 'image' | 'video'
+        sort_order: number
+      }[] = []
 
-      const currentAlbumPhotos = photos.filter((photo) => photo.album_id === selectedAlbumId)
-      const startOrder = currentAlbumPhotos.length
+      const currentAlbumMedia = media.filter((item) => item.album_id === selectedAlbumId)
+      const startOrder = currentAlbumMedia.length
 
       for (let index = 0; index < filesArray.length; index++) {
         const file = filesArray[index]
-        const imageUrl = await uploadFileToBucket(file, GALLERY_BUCKET, `albums/${selectedAlbumId}`)
+        const isVideo = file.type.startsWith('video/')
+        const fileUrl = await uploadFileToBucket(file, GALLERY_BUCKET, `albums/${selectedAlbumId}`)
 
-        uploadedPhotos.push({
+        uploadedMedia.push({
           album_id: selectedAlbumId,
-          image_url: imageUrl,
+          image_url: fileUrl,
+          video_url: isVideo ? fileUrl : null,
+          thumbnail_url: null,
+          media_type: isVideo ? 'video' : 'image',
           sort_order: startOrder + index,
         })
       }
 
       const { error: insertError } = await supabase
         .from('gallery_photos')
-        .insert(uploadedPhotos)
+        .insert(uploadedMedia)
 
       if (insertError) {
-        setMessage(`Errore salvataggio foto: ${insertError.message}`)
+        setMessage(`Errore salvataggio media: ${insertError.message}`)
         return
       }
 
-      if (!selectedAlbum.cover_image_url && uploadedPhotos.length > 0) {
+      const firstImage = uploadedMedia.find((item) => item.media_type === 'image')
+
+      if (!album.cover_image_url && firstImage) {
         const { error: coverError } = await supabase
           .from('gallery_albums')
-          .update({ cover_image_url: uploadedPhotos[0].image_url })
+          .update({ cover_image_url: firstImage.image_url })
           .eq('id', selectedAlbumId)
 
         if (coverError) {
-          setMessage(`Foto caricate, ma errore copertina: ${coverError.message}`)
+          setMessage(`Media caricati, ma errore copertina: ${coverError.message}`)
           loadAlbums()
-          loadPhotos()
+          loadMedia()
           return
         }
       }
 
       setGalleryFiles(null)
       setGalleryInputKey((prev) => prev + 1)
-      setMessage('Foto caricate correttamente')
+      setMessage('Media caricati correttamente')
       loadAlbums()
-      loadPhotos()
+      loadMedia()
     } catch (error) {
       console.error(error)
-      setMessage('Errore durante upload foto album')
+      setMessage('Errore durante upload media album')
     }
   }
 
-  async function handleDeletePhoto(photo: GalleryPhoto) {
-    const confirmDelete = window.confirm('Vuoi eliminare questa foto?')
-    if (!confirmDelete) return
+  function getYoutubeId(url: string) {
+    const patterns = [
+      /youtube\.com\/watch\?v=([^&]+)/,
+      /youtu\.be\/([^?&]+)/,
+      /youtube\.com\/shorts\/([^?&]+)/,
+      /youtube\.com\/embed\/([^?&]+)/,
+    ]
 
-    const { error } = await supabase.from('gallery_photos').delete().eq('id', photo.id)
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match?.[1]) return match[1]
+    }
 
-    if (error) {
-      setMessage(`Errore eliminazione foto: ${error.message}`)
+    return null
+  }
+
+  async function handleAddYoutubeVideo(e: FormEvent) {
+    e.preventDefault()
+
+    if (!isAdmin) {
+      setMessage('Non hai i permessi per gestire la galleria')
       return
     }
 
-    const album = albums.find((item) => item.id === photo.album_id)
+    if (!selectedAlbumId) {
+      setMessage('Seleziona un album')
+      return
+    }
 
-    if (album?.cover_image_url === photo.image_url) {
-      const remainingPhotos = photos.filter(
-        (item) => item.album_id === photo.album_id && item.id !== photo.id
+    const videoId = getYoutubeId(youtubeUrl.trim())
+
+    if (!videoId) {
+      setMessage('Inserisci un link YouTube valido')
+      return
+    }
+
+    const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    const currentAlbumMedia = media.filter((item) => item.album_id === selectedAlbumId)
+
+    const { error } = await supabase.from('gallery_photos').insert({
+      album_id: selectedAlbumId,
+      image_url: youtubeUrl.trim(),
+      video_url: youtubeUrl.trim(),
+      thumbnail_url: thumbnailUrl,
+      media_type: 'youtube',
+      sort_order: currentAlbumMedia.length,
+    })
+
+    if (error) {
+      setMessage(`Errore salvataggio video YouTube: ${error.message}`)
+      return
+    }
+
+    const album = albums.find((item) => item.id === selectedAlbumId)
+
+    if (album && !album.cover_image_url) {
+      await supabase
+        .from('gallery_albums')
+        .update({ cover_image_url: thumbnailUrl })
+        .eq('id', selectedAlbumId)
+    }
+
+    setYoutubeUrl('')
+    setMessage('Video YouTube aggiunto correttamente')
+    loadAlbums()
+    loadMedia()
+  }
+
+  async function handleDeleteMedia(item: GalleryMedia) {
+    const confirmDelete = window.confirm('Vuoi eliminare questo elemento?')
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('gallery_photos').delete().eq('id', item.id)
+
+    if (error) {
+      setMessage(`Errore eliminazione media: ${error.message}`)
+      return
+    }
+
+    const album = albums.find((albumItem) => albumItem.id === item.album_id)
+    const itemPreviewUrl = item.thumbnail_url || item.image_url
+
+    if (album?.cover_image_url === itemPreviewUrl || album?.cover_image_url === item.image_url) {
+      const remainingMedia = media.filter(
+        (mediaItem) => mediaItem.album_id === item.album_id && mediaItem.id !== item.id
       )
 
-      const newCover = remainingPhotos[0]?.image_url ?? null
+      const newCover =
+        remainingMedia.find((mediaItem) => mediaItem.media_type === 'image')?.image_url ??
+        remainingMedia.find((mediaItem) => mediaItem.thumbnail_url)?.thumbnail_url ??
+        null
 
       await supabase
         .from('gallery_albums')
         .update({ cover_image_url: newCover })
-        .eq('id', photo.album_id)
+        .eq('id', item.album_id)
     }
 
-    setMessage('Foto eliminata')
+    setMessage('Media eliminato')
     loadAlbums()
-    loadPhotos()
+    loadMedia()
   }
 
-  async function handleSetCover(photo: GalleryPhoto) {
+  async function handleSetCover(item: GalleryMedia) {
+    const coverUrl = item.media_type === 'youtube'
+      ? item.thumbnail_url
+      : item.media_type === 'image'
+        ? item.image_url
+        : null
+
+    if (!coverUrl) {
+      setMessage('Per i video caricati non è disponibile una copertina automatica')
+      return
+    }
+
     const { error } = await supabase
       .from('gallery_albums')
-      .update({ cover_image_url: photo.image_url })
-      .eq('id', photo.album_id)
+      .update({ cover_image_url: coverUrl })
+      .eq('id', item.album_id)
 
     if (error) {
       setMessage(`Errore aggiornamento copertina: ${error.message}`)
@@ -604,9 +729,37 @@ function AreaUtente() {
     loadAlbums()
   }
 
-  const selectedAlbumPhotos = selectedAlbumId
-    ? photos.filter((photo) => photo.album_id === selectedAlbumId)
-    : []
+  function renderTinyMediaPreview(item: GalleryMedia) {
+    if (item.media_type === 'youtube') {
+      return (
+        <div style={tinyMediaPreviewWrapper}>
+          <img
+            src={item.thumbnail_url ?? ''}
+            alt="Anteprima YouTube"
+            style={tinyPhotoImage}
+          />
+          <span style={videoBadge}>YT</span>
+        </div>
+      )
+    }
+
+    if (item.media_type === 'video') {
+      return (
+        <div style={tinyMediaPreviewWrapper}>
+          <video src={item.video_url ?? item.image_url} style={tinyPhotoImage} muted />
+          <span style={videoBadge}>▶</span>
+        </div>
+      )
+    }
+
+    return (
+      <img
+        src={item.image_url}
+        alt={item.caption || selectedAlbum?.title || 'Media galleria'}
+        style={tinyPhotoImage}
+      />
+    )
+  }
 
   if (!user) {
     return (
@@ -694,43 +847,23 @@ function AreaUtente() {
             <h2 style={{ marginTop: 0 }}>Gestione contenuti sito</h2>
 
             <div style={tabsWrapper}>
-              <button
-                type="button"
-                style={tabButton(adminTab === 'news')}
-                onClick={() => setAdminTab('news')}
-              >
+              <button type="button" style={tabButton(adminTab === 'news')} onClick={() => setAdminTab('news')}>
                 News
               </button>
 
-              <button
-                type="button"
-                style={tabButton(adminTab === 'galleria')}
-                onClick={() => setAdminTab('galleria')}
-              >
+              <button type="button" style={tabButton(adminTab === 'galleria')} onClick={() => setAdminTab('galleria')}>
                 Galleria
               </button>
 
-              <button
-                type="button"
-                style={tabButton(adminTab === 'eventi')}
-                onClick={() => setAdminTab('eventi')}
-              >
+              <button type="button" style={tabButton(adminTab === 'eventi')} onClick={() => setAdminTab('eventi')}>
                 Eventi
               </button>
 
-              <button
-                type="button"
-                style={tabButton(adminTab === 'documenti')}
-                onClick={() => setAdminTab('documenti')}
-              >
+              <button type="button" style={tabButton(adminTab === 'documenti')} onClick={() => setAdminTab('documenti')}>
                 Documenti
               </button>
 
-              <button
-                type="button"
-                style={tabButton(adminTab === 'difesa')}
-                onClick={() => setAdminTab('difesa')}
-              >
+              <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>
                 Difesa personale
               </button>
             </div>
@@ -761,11 +894,7 @@ function AreaUtente() {
                     {existingNewsImageUrl && (
                       <div>
                         <p style={mutedText}>Immagine attuale:</p>
-                        <img
-                          src={existingNewsImageUrl}
-                          alt="Immagine news attuale"
-                          style={previewImageStyle}
-                        />
+                        <img src={existingNewsImageUrl} alt="Immagine news attuale" style={previewImageStyle} />
                       </div>
                     )}
 
@@ -800,11 +929,7 @@ function AreaUtente() {
                       </button>
 
                       {editingNewsId && (
-                        <button
-                          className="secondary-auth-button"
-                          type="button"
-                          onClick={resetNewsForm}
-                        >
+                        <button className="secondary-auth-button" type="button" onClick={resetNewsForm}>
                           Annulla modifica
                         </button>
                       )}
@@ -823,19 +948,13 @@ function AreaUtente() {
                     {newsList.map((item) => (
                       <article key={item.id} style={adminCardStyle}>
                         {item.image_url && (
-                          <img
-                            src={item.image_url}
-                            alt={item.title}
-                            style={previewImageStyle}
-                          />
+                          <img src={item.image_url} alt={item.title} style={previewImageStyle} />
                         )}
 
                         <h4 style={{ marginBottom: '8px' }}>{item.title}</h4>
 
                         <small style={mutedText}>
-                          {item.created_at
-                            ? new Date(item.created_at).toLocaleDateString('it-IT')
-                            : ''}
+                          {item.created_at ? new Date(item.created_at).toLocaleDateString('it-IT') : ''}
                           {' '}—{' '}
                           {item.published ? 'Pubblicata' : 'Bozza'}
                         </small>
@@ -847,27 +966,15 @@ function AreaUtente() {
                         </p>
 
                         <div style={actionsRow}>
-                          <button
-                            type="button"
-                            className="secondary-auth-button"
-                            onClick={() => handleEditNews(item)}
-                          >
+                          <button type="button" className="secondary-auth-button" onClick={() => handleEditNews(item)}>
                             Modifica
                           </button>
 
-                          <button
-                            type="button"
-                            className="secondary-auth-button"
-                            onClick={() => handleToggleNewsPublished(item)}
-                          >
+                          <button type="button" className="secondary-auth-button" onClick={() => handleToggleNewsPublished(item)}>
                             {item.published ? 'Metti in bozza' : 'Pubblica'}
                           </button>
 
-                          <button
-                            type="button"
-                            className="primary-auth-button"
-                            onClick={() => handleDeleteNews(item.id)}
-                          >
+                          <button type="button" className="primary-auth-button" onClick={() => handleDeleteNews(item.id)}>
                             Elimina
                           </button>
                         </div>
@@ -880,163 +987,227 @@ function AreaUtente() {
 
             {adminTab === 'galleria' && (
               <div>
-                <div style={adminCardStyle}>
-                  <h3>{editingAlbumId ? 'Modifica album' : 'Crea nuovo album'}</h3>
+                <div style={galleryAdminLayout}>
+                  <div style={adminCardStyle}>
+                    <h3>{editingAlbumId ? 'Modifica album' : 'Crea nuovo album'}</h3>
 
-                  <form onSubmit={handleSaveAlbum} style={formStyle}>
-                    <input
-                      type="text"
-                      placeholder="Titolo album"
-                      value={albumTitle}
-                      onChange={(e) => setAlbumTitle(e.target.value)}
-                    />
-
-                    <textarea
-                      placeholder="Descrizione album"
-                      value={albumDescription}
-                      onChange={(e) => setAlbumDescription(e.target.value)}
-                      rows={4}
-                      style={textareaStyle}
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Categoria, es. Competizioni, Esami, Eventi"
-                      value={albumCategory}
-                      onChange={(e) => setAlbumCategory(e.target.value)}
-                    />
-
-                    <input
-                      type="number"
-                      placeholder="Anno evento, es. 2026"
-                      value={albumYear}
-                      onChange={(e) => setAlbumYear(e.target.value)}
-                    />
-
-                    <div style={{ display: 'grid', gap: '8px' }}>
-                      <label style={mutedText}>Data evento opzionale</label>
+                    <form onSubmit={handleSaveAlbum} style={formStyle}>
                       <input
-                        type="date"
-                        value={albumDate}
-                        onChange={(e) => setAlbumDate(e.target.value)}
+                        type="text"
+                        placeholder="Titolo album"
+                        value={albumTitle}
+                        onChange={(e) => setAlbumTitle(e.target.value)}
                       />
-                    </div>
 
-                    <label style={checkboxLabelStyle}>
+                      <textarea
+                        placeholder="Descrizione album"
+                        value={albumDescription}
+                        onChange={(e) => setAlbumDescription(e.target.value)}
+                        rows={4}
+                        style={textareaStyle}
+                      />
+
                       <input
-                        type="checkbox"
-                        checked={albumVisible}
-                        onChange={(e) => setAlbumVisible(e.target.checked)}
+                        type="text"
+                        placeholder="Categoria, es. Competizioni, Esami, Eventi"
+                        value={albumCategory}
+                        onChange={(e) => setAlbumCategory(e.target.value)}
                       />
-                      Album visibile nella galleria pubblica
-                    </label>
 
-                    <div style={actionsRow}>
-                      <button className="primary-auth-button" type="submit">
-                        {editingAlbumId ? 'Aggiorna album' : 'Crea album'}
-                      </button>
+                      <input
+                        type="number"
+                        placeholder="Anno evento, es. 2026"
+                        value={albumYear}
+                        onChange={(e) => setAlbumYear(e.target.value)}
+                      />
 
-                      {editingAlbumId && (
-                        <button
-                          className="secondary-auth-button"
-                          type="button"
-                          onClick={resetAlbumForm}
-                        >
-                          Annulla modifica
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        <label style={mutedText}>Data evento opzionale</label>
+                        <input
+                          type="date"
+                          value={albumDate}
+                          onChange={(e) => setAlbumDate(e.target.value)}
+                        />
+                      </div>
+
+                      <label style={checkboxLabelStyle}>
+                        <input
+                          type="checkbox"
+                          checked={albumVisible}
+                          onChange={(e) => setAlbumVisible(e.target.checked)}
+                        />
+                        Album visibile nella galleria pubblica
+                      </label>
+
+                      <div style={actionsRow}>
+                        <button className="primary-auth-button" type="submit">
+                          {editingAlbumId ? 'Aggiorna album' : 'Crea album'}
                         </button>
+
+                        {editingAlbumId && (
+                          <button className="secondary-auth-button" type="button" onClick={resetAlbumForm}>
+                            Annulla modifica
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  <div style={adminCardStyle}>
+                    <h3>Carica immagini o piccoli video</h3>
+
+                    <form onSubmit={handleUploadAlbumMedia} style={formStyle}>
+                      <select
+                        value={selectedAlbumId}
+                        onChange={(e) => setSelectedAlbumId(e.target.value)}
+                      >
+                        <option value="">Seleziona album</option>
+                        {albums.map((album) => (
+                          <option key={album.id} value={album.id}>
+                            {album.event_year} - {album.title}
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        key={galleryInputKey}
+                        type="file"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
+                        multiple
+                        onChange={(e) => setGalleryFiles(e.target.files)}
+                      />
+
+                      {galleryFiles && galleryFiles.length > 0 && (
+                        <small style={mutedText}>
+                          File selezionati: {galleryFiles.length}
+                        </small>
                       )}
-                    </div>
-                  </form>
-                </div>
 
-                <div style={{ ...adminCardStyle, marginTop: '24px' }}>
-                  <h3>Carica foto in un album</h3>
+                      <button className="primary-auth-button" type="submit">
+                        Carica file selezionati
+                      </button>
+                    </form>
 
-                  <form onSubmit={handleUploadAlbumPhotos} style={formStyle}>
-                    <select
-                      value={selectedAlbumId}
-                      onChange={(e) => setSelectedAlbumId(e.target.value)}
-                    >
-                      <option value="">Seleziona album</option>
-                      {albums.map((album) => (
-                        <option key={album.id} value={album.id}>
-                          {album.event_year} - {album.title}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      key={galleryInputKey}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => setGalleryFiles(e.target.files)}
-                    />
-
-                    {galleryFiles && galleryFiles.length > 0 && (
-                      <small style={mutedText}>
-                        File selezionati: {galleryFiles.length}
-                      </small>
+                    {selectedAlbum && (
+                      <div style={selectedAlbumBox}>
+                        <strong>Album selezionato:</strong>
+                        <br />
+                        {selectedAlbum.title} · {selectedAlbum.event_year}
+                        <br />
+                        <span style={mutedText}>
+                          Media presenti: {selectedAlbumMedia.length}
+                        </span>
+                      </div>
                     )}
 
-                    <button className="primary-auth-button" type="submit">
-                      Carica foto selezionate
-                    </button>
-                  </form>
+                    <hr style={dividerStyle} />
+
+                    <h4>Aggiungi link YouTube</h4>
+
+                    <form onSubmit={handleAddYoutubeVideo} style={formStyle}>
+                      <input
+                        type="url"
+                        placeholder="Incolla link YouTube"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                      />
+
+                      <button className="secondary-auth-button" type="submit">
+                        Aggiungi YouTube
+                      </button>
+                    </form>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '30px' }}>
-                  <h3>Album inseriti</h3>
+                  <div style={albumHeaderRow}>
+                    <h3 style={{ margin: 0 }}>Album inseriti</h3>
 
-                  {albums.length === 0 && (
-                    <p style={mutedText}>Non ci sono ancora album in galleria.</p>
+                    <select
+                      value={albumYearFilter}
+                      onChange={(e) => setAlbumYearFilter(e.target.value)}
+                      style={compactSelectStyle}
+                    >
+                      <option value="all">Tutti gli anni</option>
+                      {availableYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {filteredAlbums.length === 0 && (
+                    <p style={mutedText}>Non ci sono album per questo filtro.</p>
                   )}
 
-                  <div style={listGrid}>
-                    {albums.map((album) => {
-                      const albumPhotos = photos.filter((photo) => photo.album_id === album.id)
+                  <div style={compactAlbumList}>
+                    {filteredAlbums.map((album) => {
+                      const albumMedia = media.filter((item) => item.album_id === album.id)
 
                       return (
-                        <article key={album.id} style={adminCardStyle}>
-                          {album.cover_image_url && (
-                            <img
-                              src={album.cover_image_url}
-                              alt={album.title}
-                              style={previewImageStyle}
-                            />
-                          )}
+                        <article
+                          key={album.id}
+                          style={{
+                            ...compactAlbumCard,
+                            border:
+                              selectedAlbumId === album.id
+                                ? '1px solid rgba(230,57,70,0.85)'
+                                : '1px solid rgba(255,255,255,0.10)',
+                          }}
+                        >
+                          <div style={compactAlbumMain}>
+                            {album.cover_image_url ? (
+                              <img
+                                src={album.cover_image_url}
+                                alt={album.title}
+                                style={compactCoverStyle}
+                              />
+                            ) : (
+                              <div style={compactCoverPlaceholder}>📁</div>
+                            )}
 
-                          <h4 style={{ marginBottom: '8px' }}>{album.title}</h4>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h4 style={compactAlbumTitle}>{album.title}</h4>
 
-                          <small style={mutedText}>
-                            {album.event_year}
-                            {album.event_date
-                              ? ` — ${new Date(album.event_date).toLocaleDateString('it-IT')}`
-                              : ''}
-                            {album.category ? ` — ${album.category}` : ''}
-                            {' '}—{' '}
-                            {album.visible ? 'Visibile' : 'Nascosto'}
-                            {' '}—{' '}
-                            {albumPhotos.length} foto
-                          </small>
+                              <p style={compactAlbumMeta}>
+                                {album.event_year}
+                                {album.event_date
+                                  ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}`
+                                  : ''}
+                                {album.category ? ` · ${album.category}` : ''}
+                                {' · '}
+                                {album.visible ? 'Visibile' : 'Nascosto'}
+                                {' · '}
+                                {albumMedia.length} media
+                              </p>
+                            </div>
+                          </div>
 
-                          {album.description && (
-                            <p style={mutedText}>{album.description}</p>
-                          )}
+                          <div style={compactActionsRow}>
+                            <button
+                              type="button"
+                              className="secondary-auth-button"
+                              onClick={() => handleManageAlbumMedia(album)}
+                              style={smallAdminButton}
+                            >
+                              Media
+                            </button>
 
-                          <div style={actionsRow}>
                             <button
                               type="button"
                               className="secondary-auth-button"
                               onClick={() => handleEditAlbum(album)}
+                              style={smallAdminButton}
                             >
-                              Modifica album
+                              Modifica
                             </button>
 
                             <button
                               type="button"
                               className="secondary-auth-button"
                               onClick={() => handleToggleAlbumVisible(album)}
+                              style={smallAdminButton}
                             >
                               {album.visible ? 'Nascondi' : 'Pubblica'}
                             </button>
@@ -1045,57 +1216,93 @@ function AreaUtente() {
                               type="button"
                               className="primary-auth-button"
                               onClick={() => handleDeleteAlbum(album.id)}
+                              style={smallDangerButton}
                             >
-                              Elimina album
+                              Elimina
                             </button>
                           </div>
-
-                          {albumPhotos.length > 0 && (
-                            <div style={{ marginTop: '22px' }}>
-                              <h5 style={{ marginBottom: '12px' }}>Foto album</h5>
-
-                              <div style={galleryGrid}>
-                                {albumPhotos.map((photo) => (
-                                  <div key={photo.id} style={photoAdminCardStyle}>
-                                    <img
-                                      src={photo.image_url}
-                                      alt={photo.caption || album.title}
-                                      style={galleryImageStyle}
-                                    />
-
-                                    {album.cover_image_url === photo.image_url && (
-                                      <small style={{ ...mutedText, display: 'block' }}>
-                                        Copertina attuale
-                                      </small>
-                                    )}
-
-                                    <div style={actionsRow}>
-                                      <button
-                                        type="button"
-                                        className="secondary-auth-button"
-                                        onClick={() => handleSetCover(photo)}
-                                      >
-                                        Usa come copertina
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        className="primary-auth-button"
-                                        onClick={() => handleDeletePhoto(photo)}
-                                      >
-                                        Elimina foto
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </article>
                       )
                     })}
                   </div>
                 </div>
+
+                {selectedAlbum && (
+                  <div style={{ ...adminCardStyle, marginTop: '30px' }}>
+                    <div style={photoManagerHeader}>
+                      <div>
+                        <h3 style={{ marginBottom: '6px' }}>
+                          Media album: {selectedAlbum.title}
+                        </h3>
+
+                        <p style={{ ...mutedText, margin: 0 }}>
+                          {selectedAlbum.event_year} · {selectedAlbumMedia.length} elementi
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="secondary-auth-button"
+                        onClick={() => {
+                          setSelectedAlbumId('')
+                          setGalleryFiles(null)
+                          setYoutubeUrl('')
+                          setGalleryInputKey((prev) => prev + 1)
+                        }}
+                        style={smallAdminButton}
+                      >
+                        Chiudi
+                      </button>
+                    </div>
+
+                    {selectedAlbumMedia.length === 0 && (
+                      <p style={mutedText}>
+                        Questo album non contiene ancora media. Usa il box “Carica immagini o piccoli video”.
+                      </p>
+                    )}
+
+                    {selectedAlbumMedia.length > 0 && (
+                      <div style={tinyPhotoGrid}>
+                        {selectedAlbumMedia.map((item) => {
+                          const coverUrl =
+                            item.media_type === 'youtube'
+                              ? item.thumbnail_url
+                              : item.media_type === 'image'
+                                ? item.image_url
+                                : null
+
+                          const isCover = coverUrl && selectedAlbum.cover_image_url === coverUrl
+
+                          return (
+                            <div key={item.id} style={tinyPhotoCard}>
+                              {renderTinyMediaPreview(item)}
+
+                              {isCover && <span style={coverBadge}>Cover</span>}
+
+                              <div style={tinyPhotoActions}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetCover(item)}
+                                  style={tinyButton}
+                                >
+                                  Cover
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteMedia(item)}
+                                  style={tinyDeleteButton}
+                                >
+                                  X
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1189,11 +1396,10 @@ const adminCardStyle: CSSProperties = {
   padding: '22px',
 }
 
-const photoAdminCardStyle: CSSProperties = {
-  background: 'rgba(0,0,0,0.18)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
-  padding: '12px',
+const galleryAdminLayout: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '20px',
 }
 
 const formStyle: CSSProperties = {
@@ -1245,13 +1451,6 @@ const listGrid: CSSProperties = {
   marginTop: '16px',
 }
 
-const galleryGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '18px',
-  marginTop: '16px',
-}
-
 const previewImageStyle: CSSProperties = {
   width: '100%',
   maxHeight: '240px',
@@ -1260,12 +1459,196 @@ const previewImageStyle: CSSProperties = {
   marginBottom: '12px',
 }
 
-const galleryImageStyle: CSSProperties = {
-  width: '100%',
-  height: '160px',
+const selectedAlbumBox: CSSProperties = {
+  marginTop: '18px',
+  padding: '14px',
+  borderRadius: '14px',
+  background: 'rgba(0,0,0,0.18)',
+  color: 'white',
+}
+
+const dividerStyle: CSSProperties = {
+  border: 'none',
+  borderTop: '1px solid rgba(255,255,255,0.12)',
+  margin: '22px 0',
+}
+
+const albumHeaderRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+}
+
+const compactSelectStyle: CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: '999px',
+  border: 'none',
+  fontWeight: 700,
+}
+
+const compactAlbumList: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  marginTop: '16px',
+}
+
+const compactAlbumCard: CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  borderRadius: '14px',
+  padding: '10px',
+}
+
+const compactAlbumMain: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  alignItems: 'center',
+}
+
+const compactCoverStyle: CSSProperties = {
+  width: '56px',
+  height: '56px',
   objectFit: 'cover',
-  borderRadius: '12px',
-  marginBottom: '10px',
+  borderRadius: '10px',
+  flexShrink: 0,
+}
+
+const compactCoverPlaceholder: CSSProperties = {
+  width: '56px',
+  height: '56px',
+  borderRadius: '10px',
+  flexShrink: 0,
+  background: 'rgba(230,57,70,0.18)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '22px',
+}
+
+const compactAlbumTitle: CSSProperties = {
+  margin: '0 0 3px',
+  fontSize: '15px',
+  lineHeight: 1.2,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const compactAlbumMeta: CSSProperties = {
+  margin: 0,
+  color: '#d8d8d8',
+  fontSize: '12px',
+  lineHeight: 1.35,
+}
+
+const compactActionsRow: CSSProperties = {
+  display: 'flex',
+  gap: '6px',
+  flexWrap: 'wrap',
+  marginTop: '8px',
+}
+
+const smallAdminButton: CSSProperties = {
+  padding: '6px 10px',
+  fontSize: '12px',
+  borderRadius: '999px',
+}
+
+const smallDangerButton: CSSProperties = {
+  padding: '6px 10px',
+  fontSize: '12px',
+  borderRadius: '999px',
+}
+
+const photoManagerHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+}
+
+const tinyPhotoGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))',
+  gap: '8px',
+  marginTop: '16px',
+}
+
+const tinyPhotoCard: CSSProperties = {
+  position: 'relative',
+  background: 'rgba(0,0,0,0.18)',
+  borderRadius: '10px',
+  padding: '5px',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const tinyMediaPreviewWrapper: CSSProperties = {
+  position: 'relative',
+}
+
+const tinyPhotoImage: CSSProperties = {
+  width: '100%',
+  height: '56px',
+  objectFit: 'cover',
+  borderRadius: '7px',
+  display: 'block',
+  background: '#111',
+}
+
+const videoBadge: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'white',
+  fontSize: '16px',
+  fontWeight: 900,
+  textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+}
+
+const coverBadge: CSSProperties = {
+  position: 'absolute',
+  top: '7px',
+  left: '7px',
+  background: '#e63946',
+  color: 'white',
+  fontSize: '9px',
+  fontWeight: 800,
+  borderRadius: '999px',
+  padding: '2px 5px',
+}
+
+const tinyPhotoActions: CSSProperties = {
+  display: 'flex',
+  gap: '4px',
+  marginTop: '5px',
+}
+
+const tinyButton: CSSProperties = {
+  flex: 1,
+  border: 'none',
+  borderRadius: '7px',
+  padding: '4px 3px',
+  fontSize: '10px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  background: 'white',
+  color: '#111',
+}
+
+const tinyDeleteButton: CSSProperties = {
+  border: 'none',
+  borderRadius: '7px',
+  padding: '4px 6px',
+  fontSize: '10px',
+  fontWeight: 800,
+  cursor: 'pointer',
+  background: '#e63946',
+  color: 'white',
 }
 
 const userInfoBox: CSSProperties = {

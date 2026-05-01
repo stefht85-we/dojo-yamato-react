@@ -64,13 +64,13 @@ function GalleriaAnno() {
           ← Torna agli anni
         </Link>
 
-        <section style={{ marginTop: '28px', marginBottom: '44px' }}>
+        <section style={{ marginTop: '28px', marginBottom: '36px' }}>
           <p style={labelStyle}>Galleria</p>
 
           <h1 style={titleStyle}>Album {year}</h1>
 
           <p style={textStyle}>
-            Scegli un album per visualizzare le foto degli eventi del {year}.
+            Album fotografici e video ordinati dal più recente al più vecchio.
           </p>
         </section>
 
@@ -94,12 +94,12 @@ function GalleriaAnno() {
         )}
 
         {!loading && !message && albums.length > 0 && (
-          <section style={albumGridStyle}>
+          <section style={albumListStyle}>
             {albums.map((album) => (
               <Link
                 key={album.id}
                 to={`/galleria/album/${album.id}`}
-                style={albumCardStyle}
+                style={albumRowStyle}
               >
                 {album.cover_image_url ? (
                   <img
@@ -111,33 +111,31 @@ function GalleriaAnno() {
                   <div style={coverPlaceholderStyle}>🥋</div>
                 )}
 
-                <div style={{ padding: '22px' }}>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    {album.category && (
-                      <span style={tagStyle}>{album.category}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={albumTitleStyle}>{album.title}</h2>
+
+                  <div style={metaRowStyle}>
+                    {album.event_date && (
+                      <span>
+                        {new Date(album.event_date).toLocaleDateString('it-IT')}
+                      </span>
                     )}
 
-                    <span style={tagStyle}>
-                      {album.event_date
-                        ? new Date(album.event_date).toLocaleDateString('it-IT')
-                        : album.event_year}
-                    </span>
+                    {!album.event_date && <span>{album.event_year}</span>}
+
+                    {album.category && <span>{album.category}</span>}
                   </div>
 
-                  <h2 style={{ margin: '16px 0 10px', fontSize: '24px' }}>
-                    {album.title}
-                  </h2>
-
                   {album.description && (
-                    <p style={{ color: '#d8d8d8', lineHeight: 1.6 }}>
-                      {album.description.length > 120
-                        ? album.description.substring(0, 120) + '...'
+                    <p style={descriptionStyle}>
+                      {album.description.length > 130
+                        ? album.description.substring(0, 130) + '...'
                         : album.description}
                     </p>
                   )}
-
-                  <span style={ctaStyle}>Apri album →</span>
                 </div>
+
+                <span style={ctaStyle}>Apri →</span>
               </Link>
             ))}
           </section>
@@ -156,7 +154,7 @@ const pageStyle: React.CSSProperties = {
 }
 
 const containerStyle: React.CSSProperties = {
-  maxWidth: '1200px',
+  maxWidth: '1000px',
   margin: '0 auto',
 }
 
@@ -176,7 +174,7 @@ const labelStyle: React.CSSProperties = {
 }
 
 const titleStyle: React.CSSProperties = {
-  fontSize: 'clamp(2.4rem, 6vw, 4.5rem)',
+  fontSize: 'clamp(2.4rem, 6vw, 4.2rem)',
   margin: 0,
   lineHeight: 1.05,
 }
@@ -198,55 +196,70 @@ const emptyBoxStyle: React.CSSProperties = {
   color: '#d8d8d8',
 }
 
-const albumGridStyle: React.CSSProperties = {
+const albumListStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: '24px',
+  gap: '14px',
 }
 
-const albumCardStyle: React.CSSProperties = {
-  display: 'block',
-  overflow: 'hidden',
+const albumRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '16px',
   textDecoration: 'none',
   color: 'white',
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '22px',
-  boxShadow: '0 18px 50px rgba(0,0,0,0.20)',
+  borderRadius: '18px',
+  padding: '14px',
+  boxShadow: '0 14px 35px rgba(0,0,0,0.16)',
 }
 
 const coverStyle: React.CSSProperties = {
-  width: '100%',
-  height: '230px',
+  width: '92px',
+  height: '72px',
   objectFit: 'cover',
-  display: 'block',
+  borderRadius: '12px',
+  flexShrink: 0,
 }
 
 const coverPlaceholderStyle: React.CSSProperties = {
-  width: '100%',
-  height: '230px',
-  background: 'rgba(230,57,70,0.12)',
+  width: '92px',
+  height: '72px',
+  borderRadius: '12px',
+  background: 'rgba(230,57,70,0.16)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '48px',
+  fontSize: '28px',
+  flexShrink: 0,
 }
 
-const tagStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: 'rgba(230,57,70,0.18)',
+const albumTitleStyle: React.CSSProperties = {
+  margin: '0 0 6px',
+  fontSize: '20px',
+  lineHeight: 1.25,
+}
+
+const metaRowStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
   color: '#ffd7d7',
   fontSize: '13px',
   fontWeight: 700,
 }
 
+const descriptionStyle: React.CSSProperties = {
+  margin: '8px 0 0',
+  color: '#d8d8d8',
+  lineHeight: 1.5,
+  fontSize: '14px',
+}
+
 const ctaStyle: React.CSSProperties = {
-  display: 'inline-block',
-  marginTop: '12px',
   color: '#e63946',
-  fontWeight: 800,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
 }
 
 export default GalleriaAnno
