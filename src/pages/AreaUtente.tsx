@@ -19,10 +19,24 @@ type NewsItem = {
   created_at: string
 }
 
-type GalleryItem = {
+type GalleryAlbum = {
   id: string
   title: string
+  description: string | null
+  category: string | null
+  event_date: string | null
+  event_year: number
+  cover_image_url: string | null
+  visible: boolean
+  created_at: string
+}
+
+type GalleryPhoto = {
+  id: string
+  album_id: string
   image_url: string
+  caption: string | null
+  sort_order: number
   created_at: string
 }
 
@@ -46,9 +60,18 @@ function AreaUtente() {
   const [existingNewsImageUrl, setExistingNewsImageUrl] = useState<string | null>(null)
   const [newsInputKey, setNewsInputKey] = useState(0)
 
-  const [galleryList, setGalleryList] = useState<GalleryItem[]>([])
-  const [galleryTitle, setGalleryTitle] = useState('')
-  const [galleryFile, setGalleryFile] = useState<File | null>(null)
+  const [albums, setAlbums] = useState<GalleryAlbum[]>([])
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([])
+  const [albumTitle, setAlbumTitle] = useState('')
+  const [albumDescription, setAlbumDescription] = useState('')
+  const [albumCategory, setAlbumCategory] = useState('')
+  const [albumYear, setAlbumYear] = useState(new Date().getFullYear().toString())
+  const [albumDate, setAlbumDate] = useState('')
+  const [albumVisible, setAlbumVisible] = useState(true)
+  const [editingAlbumId, setEditingAlbumId] = useState<string | null>(null)
+
+  const [selectedAlbumId, setSelectedAlbumId] = useState('')
+  const [galleryFiles, setGalleryFiles] = useState<FileList | null>(null)
   const [galleryInputKey, setGalleryInputKey] = useState(0)
 
   const isAdmin = user?.email === ADMIN_EMAIL
@@ -85,18 +108,37 @@ function AreaUtente() {
     setNewsList(data ?? [])
   }
 
-  async function loadGallery() {
+  async function loadAlbums() {
     const { data, error } = await supabase
-      .from('gallery')
-      .select('id, title, image_url, created_at')
+      .from('gallery_albums')
+      .select(
+        'id, title, description, category, event_date, event_year, cover_image_url, visible, created_at'
+      )
+      .order('event_year', { ascending: false })
+      .order('event_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
     if (error) {
-      setMessage(`Errore caricamento galleria: ${error.message}`)
+      setMessage(`Errore caricamento album: ${error.message}`)
       return
     }
 
-    setGalleryList(data ?? [])
+    setAlbums(data ?? [])
+  }
+
+  async function loadPhotos() {
+    const { data, error } = await supabase
+      .from('gallery_photos')
+      .select('id, album_id, image_url, caption, sort_order, created_at')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      setMessage(`Errore caricamento foto: ${error.message}`)
+      return
+    }
+
+    setPhotos(data ?? [])
   }
 
   useEffect(() => {
@@ -130,7 +172,8 @@ function AreaUtente() {
   useEffect(() => {
     if (isAdmin) {
       loadNews()
-      loadGallery()
+      loadAlbums()
+      loadPhotos()
     }
   }, [isAdmin])
 
@@ -317,7 +360,17 @@ function AreaUtente() {
     loadNews()
   }
 
-  async function handleUploadGallery(e: FormEvent) {
+  function resetAlbumForm() {
+    setEditingAlbumId(null)
+    setAlbumTitle('')
+    setAlbumDescription('')
+    setAlbumCategory('')
+    setAlbumYear(new Date().getFullYear().toString())
+    setAlbumDate('')
+    setAlbumVisible(true)
+  }
+
+  async function handleSaveAlbum(e: FormEvent) {
     e.preventDefault()
 
     if (!isAdmin) {
@@ -325,56 +378,235 @@ function AreaUtente() {
       return
     }
 
-    if (!galleryTitle.trim()) {
-      setMessage('Inserisci il titolo immagine')
+    const numericYear = Number(albumYear)
+
+    if (!albumTitle.trim()) {
+      setMessage('Inserisci il titolo dell’album')
       return
     }
 
-    if (!galleryFile) {
-      setMessage('Seleziona prima un’immagine')
+    if (!numericYear || numericYear < 1900 || numericYear > 2100) {
+      setMessage('Inserisci un anno valido')
       return
     }
 
-    setMessage('Caricamento immagine...')
+    setMessage(editingAlbumId ? 'Aggiornamento album...' : 'Creazione album...')
 
-    try {
-      const imageUrl = await uploadFileToBucket(galleryFile, GALLERY_BUCKET, 'gallery')
+    const payload = {
+      title: albumTitle.trim(),
+      description: albumDescription.trim() || null,
+      category: albumCategory.trim() || null,
+      event_year: numericYear,
+      event_date: albumDate || null,
+      visible: albumVisible,
+    }
 
-      const { error } = await supabase.from('gallery').insert({
-        title: galleryTitle.trim(),
-        image_url: imageUrl,
-      })
+    if (editingAlbumId) {
+      const { error } = await supabase
+        .from('gallery_albums')
+        .update(payload)
+        .eq('id', editingAlbumId)
 
       if (error) {
-        setMessage(`Errore salvataggio immagine: ${error.message}`)
+        setMessage(`Errore aggiornamento album: ${error.message}`)
         return
       }
 
-      setGalleryTitle('')
-      setGalleryFile(null)
-      setGalleryInputKey((prev) => prev + 1)
-      setMessage('Immagine caricata correttamente')
-      loadGallery()
-    } catch (error) {
-      console.error(error)
-      setMessage('Errore durante upload immagine galleria')
+      setMessage('Album aggiornato correttamente')
+    } else {
+      const { error } = await supabase.from('gallery_albums').insert(payload)
+
+      if (error) {
+        setMessage(`Errore creazione album: ${error.message}`)
+        return
+      }
+
+      setMessage('Album creato correttamente')
     }
+
+    resetAlbumForm()
+    loadAlbums()
   }
 
-  async function handleDeleteGallery(id: string) {
-    const confirmDelete = window.confirm('Vuoi eliminare questa immagine dalla galleria?')
-    if (!confirmDelete) return
+  function handleEditAlbum(album: GalleryAlbum) {
+    setEditingAlbumId(album.id)
+    setAlbumTitle(album.title)
+    setAlbumDescription(album.description ?? '')
+    setAlbumCategory(album.category ?? '')
+    setAlbumYear(String(album.event_year))
+    setAlbumDate(album.event_date ?? '')
+    setAlbumVisible(album.visible)
+    setAdminTab('galleria')
+    setMessage('Modifica album in corso')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
-    const { error } = await supabase.from('gallery').delete().eq('id', id)
+  async function handleToggleAlbumVisible(album: GalleryAlbum) {
+    const { error } = await supabase
+      .from('gallery_albums')
+      .update({ visible: !album.visible })
+      .eq('id', album.id)
 
     if (error) {
-      setMessage(`Errore eliminazione immagine: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità album: ${error.message}`)
       return
     }
 
-    setMessage('Immagine eliminata')
-    loadGallery()
+    setMessage('Visibilità album aggiornata')
+    loadAlbums()
   }
+
+  async function handleDeleteAlbum(albumId: string) {
+    const confirmDelete = window.confirm(
+      'Vuoi davvero eliminare questo album? Verranno eliminate anche tutte le foto collegate.'
+    )
+
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('gallery_albums').delete().eq('id', albumId)
+
+    if (error) {
+      setMessage(`Errore eliminazione album: ${error.message}`)
+      return
+    }
+
+    if (selectedAlbumId === albumId) {
+      setSelectedAlbumId('')
+    }
+
+    setMessage('Album eliminato')
+    loadAlbums()
+    loadPhotos()
+  }
+
+  async function handleUploadAlbumPhotos(e: FormEvent) {
+    e.preventDefault()
+
+    if (!isAdmin) {
+      setMessage('Non hai i permessi per gestire la galleria')
+      return
+    }
+
+    if (!selectedAlbumId) {
+      setMessage('Seleziona un album')
+      return
+    }
+
+    if (!galleryFiles || galleryFiles.length === 0) {
+      setMessage('Seleziona una o più immagini')
+      return
+    }
+
+    const selectedAlbum = albums.find((album) => album.id === selectedAlbumId)
+
+    if (!selectedAlbum) {
+      setMessage('Album non trovato')
+      return
+    }
+
+    setMessage(`Caricamento di ${galleryFiles.length} foto...`)
+
+    try {
+      const filesArray = Array.from(galleryFiles)
+      const uploadedPhotos: { album_id: string; image_url: string; sort_order: number }[] = []
+
+      const currentAlbumPhotos = photos.filter((photo) => photo.album_id === selectedAlbumId)
+      const startOrder = currentAlbumPhotos.length
+
+      for (let index = 0; index < filesArray.length; index++) {
+        const file = filesArray[index]
+        const imageUrl = await uploadFileToBucket(file, GALLERY_BUCKET, `albums/${selectedAlbumId}`)
+
+        uploadedPhotos.push({
+          album_id: selectedAlbumId,
+          image_url: imageUrl,
+          sort_order: startOrder + index,
+        })
+      }
+
+      const { error: insertError } = await supabase
+        .from('gallery_photos')
+        .insert(uploadedPhotos)
+
+      if (insertError) {
+        setMessage(`Errore salvataggio foto: ${insertError.message}`)
+        return
+      }
+
+      if (!selectedAlbum.cover_image_url && uploadedPhotos.length > 0) {
+        const { error: coverError } = await supabase
+          .from('gallery_albums')
+          .update({ cover_image_url: uploadedPhotos[0].image_url })
+          .eq('id', selectedAlbumId)
+
+        if (coverError) {
+          setMessage(`Foto caricate, ma errore copertina: ${coverError.message}`)
+          loadAlbums()
+          loadPhotos()
+          return
+        }
+      }
+
+      setGalleryFiles(null)
+      setGalleryInputKey((prev) => prev + 1)
+      setMessage('Foto caricate correttamente')
+      loadAlbums()
+      loadPhotos()
+    } catch (error) {
+      console.error(error)
+      setMessage('Errore durante upload foto album')
+    }
+  }
+
+  async function handleDeletePhoto(photo: GalleryPhoto) {
+    const confirmDelete = window.confirm('Vuoi eliminare questa foto?')
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('gallery_photos').delete().eq('id', photo.id)
+
+    if (error) {
+      setMessage(`Errore eliminazione foto: ${error.message}`)
+      return
+    }
+
+    const album = albums.find((item) => item.id === photo.album_id)
+
+    if (album?.cover_image_url === photo.image_url) {
+      const remainingPhotos = photos.filter(
+        (item) => item.album_id === photo.album_id && item.id !== photo.id
+      )
+
+      const newCover = remainingPhotos[0]?.image_url ?? null
+
+      await supabase
+        .from('gallery_albums')
+        .update({ cover_image_url: newCover })
+        .eq('id', photo.album_id)
+    }
+
+    setMessage('Foto eliminata')
+    loadAlbums()
+    loadPhotos()
+  }
+
+  async function handleSetCover(photo: GalleryPhoto) {
+    const { error } = await supabase
+      .from('gallery_albums')
+      .update({ cover_image_url: photo.image_url })
+      .eq('id', photo.album_id)
+
+    if (error) {
+      setMessage(`Errore aggiornamento copertina: ${error.message}`)
+      return
+    }
+
+    setMessage('Copertina album aggiornata')
+    loadAlbums()
+  }
+
+  const selectedAlbumPhotos = selectedAlbumId
+    ? photos.filter((photo) => photo.album_id === selectedAlbumId)
+    : []
 
   if (!user) {
     return (
@@ -649,70 +881,219 @@ function AreaUtente() {
             {adminTab === 'galleria' && (
               <div>
                 <div style={adminCardStyle}>
-                  <h3>Carica immagine in Galleria</h3>
+                  <h3>{editingAlbumId ? 'Modifica album' : 'Crea nuovo album'}</h3>
 
-                  <form onSubmit={handleUploadGallery} style={formStyle}>
+                  <form onSubmit={handleSaveAlbum} style={formStyle}>
                     <input
                       type="text"
-                      placeholder="Titolo immagine"
-                      value={galleryTitle}
-                      onChange={(e) => setGalleryTitle(e.target.value)}
+                      placeholder="Titolo album"
+                      value={albumTitle}
+                      onChange={(e) => setAlbumTitle(e.target.value)}
                     />
+
+                    <textarea
+                      placeholder="Descrizione album"
+                      value={albumDescription}
+                      onChange={(e) => setAlbumDescription(e.target.value)}
+                      rows={4}
+                      style={textareaStyle}
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Categoria, es. Competizioni, Esami, Eventi"
+                      value={albumCategory}
+                      onChange={(e) => setAlbumCategory(e.target.value)}
+                    />
+
+                    <input
+                      type="number"
+                      placeholder="Anno evento, es. 2026"
+                      value={albumYear}
+                      onChange={(e) => setAlbumYear(e.target.value)}
+                    />
+
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      <label style={mutedText}>Data evento opzionale</label>
+                      <input
+                        type="date"
+                        value={albumDate}
+                        onChange={(e) => setAlbumDate(e.target.value)}
+                      />
+                    </div>
+
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={albumVisible}
+                        onChange={(e) => setAlbumVisible(e.target.checked)}
+                      />
+                      Album visibile nella galleria pubblica
+                    </label>
+
+                    <div style={actionsRow}>
+                      <button className="primary-auth-button" type="submit">
+                        {editingAlbumId ? 'Aggiorna album' : 'Crea album'}
+                      </button>
+
+                      {editingAlbumId && (
+                        <button
+                          className="secondary-auth-button"
+                          type="button"
+                          onClick={resetAlbumForm}
+                        >
+                          Annulla modifica
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                <div style={{ ...adminCardStyle, marginTop: '24px' }}>
+                  <h3>Carica foto in un album</h3>
+
+                  <form onSubmit={handleUploadAlbumPhotos} style={formStyle}>
+                    <select
+                      value={selectedAlbumId}
+                      onChange={(e) => setSelectedAlbumId(e.target.value)}
+                    >
+                      <option value="">Seleziona album</option>
+                      {albums.map((album) => (
+                        <option key={album.id} value={album.id}>
+                          {album.event_year} - {album.title}
+                        </option>
+                      ))}
+                    </select>
 
                     <input
                       key={galleryInputKey}
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setGalleryFile(e.target.files?.[0] ?? null)}
+                      multiple
+                      onChange={(e) => setGalleryFiles(e.target.files)}
                     />
 
-                    {galleryFile && (
+                    {galleryFiles && galleryFiles.length > 0 && (
                       <small style={mutedText}>
-                        File selezionato: {galleryFile.name}
+                        File selezionati: {galleryFiles.length}
                       </small>
                     )}
 
                     <button className="primary-auth-button" type="submit">
-                      Carica immagine
+                      Carica foto selezionate
                     </button>
                   </form>
                 </div>
 
                 <div style={{ marginTop: '30px' }}>
-                  <h3>Immagini caricate</h3>
+                  <h3>Album inseriti</h3>
 
-                  {galleryList.length === 0 && (
-                    <p style={mutedText}>Non ci sono ancora immagini in galleria.</p>
+                  {albums.length === 0 && (
+                    <p style={mutedText}>Non ci sono ancora album in galleria.</p>
                   )}
 
-                  <div style={galleryGrid}>
-                    {galleryList.map((item) => (
-                      <article key={item.id} style={adminCardStyle}>
-                        <img
-                          src={item.image_url}
-                          alt={item.title}
-                          style={galleryImageStyle}
-                        />
+                  <div style={listGrid}>
+                    {albums.map((album) => {
+                      const albumPhotos = photos.filter((photo) => photo.album_id === album.id)
 
-                        <h4>{item.title}</h4>
+                      return (
+                        <article key={album.id} style={adminCardStyle}>
+                          {album.cover_image_url && (
+                            <img
+                              src={album.cover_image_url}
+                              alt={album.title}
+                              style={previewImageStyle}
+                            />
+                          )}
 
-                        <small style={mutedText}>
-                          {item.created_at
-                            ? new Date(item.created_at).toLocaleDateString('it-IT')
-                            : ''}
-                        </small>
+                          <h4 style={{ marginBottom: '8px' }}>{album.title}</h4>
 
-                        <div style={actionsRow}>
-                          <button
-                            type="button"
-                            className="primary-auth-button"
-                            onClick={() => handleDeleteGallery(item.id)}
-                          >
-                            Elimina
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                          <small style={mutedText}>
+                            {album.event_year}
+                            {album.event_date
+                              ? ` — ${new Date(album.event_date).toLocaleDateString('it-IT')}`
+                              : ''}
+                            {album.category ? ` — ${album.category}` : ''}
+                            {' '}—{' '}
+                            {album.visible ? 'Visibile' : 'Nascosto'}
+                            {' '}—{' '}
+                            {albumPhotos.length} foto
+                          </small>
+
+                          {album.description && (
+                            <p style={mutedText}>{album.description}</p>
+                          )}
+
+                          <div style={actionsRow}>
+                            <button
+                              type="button"
+                              className="secondary-auth-button"
+                              onClick={() => handleEditAlbum(album)}
+                            >
+                              Modifica album
+                            </button>
+
+                            <button
+                              type="button"
+                              className="secondary-auth-button"
+                              onClick={() => handleToggleAlbumVisible(album)}
+                            >
+                              {album.visible ? 'Nascondi' : 'Pubblica'}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="primary-auth-button"
+                              onClick={() => handleDeleteAlbum(album.id)}
+                            >
+                              Elimina album
+                            </button>
+                          </div>
+
+                          {albumPhotos.length > 0 && (
+                            <div style={{ marginTop: '22px' }}>
+                              <h5 style={{ marginBottom: '12px' }}>Foto album</h5>
+
+                              <div style={galleryGrid}>
+                                {albumPhotos.map((photo) => (
+                                  <div key={photo.id} style={photoAdminCardStyle}>
+                                    <img
+                                      src={photo.image_url}
+                                      alt={photo.caption || album.title}
+                                      style={galleryImageStyle}
+                                    />
+
+                                    {album.cover_image_url === photo.image_url && (
+                                      <small style={{ ...mutedText, display: 'block' }}>
+                                        Copertina attuale
+                                      </small>
+                                    )}
+
+                                    <div style={actionsRow}>
+                                      <button
+                                        type="button"
+                                        className="secondary-auth-button"
+                                        onClick={() => handleSetCover(photo)}
+                                      >
+                                        Usa come copertina
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="primary-auth-button"
+                                        onClick={() => handleDeletePhoto(photo)}
+                                      >
+                                        Elimina foto
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </article>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -808,6 +1189,13 @@ const adminCardStyle: CSSProperties = {
   padding: '22px',
 }
 
+const photoAdminCardStyle: CSSProperties = {
+  background: 'rgba(0,0,0,0.18)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '14px',
+  padding: '12px',
+}
+
 const formStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -859,7 +1247,7 @@ const listGrid: CSSProperties = {
 
 const galleryGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: '18px',
   marginTop: '16px',
 }
@@ -874,10 +1262,10 @@ const previewImageStyle: CSSProperties = {
 
 const galleryImageStyle: CSSProperties = {
   width: '100%',
-  height: '200px',
+  height: '160px',
   objectFit: 'cover',
-  borderRadius: '14px',
-  marginBottom: '12px',
+  borderRadius: '12px',
+  marginBottom: '10px',
 }
 
 const userInfoBox: CSSProperties = {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
+
 import Home from './pages/Home'
 import ChiSiamo from './pages/ChiSiamo'
 import Corsi from './pages/Corsi'
@@ -7,10 +8,13 @@ import Contatti from './pages/Contatti'
 import AreaUtente from './pages/AreaUtente'
 import Bacheca from './pages/Bacheca'
 import Galleria from './pages/Galleria'
+import GalleriaAnno from './pages/GalleriaAnno'
+import GalleriaAlbum from './pages/GalleriaAlbum'
 import News from './pages/News'
 import CalendarioEventi from './pages/CalendarioEventi'
 import Documenti from './pages/Documenti'
 import DifesaPersonale from './pages/DifesaPersonale'
+
 import './App.css'
 
 function App() {
@@ -79,10 +83,15 @@ function App() {
         <Route path="/chi-siamo" element={<ChiSiamo />} />
         <Route path="/corsi" element={<Corsi />} />
         <Route path="/contatti" element={<Contatti />} />
-        <Route path="/area-utente" element={<AreaUtente />} />
+
         <Route path="/bacheca" element={<Bacheca />} />
-        <Route path="/galleria" element={<Galleria />} />
         <Route path="/news" element={<News />} />
+        <Route path="/area-utente" element={<AreaUtente />} />
+
+        <Route path="/galleria" element={<Galleria />} />
+        <Route path="/galleria/:year" element={<GalleriaAnno />} />
+        <Route path="/galleria/album/:albumId" element={<GalleriaAlbum />} />
+
         <Route path="/calendario-eventi" element={<CalendarioEventi />} />
         <Route path="/documenti" element={<Documenti />} />
         <Route path="/difesa-personale" element={<DifesaPersonale />} />
