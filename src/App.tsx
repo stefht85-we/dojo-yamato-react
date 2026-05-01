@@ -14,6 +14,7 @@ import News from './pages/News'
 import CalendarioEventi from './pages/CalendarioEventi'
 import Documenti from './pages/Documenti'
 import DifesaPersonale from './pages/DifesaPersonale'
+import EventoDettaglio from './pages/EventoDettaglio'
 
 import './App.css'
 
@@ -95,6 +96,8 @@ function App() {
         <Route path="/calendario-eventi" element={<CalendarioEventi />} />
         <Route path="/documenti" element={<Documenti />} />
         <Route path="/difesa-personale" element={<DifesaPersonale />} />
+        <Route path="/calendario-eventi/:eventId" element={<EventoDettaglio />} />
+        <Route path="/calendario-eventi" element={<CalendarioEventi />} />
       </Routes>
 
       <footer className="site-footer">
