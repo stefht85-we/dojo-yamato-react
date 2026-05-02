@@ -44,8 +44,8 @@ function Bacheca() {
               lineHeight: 1.7,
             }}
           >
-            Consulta comunicazioni, eventi, materiali e contenuti utili per gli
-            atleti e le famiglie del Dojo Yamato.
+            Consulta eventi, immagini, documenti e contenuti utili per gli atleti
+            e le famiglie del Dojo Yamato.
           </p>
         </section>
 
@@ -60,8 +60,7 @@ function Bacheca() {
             <div style={iconStyle}>📅</div>
             <h2 style={cardTitleStyle}>Calendario eventi</h2>
             <p style={cardTextStyle}>
-              Visualizza appuntamenti, stage, gare, lezioni speciali e attività
-              programmate.
+              Appuntamenti, stage, gare, lezioni speciali e attività programmate.
             </p>
             <span style={cardCtaStyle}>Apri calendario →</span>
           </Link>
@@ -70,8 +69,7 @@ function Bacheca() {
             <div style={iconStyle}>🥋</div>
             <h2 style={cardTitleStyle}>Galleria</h2>
             <p style={cardTextStyle}>
-              Guarda foto e momenti importanti del Dojo, degli allenamenti e
-              degli eventi.
+              Foto e momenti importanti del Dojo, degli allenamenti e degli eventi.
             </p>
             <span style={cardCtaStyle}>Apri galleria →</span>
           </Link>
@@ -80,8 +78,7 @@ function Bacheca() {
             <div style={iconStyle}>📄</div>
             <h2 style={cardTitleStyle}>Documenti</h2>
             <p style={cardTextStyle}>
-              Consulta documenti, comunicazioni, moduli e materiali utili per
-              iscritti e famiglie.
+              Moduli, comunicazioni e materiali utili per iscritti e famiglie.
             </p>
             <span style={cardCtaStyle}>Apri documenti →</span>
           </Link>
@@ -90,8 +87,7 @@ function Bacheca() {
             <div style={iconStyle}>🛡️</div>
             <h2 style={cardTitleStyle}>Difesa personale</h2>
             <p style={cardTextStyle}>
-              Materiali e informazioni dedicati ai percorsi di difesa personale
-              del Dojo Yamato.
+              Informazioni e materiali dedicati ai percorsi di difesa personale.
             </p>
             <span style={cardCtaStyle}>Apri sezione →</span>
           </Link>
@@ -111,7 +107,6 @@ const cardLinkStyle: React.CSSProperties = {
   padding: '28px',
   minHeight: '260px',
   boxShadow: '0 18px 50px rgba(0,0,0,0.20)',
-  transition: 'transform 0.2s ease, background 0.2s ease',
 }
 
 const iconStyle: React.CSSProperties = {

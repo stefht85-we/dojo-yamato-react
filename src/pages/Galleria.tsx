@@ -1,185 +1,375 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import type { CSSProperties } from 'react'
 
-type AlbumYear = {
+type GalleryAlbum = {
+  id: string
+  title: string
+  description: string | null
+  category: string | null
+  event_date: string | null
   event_year: number
+  cover_image_url: string | null
+  visible: boolean
+  created_at: string
 }
 
 function Galleria() {
-  const [years, setYears] = useState<number[]>([])
+  const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   useEffect(() => {
-    async function loadYears() {
-      setLoading(true)
-      setMessage('')
+    loadAlbums()
+  }, [])
 
-      const { data, error } = await supabase
-        .from('gallery_albums')
-        .select('event_year')
-        .eq('visible', true)
-        .order('event_year', { ascending: false })
+  async function loadAlbums() {
+    setLoading(true)
+    setMessage('')
 
-      if (error) {
-        console.error('Errore caricamento anni galleria:', error)
-        setMessage('Non è stato possibile caricare la galleria.')
-        setLoading(false)
-        return
-      }
+    const { data, error } = await supabase
+      .from('gallery_albums')
+      .select(
+        'id, title, description, category, event_date, event_year, cover_image_url, visible, created_at'
+      )
+      .eq('visible', true)
+      .order('event_year', { ascending: false })
+      .order('event_date', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
-      const uniqueYears = Array.from(
-        new Set((data as AlbumYear[]).map((item) => item.event_year))
-      ).sort((a, b) => b - a)
-
-      setYears(uniqueYears)
+    if (error) {
+      console.error('Errore caricamento galleria:', error)
+      setMessage('Errore durante il caricamento della galleria.')
       setLoading(false)
+      return
     }
 
-    loadYears()
-  }, [])
+    setAlbums(data ?? [])
+    setLoading(false)
+  }
+
+  const years = useMemo(() => {
+    return Array.from(new Set(albums.map((album) => album.event_year))).sort(
+      (a, b) => b - a
+    )
+  }, [albums])
+
+  const albumsByYear = useMemo(() => {
+    return years.reduce<Record<number, GalleryAlbum[]>>((acc, year) => {
+      acc[year] = albums
+        .filter((album) => album.event_year === year)
+        .sort((a, b) => {
+          const dateA = a.event_date
+            ? new Date(a.event_date).getTime()
+            : new Date(a.created_at).getTime()
+
+          const dateB = b.event_date
+            ? new Date(b.event_date).getTime()
+            : new Date(b.created_at).getTime()
+
+          return dateB - dateA
+        })
+
+      return acc
+    }, {})
+  }, [albums, years])
+
+  function formatAlbumDate(album: GalleryAlbum) {
+    if (album.event_date) {
+      return new Date(album.event_date).toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
+    }
+
+    return String(album.event_year)
+  }
 
   return (
     <main style={pageStyle}>
-      <div style={containerStyle}>
-        <section style={{ marginBottom: '44px' }}>
-          <p style={labelStyle}>Bacheca</p>
+      <section style={heroStyle}>
+        <div style={containerStyle}>
+          <p style={labelStyle}>Galleria</p>
 
-          <h1 style={titleStyle}>Galleria</h1>
+          <h1 style={titleStyle}>Album fotografici</h1>
 
-          <p style={textStyle}>
-            Sfoglia le foto e i video del Dojo Yamato organizzati per anno,
-            evento e album.
+          <p style={introTextStyle}>
+            Le immagini e i ricordi del Dojo Yamato raccolti per anno: eventi,
+            allenamenti, gare, esami e momenti importanti della nostra
+            associazione.
           </p>
-        </section>
+        </div>
+      </section>
 
-        {loading && <p style={textStyle}>Caricamento galleria...</p>}
+      <section style={contentStyle}>
+        <div style={containerStyle}>
+          {loading && <p style={mutedTextStyle}>Caricamento galleria...</p>}
 
-        {!loading && message && (
-          <div style={emptyBoxStyle}>
-            <p style={{ margin: 0 }}>{message}</p>
-          </div>
-        )}
+          {!loading && message && <div style={messageBoxStyle}>{message}</div>}
 
-        {!loading && !message && years.length === 0 && (
-          <div style={emptyBoxStyle}>
-            <h2 style={{ marginTop: 0, color: 'white' }}>
-              Nessun album disponibile
-            </h2>
+          {!loading && !message && albums.length === 0 && (
+            <div style={emptyBoxStyle}>
+              Non ci sono ancora album pubblicati in galleria.
+            </div>
+          )}
 
-            <p style={{ marginBottom: 0 }}>
-              Gli album fotografici saranno pubblicati prossimamente.
-            </p>
-          </div>
-        )}
+          {!loading && !message && albums.length > 0 && (
+            <>
+              <div style={yearsGridStyle}>
+                {years.map((year) => {
+                  const isActive = selectedYear === year
 
-        {!loading && !message && years.length > 0 && (
-          <section style={yearGridStyle}>
-            {years.map((year) => (
-              <Link key={year} to={`/galleria/${year}`} style={yearCardStyle}>
-                <div style={folderIconStyle}>📁</div>
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      style={{
+                        ...yearButtonStyle,
+                        background: isActive
+                          ? 'rgba(185,68,79,0.14)'
+                          : 'rgba(255,255,255,0.035)',
+                        border: isActive
+                          ? '1px solid rgba(185,68,79,0.42)'
+                          : '1px solid rgba(255,255,255,0.08)',
+                      }}
+                      onClick={() =>
+                        setSelectedYear(selectedYear === year ? null : year)
+                      }
+                    >
+                      <span style={yearBadgeStyle}>{year}</span>
 
-                <div>
-                  <h2 style={{ margin: '0 0 8px', fontSize: '32px' }}>
-                    {year}
-                  </h2>
+                      <span style={yearMetaStyle}>
+                        {albumsByYear[year]?.length ?? 0} album
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
 
-                  <p style={{ margin: 0, color: '#d8d8d8' }}>
-                    Apri gli album fotografici del {year}
-                  </p>
-                </div>
+              {selectedYear && (
+                <section style={selectedYearSectionStyle}>
+                  <div style={selectedYearHeaderStyle}>
+                    <h2 style={sectionTitleStyle}>Album {selectedYear}</h2>
 
-                <span style={ctaStyle}>Apri anno →</span>
-              </Link>
-            ))}
-          </section>
-        )}
-      </div>
+                    <span style={sectionCountStyle}>
+                      {albumsByYear[selectedYear]?.length ?? 0} album
+                    </span>
+                  </div>
+
+                  <div style={albumListStyle}>
+                    {albumsByYear[selectedYear]?.map((album) => (
+                      <Link
+                        key={album.id}
+                        to={`/galleria/${album.id}`}
+                        style={albumRowStyle}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <h3 style={albumTitleBadgeStyle}>{album.title}</h3>
+
+                          <p style={albumMetaStyle}>
+                            {formatAlbumDate(album)}
+                            {album.category ? ` · ${album.category}` : ''}
+                          </p>
+                        </div>
+
+                        <span style={openAlbumStyle}>Apri</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      </section>
     </main>
   )
 }
 
-const pageStyle: React.CSSProperties = {
+const pageStyle: CSSProperties = {
   minHeight: '90vh',
   background:
-    'radial-gradient(circle at top, rgba(230,57,70,0.18), transparent 34%), #0b0f1a',
+    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
   color: 'white',
-  padding: '80px 24px',
 }
 
-const containerStyle: React.CSSProperties = {
-  maxWidth: '1200px',
+const containerStyle: CSSProperties = {
+  width: 'min(1120px, calc(100% - 32px))',
   margin: '0 auto',
 }
 
-const labelStyle: React.CSSProperties = {
-  color: '#e63946',
-  fontWeight: 800,
+const heroStyle: CSSProperties = {
+  padding: '54px 0 24px',
+}
+
+const labelStyle: CSSProperties = {
+  color: '#d95b64',
+  fontWeight: 900,
   letterSpacing: '2px',
   textTransform: 'uppercase',
-  marginBottom: '12px',
+  fontSize: '12px',
+  marginBottom: '8px',
 }
 
-const titleStyle: React.CSSProperties = {
-  fontSize: 'clamp(2.4rem, 6vw, 4.5rem)',
+const titleStyle: CSSProperties = {
+  fontSize: 'clamp(2.2rem, 6vw, 4.4rem)',
+  lineHeight: 1.02,
   margin: 0,
-  lineHeight: 1.05,
+  letterSpacing: '-0.7px',
 }
 
-const textStyle: React.CSSProperties = {
-  maxWidth: '760px',
-  marginTop: '20px',
-  color: '#d8d8d8',
-  fontSize: '18px',
+const introTextStyle: CSSProperties = {
+  maxWidth: '860px',
+  color: '#d7dbe3',
+  fontSize: '16px',
   lineHeight: 1.7,
+  marginTop: '16px',
 }
 
-const emptyBoxStyle: React.CSSProperties = {
-  marginTop: '36px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.10)',
+const contentStyle: CSSProperties = {
+  padding: '18px 0 72px',
+}
+
+const mutedTextStyle: CSSProperties = {
+  color: '#d7dbe3',
+  lineHeight: 1.6,
+}
+
+const messageBoxStyle: CSSProperties = {
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  color: '#f3dede',
   borderRadius: '18px',
-  padding: '28px',
-  color: '#d8d8d8',
+  padding: '18px',
 }
 
-const yearGridStyle: React.CSSProperties = {
+const emptyBoxStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: '18px',
+  padding: '20px',
+  color: '#d7dbe3',
+}
+
+const yearsGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '24px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+  gap: '12px',
+  marginBottom: '24px',
 }
 
-const yearCardStyle: React.CSSProperties = {
+const yearButtonStyle: CSSProperties = {
+  cursor: 'pointer',
+  borderRadius: '18px',
+  padding: '15px',
   display: 'flex',
   flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: '8px',
+  textAlign: 'left',
+}
+
+const yearBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  width: 'fit-content',
+  padding: '8px 17px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: 'clamp(19px, 3vw, 26px)',
+  lineHeight: 1.12,
+  fontWeight: 850,
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+}
+
+const yearMetaStyle: CSSProperties = {
+  color: '#d7dbe3',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const selectedYearSectionStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '20px',
+  padding: '18px',
+}
+
+const selectedYearHeaderStyle: CSSProperties = {
+  display: 'flex',
   justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '14px',
+  flexWrap: 'wrap',
+  marginBottom: '14px',
+}
+
+const sectionTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 'clamp(1.4rem, 3vw, 2rem)',
+  lineHeight: 1.15,
+}
+
+const sectionCountStyle: CSSProperties = {
+  color: '#d7dbe3',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const albumListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const albumRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '14px',
   textDecoration: 'none',
   color: 'white',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '22px',
-  padding: '28px',
-  minHeight: '230px',
-  boxShadow: '0 18px 50px rgba(0,0,0,0.20)',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '16px',
+  padding: '12px',
 }
 
-const folderIconStyle: React.CSSProperties = {
-  width: '58px',
-  height: '58px',
-  borderRadius: '18px',
-  background: 'rgba(230,57,70,0.18)',
-  display: 'flex',
+const albumTitleBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '30px',
-  marginBottom: '22px',
+  width: 'fit-content',
+  maxWidth: '100%',
+  margin: '0 0 7px',
+  padding: '7px 14px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: 'clamp(13px, 1.7vw, 16px)',
+  lineHeight: 1.18,
+  fontWeight: 800,
+  boxShadow: '0 8px 18px rgba(80,10,18,0.20)',
 }
 
-const ctaStyle: React.CSSProperties = {
-  marginTop: '24px',
-  color: '#e63946',
-  fontWeight: 800,
+const albumMetaStyle: CSSProperties = {
+  margin: 0,
+  color: '#d7dbe3',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.4,
+}
+
+const openAlbumStyle: CSSProperties = {
+  flexShrink: 0,
+  background: 'rgba(255,255,255,0.90)',
+  color: '#111',
+  borderRadius: '999px',
+  padding: '8px 12px',
+  fontSize: '12px',
+  fontWeight: 900,
 }
 
 export default Galleria

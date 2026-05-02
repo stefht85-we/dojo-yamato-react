@@ -82,8 +82,6 @@ function Corsi() {
                 <div style={locationInfoStyle}>
                   <div style={titleRowStyle}>
                     <div style={{ minWidth: 0 }}>
-                      <p style={smallLabelStyle}>Palestra</p>
-
                       <h2 style={locationTitleStyle}>{location.city}</h2>
                     </div>
 
@@ -193,7 +191,7 @@ function Corsi() {
 const pageStyle: CSSProperties = {
   minHeight: '90vh',
   background:
-    'radial-gradient(circle at top, rgba(230,57,70,0.10), transparent 30%), #0b0f1a',
+    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
   color: 'white',
 }
 
@@ -207,7 +205,7 @@ const containerStyle: CSSProperties = {
 }
 
 const labelStyle: CSSProperties = {
-  color: '#e63946',
+  color: '#d95b64',
   fontWeight: 900,
   letterSpacing: '2px',
   textTransform: 'uppercase',
@@ -223,7 +221,7 @@ const titleStyle: CSSProperties = {
 
 const introTextStyle: CSSProperties = {
   maxWidth: '840px',
-  color: '#cfd3dc',
+  color: '#d7dbe3',
   fontSize: '16px',
   lineHeight: 1.6,
   marginTop: '14px',
@@ -261,30 +259,20 @@ const titleRowStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const smallLabelStyle: CSSProperties = {
-  color: '#e63946',
-  fontWeight: 900,
-  letterSpacing: '1.4px',
-  textTransform: 'uppercase',
-  fontSize: '11px',
-  margin: 0,
-}
-
 const locationTitleStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   width: 'fit-content',
   fontSize: 'clamp(21px, 4vw, 28px)',
-  margin: '6px 0 8px',
+  margin: '0 0 8px',
   lineHeight: 1.05,
   color: '#ffffff',
-  fontWeight: 950,
+  fontWeight: 850,
   letterSpacing: '-0.3px',
-  background:
-    'linear-gradient(135deg, rgba(230,57,70,0.95), rgba(150,24,34,0.85))',
-  padding: '8px 14px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  padding: '9px 18px',
   borderRadius: '999px',
-  boxShadow: '0 10px 24px rgba(230,57,70,0.25)',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
 const placeStyle: CSSProperties = {
@@ -327,13 +315,14 @@ const pillStyle: CSSProperties = {
 
 const coursePillStyle: CSSProperties = {
   ...pillStyle,
-  background: 'rgba(230,57,70,0.16)',
-  color: '#ffd7d7',
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.26)',
+  color: '#f3dede',
 }
 
 const mapButtonStyle: CSSProperties = {
   display: 'inline-block',
-  background: '#e63946',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
   textDecoration: 'none',
   padding: '8px 13px',
@@ -341,7 +330,7 @@ const mapButtonStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '12px',
   whiteSpace: 'nowrap',
-  boxShadow: '0 8px 18px rgba(230,57,70,0.25)',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
 const mapWrapperStyle: CSSProperties = {
@@ -366,7 +355,7 @@ const notesSectionStyle: CSSProperties = {
 
 const notesCardStyle: CSSProperties = {
   background:
-    'linear-gradient(135deg, rgba(230,57,70,0.20), rgba(255,255,255,0.052))',
+    'linear-gradient(135deg, rgba(130,35,43,0.22), rgba(255,255,255,0.052))',
   border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: '20px',
   padding: '22px',
@@ -411,7 +400,7 @@ const noteItemStyle: CSSProperties = {
 
 const contactButtonStyle: CSSProperties = {
   width: 'fit-content',
-  background: 'white',
+  background: 'rgba(255,255,255,0.92)',
   color: '#111',
   textDecoration: 'none',
   padding: '10px 16px',

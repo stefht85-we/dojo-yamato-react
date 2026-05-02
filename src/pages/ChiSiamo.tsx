@@ -64,6 +64,23 @@ function ChiSiamo() {
         </div>
       </section>
 
+      <section className="chi-intro-section">
+        <div className="chi-container">
+          <div className="chi-intro-card">
+            <div>
+              <span className="chi-small-label">La nostra idea di Karate</span>
+              <h2>Un dojo dove si cresce, prima ancora di competere.</h2>
+            </div>
+
+            <p>
+              Nel Dojo Yamato il Karate è un percorso educativo: aiuta a
+              costruire sicurezza, rispetto, disciplina e capacità di affrontare
+              le difficoltà con equilibrio.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section className="chi-visual-section">
         <div className="chi-container">
           <div className="chi-blocks">
@@ -73,7 +90,7 @@ function ChiSiamo() {
                 className={`chi-block ${block.reverse ? 'chi-block-reverse' : ''}`}
               >
                 <div className="chi-textbox">
-                  <h2 className="chi-pill-title">{block.title}</h2>
+                  <h2>{block.title}</h2>
                   <p>{block.text}</p>
                 </div>
 
@@ -88,12 +105,12 @@ function ChiSiamo() {
 
       <section className="chi-values-section">
         <div className="chi-container">
-          <div className="chi-values">
-            <div>Sicurezza</div>
-            <div>Rispetto</div>
-            <div>Crescita</div>
-            <div>Impegno</div>
-            <div>Consapevolezza</div>
+          <div className="chi-values-card">
+            <span>Sicurezza</span>
+            <span>Rispetto</span>
+            <span>Crescita</span>
+            <span>Impegno</span>
+            <span>Consapevolezza</span>
           </div>
         </div>
       </section>
