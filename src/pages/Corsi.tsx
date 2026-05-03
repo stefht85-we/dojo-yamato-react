@@ -1,207 +1,159 @@
 import type { CSSProperties } from 'react'
 
 type CourseLocation = {
+  id: string
   city: string
-  place: string
-  address?: string
-  schedules: string[]
-  courseType: string[]
+  gymName: string
+  address: string
+  imageUrl: string
   mapUrl: string
-  mapEmbedUrl: string
+  schedules: string[]
 }
 
 const locations: CourseLocation[] = [
   {
+    id: 'airuno',
     city: 'Airuno',
-    place: 'Scuole Elementari',
-    schedules: ['Lunedì / Venerdì 18:30 - 19:30'],
-    courseType: ['Corso per bambini e ragazzi'],
-    mapUrl:
-      'https://www.google.com/maps/place/A.S.D+Dojo+Yamato+Arti+Marziali/@45.7553423,9.4203793,769m/data=!3m2!1e3!4b1!4m6!3m5!1s0x4786a93d81f2968d:0xa0e6a040827eaced!8m2!3d45.7553424!4d9.4252502!16s%2Fg%2F11f5t3y700?entry=ttu&g_ep=EgoyMDI2MDIwOS4wIKXMDSoASAFQAw%3D%3D',
-    mapEmbedUrl:
-      'https://maps.google.com/maps?q=45.7553424,9.4252502&z=16&output=embed',
-  },
-  {
-    city: 'Merate - Sartirana',
-    place: 'Scuole Elementari',
-    schedules: ['Mercoledì 18:30 - 19:30', 'Venerdì 17:30 - 18:30'],
-    courseType: ['Corso per bambini e ragazzi'],
-    mapUrl:
-      'https://www.google.com/maps/place/A.S.D.+Dojo+Yamato+Arti+Marziali/@45.7138341,9.4163903,770m/data=!3m2!1e3!4b1!4m6!3m5!1s0x4786af4cb15d6d95:0xd960a82e2752bf62!8m2!3d45.7138341!4d9.4189652!16s%2Fg%2F11g0728f_z?entry=ttu&g_ep=EgoyMDI2MDIwOS4wIKXMDSoASAFQAw%3D%3D',
-    mapEmbedUrl:
-      'https://maps.google.com/maps?q=45.7138341,9.4189652&z=16&output=embed',
-  },
-  {
-    city: 'Cisano Bergamasco',
-    place: 'Scuole Elementari',
+    gymName: 'Scuole Elementari',
+    address: 'Inserisci qui indirizzo palestra Airuno',
+    imageUrl: '/images/palestre/airuno.jpg',
+    mapUrl: 'https://www.google.com/maps?q=Airuno%20scuole%20elementari&output=embed',
     schedules: [
-      'Mercoledì / Venerdì 16:45 - 17:45',
-      'Mercoledì / Venerdì 20:00 - 21:00',
+      'Bambini e ragazzi: inserisci giorno e orario',
+      'Adulti: inserisci giorno e orario',
     ],
-    courseType: ['Corso per bambini e ragazzi', 'Corso per adulti'],
-    mapUrl:
-      'https://www.google.com/maps/place/A.S.D+Dojo+Yamato+Arti+Marziali/@45.7384585,9.4773579,769m/data=!3m2!1e3!4b1!4m6!3m5!1s0x4786ad77a51b84db:0xd45651e8ed1cc9dd!8m2!3d45.7384585!4d9.4799328!16s%2Fg%2F11f5t3ztd4?entry=ttu&g_ep=EgoyMDI2MDIwOS4wIKXMDSoASAFQAw%3D%3D',
-    mapEmbedUrl:
-      'https://maps.google.com/maps?q=45.7384585,9.4799328&z=16&output=embed',
   },
   {
+    id: 'cisano',
+    city: 'Cisano Bergamasco',
+    gymName: 'Scuole Elementari',
+    address: 'Inserisci qui indirizzo palestra Cisano Bergamasco',
+    imageUrl: '/images/palestre/cisano.jpg',
+    mapUrl: 'https://www.google.com/maps?q=Cisano%20Bergamasco%20scuole%20elementari&output=embed',
+    schedules: [
+      'Bambini e ragazzi: inserisci giorno e orario',
+      'Adulti: inserisci giorno e orario',
+    ],
+  },
+  {
+    id: 'lecco',
     city: 'Lecco',
-    place: 'Scuole Medie T. Grossi',
-    address: 'Via Dante',
-    schedules: ['Martedì / Giovedì 19:00 - 20:00'],
-    courseType: ['Corso per bambini e ragazzi'],
-    mapUrl:
-      'https://www.google.com/maps/place/A.S.D.+Dojo+Yamato+Arti+Marziali/@45.8514148,9.3928446,768m/data=!3m2!1e3!4b1!4m6!3m5!1s0x47841d0a7f06b087:0x99b635bf4b1019cd!8m2!3d45.8514148!4d9.3954195!16s%2Fg%2F11msd8dhnk?entry=ttu&g_ep=EgoyMDI2MDIwOS4wIKXMDSoASAFQAw%3D%3D',
-    mapEmbedUrl:
-      'https://maps.google.com/maps?q=45.8514148,9.3954195&z=16&output=embed',
+    gymName: 'Scuole Elementari',
+    address: 'Inserisci qui indirizzo palestra Lecco',
+    imageUrl: '/images/palestre/lecco.jpg',
+    mapUrl: 'https://www.google.com/maps?q=Lecco%20scuole%20elementari&output=embed',
+    schedules: [
+      'Bambini e ragazzi: inserisci giorno e orario',
+      'Adulti: inserisci giorno e orario',
+    ],
+  },
+  {
+    id: 'merate',
+    city: 'Merate - Sartirana',
+    gymName: 'Scuole Elementari',
+    address: 'Inserisci qui indirizzo palestra Merate / Sartirana',
+    imageUrl: '/images/palestre/merate.jpg',
+    mapUrl: 'https://www.google.com/maps?q=Sartirana%20Merate%20scuole%20elementari&output=embed',
+    schedules: [
+      'Bambini e ragazzi: inserisci giorno e orario',
+      'Adulti: inserisci giorno e orario',
+    ],
   },
 ]
 
 function Corsi() {
   return (
-    <main style={pageStyle}>
-      <section style={heroStyle}>
-        <div style={containerStyle}>
-          <p style={labelStyle}>I nostri corsi</p>
+    <>
+      <style>{responsiveCss}</style>
 
-          <h1 style={titleStyle}>Sedi e orari</h1>
+      <main style={pageStyle}>
+        <section style={heroStyle}>
+          <div style={containerStyle}>
+            <p style={labelStyle}>A.S.D. DOJO YAMATO</p>
 
-          <p style={introTextStyle}>
-            L’ASD Dojo Yamato svolge la propria attività in diverse sedi del
-            territorio, per permettere a bambini, ragazzi e adulti di allenarsi
-            in ambienti comodi e facilmente raggiungibili.
-          </p>
-        </div>
-      </section>
+            <h1 style={titleStyle}>Corsi e palestre</h1>
 
-      <section style={sectionStyle}>
-        <div style={containerStyle}>
-          <div style={locationsGridStyle}>
-            {locations.map((location) => (
-              <article key={location.city} style={locationCardStyle}>
-                <div style={locationInfoStyle}>
-                  <div style={titleRowStyle}>
-                    <div style={{ minWidth: 0 }}>
-                      <h2 style={locationTitleStyle}>{location.city}</h2>
-                    </div>
+            <p style={introStyle}>
+              I corsi dell’A.S.D. Dojo Yamato sono pensati per bambini, ragazzi e adulti.
+              È possibile iniziare anche durante l’anno sportivo e provare una lezione
+              gratuita prima dell’iscrizione.
+            </p>
+          </div>
+        </section>
 
-                    <a
-                      href={location.mapUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={mapButtonStyle}
-                    >
-                      Maps
-                    </a>
-                  </div>
+        <section style={locationsSectionStyle}>
+          <div style={containerStyle}>
+            <div style={locationsGridStyle}>
+              {locations.map((location) => (
+                <article key={location.id} className="course-location-card" style={locationCardStyle}>
+                  <div style={textColumnStyle}>
+                    <span style={cityBadgeStyle}>{location.city}</span>
 
-                  <p style={placeStyle}>
-                    {location.place}
-                    {location.address ? ` · ${location.address}` : ''}
-                  </p>
+                    <h2 style={gymNameStyle}>{location.gymName}</h2>
 
-                  <div style={detailsBoxStyle}>
-                    <div>
-                      <h3 style={detailTitleStyle}>Orari</h3>
+                    <p style={addressStyle}>{location.address}</p>
 
-                      <div style={listStyle}>
+                    <div style={scheduleBoxStyle}>
+                      <h3 style={scheduleTitleStyle}>Orari</h3>
+
+                      <ul style={scheduleListStyle}>
                         {location.schedules.map((schedule) => (
-                          <span key={schedule} style={pillStyle}>
+                          <li key={schedule} style={scheduleItemStyle}>
                             {schedule}
-                          </span>
+                          </li>
                         ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 style={detailTitleStyle}>Corsi</h3>
-
-                      <div style={listStyle}>
-                        {location.courseType.map((type) => (
-                          <span key={type} style={coursePillStyle}>
-                            {type}
-                          </span>
-                        ))}
-                      </div>
+                      </ul>
                     </div>
                   </div>
-                </div>
 
-                <div style={mapWrapperStyle}>
-                  <iframe
-                    title={`Mappa ${location.city}`}
-                    src={location.mapEmbedUrl}
-                    width="100%"
-                    height="100%"
-                    style={mapIframeStyle}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+                  <div style={gymImageWrapperStyle}>
+                    <img
+                      src={location.imageUrl}
+                      alt={`Esterno palestra ${location.city}`}
+                      style={gymImageStyle}
+                    />
+                  </div>
 
-      <section style={notesSectionStyle}>
-        <div style={containerStyle}>
-          <div style={notesCardStyle}>
-            <div>
-              <p style={labelStyle}>Informazioni utili</p>
-
-              <h2 style={notesTitleStyle}>Vuoi iniziare?</h2>
-
-              <p style={notesTextStyle}>
-                Per ricevere informazioni aggiornate su sedi, orari e
-                disponibilità, contattaci senza impegno. Ti aiuteremo a trovare
-                la sede e il corso più adatti.
-              </p>
+                  <div style={mapWrapperStyle}>
+                    <iframe
+                      title={`Mappa palestra ${location.city}`}
+                      src={location.mapUrl}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      style={mapStyle}
+                    />
+                  </div>
+                </article>
+              ))}
             </div>
-
-            <div style={notesGridStyle}>
-              <div style={noteItemStyle}>
-                Iscrizioni aperte anche a stagione avviata
-              </div>
-
-              <div style={noteItemStyle}>
-                Prima lezione di prova gratuita
-              </div>
-
-              <div style={noteItemStyle}>
-                Nessuna esperienza precedente richiesta
-              </div>
-
-              <div style={noteItemStyle}>
-                Corsi suddivisi per età e livello
-              </div>
-            </div>
-
-            <a href="/contatti" style={contactButtonStyle}>
-              Contattaci
-            </a>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </>
   )
 }
 
+const responsiveCss = `
+@media (max-width: 1050px) {
+  .course-location-card {
+    grid-template-columns: 1fr !important;
+  }
+}
+`
+
 const pageStyle: CSSProperties = {
-  minHeight: '90vh',
-  background:
-    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
+  minHeight: '100vh',
+  background: '#020817',
   color: 'white',
 }
 
-const heroStyle: CSSProperties = {
-  padding: '54px 22px 18px',
+const containerStyle: CSSProperties = {
+  width: 'min(1240px, calc(100% - 32px))',
+  margin: '0 auto',
 }
 
-const containerStyle: CSSProperties = {
-  maxWidth: '1120px',
-  margin: '0 auto',
+const heroStyle: CSSProperties = {
+  padding: '64px 0 28px',
 }
 
 const labelStyle: CSSProperties = {
@@ -209,204 +161,143 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '2px',
   textTransform: 'uppercase',
-  fontSize: '12px',
-  marginBottom: '8px',
+  fontSize: '13px',
+  margin: '0 0 14px',
 }
 
 const titleStyle: CSSProperties = {
-  fontSize: 'clamp(2.1rem, 6vw, 4rem)',
+  fontSize: 'clamp(42px, 7vw, 76px)',
   lineHeight: 1.02,
+  margin: '0 0 20px',
+  fontWeight: 950,
+}
+
+const introStyle: CSSProperties = {
+  maxWidth: '900px',
+  color: '#d8d8d8',
+  fontSize: '18px',
+  lineHeight: 1.75,
   margin: 0,
 }
 
-const introTextStyle: CSSProperties = {
-  maxWidth: '840px',
-  color: '#d7dbe3',
-  fontSize: '16px',
-  lineHeight: 1.6,
-  marginTop: '14px',
-}
-
-const sectionStyle: CSSProperties = {
-  padding: '20px 22px 48px',
+const locationsSectionStyle: CSSProperties = {
+  padding: '22px 0 86px',
 }
 
 const locationsGridStyle: CSSProperties = {
   display: 'grid',
-  gap: '14px',
+  gap: '20px',
 }
 
 const locationCardStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: '24px',
+  padding: '18px',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 330px), 1fr))',
-  gap: '14px',
-  background: 'rgba(255,255,255,0.052)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '18px',
-  padding: '16px',
-  boxShadow: '0 12px 28px rgba(0,0,0,0.14)',
+  gridTemplateColumns: '1.08fr 0.88fr 0.88fr',
+  gap: '16px',
+  alignItems: 'stretch',
+  boxShadow: '0 18px 42px rgba(0,0,0,0.18)',
 }
 
-const locationInfoStyle: CSSProperties = {
+const textColumnStyle: CSSProperties = {
   minWidth: 0,
-}
-
-const titleRowStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  gap: '10px',
-  flexWrap: 'wrap',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  gap: '11px',
+  padding: '4px',
 }
 
-const locationTitleStyle: CSSProperties = {
+const cityBadgeStyle: CSSProperties = {
   display: 'inline-flex',
-  alignItems: 'center',
   width: 'fit-content',
-  fontSize: 'clamp(21px, 4vw, 28px)',
-  margin: '0 0 8px',
-  lineHeight: 1.05,
-  color: '#ffffff',
-  fontWeight: 850,
-  letterSpacing: '-0.3px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  padding: '9px 18px',
+  padding: '11px 20px',
   borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontWeight: 950,
+  fontSize: '22px',
+  lineHeight: 1,
   boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
-const placeStyle: CSSProperties = {
-  color: '#f2f2f2',
-  fontSize: '14px',
-  lineHeight: 1.45,
-  margin: 0,
-  fontWeight: 700,
-}
-
-const detailsBoxStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-  marginTop: '16px',
-}
-
-const detailTitleStyle: CSSProperties = {
-  fontSize: '12px',
-  margin: '0 0 7px',
+const gymNameStyle: CSSProperties = {
+  margin: '2px 0 0',
+  fontSize: '18px',
+  lineHeight: 1.15,
+  fontWeight: 800,
   color: '#d8d8d8',
-  textTransform: 'uppercase',
-  letterSpacing: '1px',
 }
 
-const listStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '6px',
-}
-
-const pillStyle: CSSProperties = {
-  background: 'rgba(255,255,255,0.10)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: 'white',
-  padding: '6px 9px',
-  borderRadius: '999px',
-  fontSize: '12px',
+const addressStyle: CSSProperties = {
+  margin: 0,
+  color: '#f3dede',
+  fontSize: '15px',
+  lineHeight: 1.5,
   fontWeight: 800,
 }
 
-const coursePillStyle: CSSProperties = {
-  ...pillStyle,
-  background: 'rgba(185,68,79,0.18)',
-  border: '1px solid rgba(185,68,79,0.26)',
-  color: '#f3dede',
+const scheduleBoxStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  marginTop: '4px',
 }
 
-const mapButtonStyle: CSSProperties = {
-  display: 'inline-block',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  textDecoration: 'none',
-  padding: '8px 13px',
-  borderRadius: '999px',
-  fontWeight: 900,
+const scheduleTitleStyle: CSSProperties = {
+  margin: 0,
+  color: '#d95b64',
+  textTransform: 'uppercase',
+  letterSpacing: '1.5px',
   fontSize: '12px',
-  whiteSpace: 'nowrap',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+  fontWeight: 950,
+}
+
+const scheduleListStyle: CSSProperties = {
+  margin: 0,
+  paddingLeft: '18px',
+  color: '#e5e7eb',
+  lineHeight: 1.6,
+  fontSize: '14px',
+}
+
+const scheduleItemStyle: CSSProperties = {
+  marginBottom: '2px',
+}
+
+const gymImageWrapperStyle: CSSProperties = {
+  width: '100%',
+  minHeight: '220px',
+  maxHeight: '220px',
+  borderRadius: '18px',
+  overflow: 'hidden',
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: '#111827',
+}
+
+const gymImageStyle: CSSProperties = {
+  width: '100%',
+  height: '220px',
+  objectFit: 'cover',
+  display: 'block',
 }
 
 const mapWrapperStyle: CSSProperties = {
-  height: 'clamp(155px, 30vw, 210px)',
-  minHeight: '155px',
-  borderRadius: '15px',
+  width: '100%',
+  minHeight: '220px',
+  maxHeight: '220px',
+  borderRadius: '18px',
   overflow: 'hidden',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(0,0,0,0.18)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: '#111827',
 }
 
-const mapIframeStyle: CSSProperties = {
+const mapStyle: CSSProperties = {
+  width: '100%',
+  height: '220px',
   border: 0,
   display: 'block',
-  height: '100%',
-  minHeight: '155px',
-}
-
-const notesSectionStyle: CSSProperties = {
-  padding: '0 22px 60px',
-}
-
-const notesCardStyle: CSSProperties = {
-  background:
-    'linear-gradient(135deg, rgba(130,35,43,0.22), rgba(255,255,255,0.052))',
-  border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '20px',
-  padding: '22px',
-  display: 'grid',
-  gap: '16px',
-}
-
-const notesTitleStyle: CSSProperties = {
-  fontSize: '28px',
-  margin: 0,
-}
-
-const notesTextStyle: CSSProperties = {
-  color: '#f2f2f2',
-  lineHeight: 1.55,
-  maxWidth: '820px',
-  fontSize: '15px',
-  marginTop: '10px',
-}
-
-const notesGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-  gap: '9px',
-}
-
-const noteItemStyle: CSSProperties = {
-  background: 'rgba(0,0,0,0.18)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '13px',
-  padding: '14px 12px',
-  color: 'white',
-  fontWeight: 800,
-  lineHeight: 1.35,
-  fontSize: '13px',
-  minHeight: '58px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  textAlign: 'center',
-}
-
-const contactButtonStyle: CSSProperties = {
-  width: 'fit-content',
-  background: 'rgba(255,255,255,0.92)',
-  color: '#111',
-  textDecoration: 'none',
-  padding: '10px 16px',
-  borderRadius: '999px',
-  fontWeight: 900,
-  fontSize: '13px',
 }
 
 export default Corsi

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 import type { CSSProperties, FormEvent, MouseEvent } from 'react'
+import AdminInsegnanti from '../components/AdminInsegnanti'
+import AdminTeoria from '../components/AdminTeoria'
 import './AreaUtente.css'
 
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
@@ -12,7 +14,7 @@ const EVENT_IMAGES_BUCKET = 'event-images'
 const EVENT_DOCUMENTS_BUCKET = 'event-documents'
 const DOCUMENTS_BUCKET = 'documents'
 
-type AdminTab = 'news' | 'galleria' | 'eventi' | 'documenti' | 'difesa'
+type AdminTab = 'news' | 'galleria' | 'eventi' | 'documenti' | 'insegnanti' | 'teoria' | 'difesa'
 
 type NewsDocument = {
   id: string
@@ -1534,10 +1536,14 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'galleria')} onClick={() => setAdminTab('galleria')}>Galleria</button>
                 <button type="button" style={tabButton(adminTab === 'eventi')} onClick={() => setAdminTab('eventi')}>Eventi</button>
                 <button type="button" style={tabButton(adminTab === 'documenti')} onClick={() => setAdminTab('documenti')}>Documenti</button>
+                <button type="button" style={tabButton(adminTab === 'insegnanti')} onClick={() => setAdminTab('insegnanti')}>Insegnanti</button>
+                <button type="button" style={tabButton(adminTab === 'teoria')} onClick={() => setAdminTab('teoria')}>Teoria</button>
                 <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>Difesa personale</button>
               </div>
 
-              {message && <div style={messageBox}>{message}</div>}
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && (
+                <div style={messageBox}>{message}</div>
+              )}
 
               {adminTab === 'news' && (
                 <div>
@@ -1549,11 +1555,7 @@ function AreaUtente() {
 
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Data news</label>
-                        <input
-                          type="date"
-                          value={newsDate}
-                          onChange={(e) => setNewsDate(e.target.value)}
-                        />
+                        <input type="date" value={newsDate} onChange={(e) => setNewsDate(e.target.value)} />
                       </div>
 
                       <textarea placeholder="Contenuto news" value={newsContent} onChange={(e) => setNewsContent(e.target.value)} rows={6} style={textareaStyle} />
@@ -1638,11 +1640,7 @@ function AreaUtente() {
                                     📄 {doc.title}
                                   </a>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteNewsDocument(doc.id)}
-                                    style={tinyDeleteButton}
-                                  >
+                                  <button type="button" onClick={() => handleDeleteNewsDocument(doc.id)} style={tinyDeleteButton}>
                                     X
                                   </button>
                                 </div>
@@ -1835,41 +1833,12 @@ function AreaUtente() {
                               </div>
 
                               <div style={compactActionsRow}>
-                                <button
-                                  type="button"
-                                  className="secondary-auth-button"
-                                  onClick={() => handleManageAlbumMedia(album)}
-                                  style={smallAdminButton}
-                                >
-                                  Media
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="secondary-auth-button"
-                                  onClick={() => handleEditAlbum(album)}
-                                  style={smallAdminButton}
-                                >
-                                  Modifica
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="secondary-auth-button"
-                                  onClick={() => handleToggleAlbumVisible(album)}
-                                  style={smallAdminButton}
-                                >
+                                <button type="button" className="secondary-auth-button" onClick={() => handleManageAlbumMedia(album)} style={smallAdminButton}>Media</button>
+                                <button type="button" className="secondary-auth-button" onClick={() => handleEditAlbum(album)} style={smallAdminButton}>Modifica</button>
+                                <button type="button" className="secondary-auth-button" onClick={() => handleToggleAlbumVisible(album)} style={smallAdminButton}>
                                   {album.visible ? 'Nascondi' : 'Pubblica'}
                                 </button>
-
-                                <button
-                                  type="button"
-                                  className="primary-auth-button"
-                                  onClick={() => handleDeleteAlbum(album.id)}
-                                  style={smallDangerButton}
-                                >
-                                  Elimina
-                                </button>
+                                <button type="button" className="primary-auth-button" onClick={() => handleDeleteAlbum(album.id)} style={smallDangerButton}>Elimina</button>
                               </div>
                             </article>
 
@@ -2114,10 +2083,7 @@ function AreaUtente() {
                         onChange={(e) => setDocumentTitle(e.target.value)}
                       />
 
-                      <select
-                        value={documentCategory}
-                        onChange={(e) => setDocumentCategory(e.target.value)}
-                      >
+                      <select value={documentCategory} onChange={(e) => setDocumentCategory(e.target.value)}>
                         <option value="Moduli">Moduli</option>
                         <option value="Regolamenti">Regolamenti</option>
                         <option value="Documenti ufficiali">Documenti ufficiali</option>
@@ -2128,12 +2094,7 @@ function AreaUtente() {
                         <div style={documentCurrentFileBox}>
                           <p style={mutedText}>File attuale:</p>
 
-                          <a
-                            href={existingDocumentFileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={documentFileLink}
-                          >
+                          <a href={existingDocumentFileUrl} target="_blank" rel="noreferrer" style={documentFileLink}>
                             Apri documento attuale
                           </a>
                         </div>
@@ -2153,19 +2114,11 @@ function AreaUtente() {
                           onChange={(e) => setDocumentFile(e.target.files?.[0] ?? null)}
                         />
 
-                        {documentFile && (
-                          <small style={mutedText}>
-                            File selezionato: {documentFile.name}
-                          </small>
-                        )}
+                        {documentFile && <small style={mutedText}>File selezionato: {documentFile.name}</small>}
                       </div>
 
                       <label style={checkboxLabelStyle}>
-                        <input
-                          type="checkbox"
-                          checked={documentVisible}
-                          onChange={(e) => setDocumentVisible(e.target.checked)}
-                        />
+                        <input type="checkbox" checked={documentVisible} onChange={(e) => setDocumentVisible(e.target.checked)} />
                         Documento visibile nella pagina pubblica
                       </label>
 
@@ -2175,11 +2128,7 @@ function AreaUtente() {
                         </button>
 
                         {editingDocumentId && (
-                          <button
-                            className="secondary-auth-button"
-                            type="button"
-                            onClick={resetDocumentForm}
-                          >
+                          <button className="secondary-auth-button" type="button" onClick={resetDocumentForm}>
                             Annulla modifica
                           </button>
                         )}
@@ -2190,9 +2139,7 @@ function AreaUtente() {
                   <div style={{ marginTop: '30px' }}>
                     <h3>Documenti caricati</h3>
 
-                    {documents.length === 0 && (
-                      <p style={mutedText}>Non ci sono ancora documenti caricati.</p>
-                    )}
+                    {documents.length === 0 && <p style={mutedText}>Non ci sono ancora documenti caricati.</p>}
 
                     <div style={compactAlbumList}>
                       {documents.map((document) => (
@@ -2216,39 +2163,19 @@ function AreaUtente() {
                           </div>
 
                           <div style={compactActionsRow}>
-                            <a
-                              href={document.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={smallLinkButton}
-                            >
+                            <a href={document.file_url} target="_blank" rel="noreferrer" style={smallLinkButton}>
                               Apri
                             </a>
 
-                            <button
-                              type="button"
-                              className="secondary-auth-button"
-                              onClick={() => handleEditDocument(document)}
-                              style={smallAdminButton}
-                            >
+                            <button type="button" className="secondary-auth-button" onClick={() => handleEditDocument(document)} style={smallAdminButton}>
                               Modifica
                             </button>
 
-                            <button
-                              type="button"
-                              className="secondary-auth-button"
-                              onClick={() => handleToggleDocumentVisible(document)}
-                              style={smallAdminButton}
-                            >
+                            <button type="button" className="secondary-auth-button" onClick={() => handleToggleDocumentVisible(document)} style={smallAdminButton}>
                               {document.visible ? 'Nascondi' : 'Pubblica'}
                             </button>
 
-                            <button
-                              type="button"
-                              className="primary-auth-button"
-                              onClick={() => handleDeleteDocument(document.id)}
-                              style={smallDangerButton}
-                            >
+                            <button type="button" className="primary-auth-button" onClick={() => handleDeleteDocument(document.id)} style={smallDangerButton}>
                               Elimina
                             </button>
                           </div>
@@ -2258,6 +2185,10 @@ function AreaUtente() {
                   </div>
                 </div>
               )}
+
+              {adminTab === 'insegnanti' && <AdminInsegnanti />}
+
+              {adminTab === 'teoria' && <AdminTeoria />}
 
               {adminTab === 'difesa' && (
                 <div style={adminCardStyle}>
