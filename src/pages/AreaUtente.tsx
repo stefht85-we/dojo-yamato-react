@@ -53,7 +53,7 @@ type GalleryMedia = {
   caption: string | null
   sort_order: number
   created_at: string
-  media_type: 'image' | 'video' | 'youtube' | 'file'
+  media_type: 'image' | 'video' | 'youtube' | 'file' | 'social'
   thumbnail_url: string | null
   video_url: string | null
 }
@@ -133,6 +133,9 @@ function AreaUtente() {
   const [galleryInputKey, setGalleryInputKey] = useState(0)
   const [albumYearFilter, setAlbumYearFilter] = useState('all')
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [socialUrl, setSocialUrl] = useState('')
+  const [socialPreviewFile, setSocialPreviewFile] = useState<File | null>(null)
+  const [socialPreviewInputKey, setSocialPreviewInputKey] = useState(0)
 
   const [events, setEvents] = useState<DojoEvent[]>([])
   const [eventTitle, setEventTitle] = useState('')
@@ -688,7 +691,7 @@ function AreaUtente() {
     setAdminTab('galleria')
     setGalleryFiles(null)
     setGalleryInputKey((prev) => prev + 1)
-    setMessage(`Gestione media album: ${album.title}`)
+    setMessage(`Gestione contenuti album: ${album.title}`)
   }
 
   async function handleToggleAlbumVisible(album: GalleryAlbum) {
@@ -708,7 +711,7 @@ function AreaUtente() {
 
   async function handleDeleteAlbum(albumId: string) {
     const confirmDelete = window.confirm(
-      'Vuoi davvero eliminare questo album? Verranno eliminati anche tutti i media collegati.'
+      'Vuoi davvero eliminare questo album? Verranno eliminati anche tutti i contenuti collegati.'
     )
 
     if (!confirmDelete) return
@@ -772,8 +775,17 @@ function AreaUtente() {
 
       for (let index = 0; index < filesArray.length; index++) {
         const file = filesArray[index]
+        const fileName = file.name.toLowerCase()
         const isImage = file.type.startsWith('image/')
         const isVideo = file.type.startsWith('video/')
+        const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf')
+
+        if (!isImage && !isVideo && !isPdf) {
+          setMessage(
+            `File non consentito: ${file.name}. Puoi caricare solo immagini, video o PDF.`
+          )
+          return
+        }
 
         const mediaType: 'image' | 'video' | 'file' = isImage
           ? 'image'
@@ -876,6 +888,7 @@ function AreaUtente() {
       image_url: youtubeUrl.trim(),
       video_url: youtubeUrl.trim(),
       thumbnail_url: thumbnailUrl,
+      caption: 'YouTube',
       media_type: 'youtube',
       sort_order: currentAlbumMedia.length,
     })
@@ -900,6 +913,96 @@ function AreaUtente() {
     loadMedia()
   }
 
+  function getSocialName(url: string) {
+    const lowerUrl = url.toLowerCase()
+
+    if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.com')) {
+      return 'Facebook'
+    }
+
+    if (lowerUrl.includes('instagram.com')) {
+      return 'Instagram'
+    }
+
+    if (lowerUrl.includes('tiktok.com')) {
+      return 'TikTok'
+    }
+
+    return null
+  }
+
+  async function handleAddSocialLink(e: FormEvent) {
+    e.preventDefault()
+
+    if (!isAdmin) {
+      setMessage('Non hai i permessi per gestire la galleria')
+      return
+    }
+
+    if (!selectedAlbumId) {
+      setMessage('Seleziona un album')
+      return
+    }
+
+    const cleanUrl = socialUrl.trim()
+    const socialName = getSocialName(cleanUrl)
+
+    if (!cleanUrl || !socialName) {
+      setMessage('Inserisci un link valido Facebook, Instagram o TikTok')
+      return
+    }
+
+    try {
+      let previewUrl: string | null = null
+
+      if (socialPreviewFile) {
+        if (!socialPreviewFile.type.startsWith('image/')) {
+          setMessage('L’anteprima social deve essere un’immagine')
+          return
+        }
+
+        previewUrl = await uploadFileToBucket(
+          socialPreviewFile,
+          GALLERY_BUCKET,
+          `albums/${selectedAlbumId}/social-previews`
+        )
+      }
+
+      const currentAlbumMedia = media.filter(
+        (item) => item.album_id === selectedAlbumId
+      )
+
+      const { error } = await supabase.from('gallery_photos').insert({
+        album_id: selectedAlbumId,
+        image_url: cleanUrl,
+        video_url: cleanUrl,
+        thumbnail_url: previewUrl,
+        caption: socialName,
+        media_type: 'social',
+        sort_order: currentAlbumMedia.length,
+      })
+
+      if (error) {
+        setMessage(`Errore salvataggio link social: ${error.message}`)
+        return
+      }
+
+      setSocialUrl('')
+      setSocialPreviewFile(null)
+      setSocialPreviewInputKey((prev) => prev + 1)
+      setMessage(`Link ${socialName} aggiunto correttamente`)
+      loadMedia()
+    } catch (error) {
+      console.error(error)
+
+      if (error instanceof Error) {
+        setMessage(`Errore durante salvataggio link social: ${error.message}`)
+      } else {
+        setMessage('Errore durante salvataggio link social')
+      }
+    }
+  }
+
   async function handleDeleteMedia(item: GalleryMedia) {
     const confirmDelete = window.confirm('Vuoi eliminare questo elemento?')
     if (!confirmDelete) return
@@ -922,10 +1025,12 @@ function AreaUtente() {
         ? item.thumbnail_url
         : item.media_type === 'image'
           ? item.image_url
-          : null
+          : item.media_type === 'social'
+            ? item.thumbnail_url
+            : null
 
     if (!coverUrl) {
-      setMessage('Puoi usare come copertina solo immagini o anteprime YouTube')
+      setMessage('Puoi usare come copertina solo immagini, anteprime YouTube o anteprime social')
       return
     }
 
@@ -1329,8 +1434,35 @@ function AreaUtente() {
     if (item.media_type === 'file') {
       return (
         <div style={filePreviewStyle}>
-          <span style={{ fontSize: '20px' }}>📄</span>
-          <span style={{ fontSize: '9px', fontWeight: 800 }}>FILE</span>
+          <span style={{ fontSize: '18px', fontWeight: 900 }}>PDF</span>
+          <span style={{ fontSize: '8px', fontWeight: 800 }}>DOC</span>
+        </div>
+      )
+    }
+
+    if (item.media_type === 'social') {
+      if (item.thumbnail_url) {
+        return (
+          <div style={tinyMediaPreviewWrapper}>
+            <img
+              src={item.thumbnail_url}
+              alt={item.caption || 'Anteprima social'}
+              style={tinyPhotoImage}
+            />
+
+            <span style={socialPreviewBadgeStyle}>
+              {item.caption || 'Social'}
+            </span>
+          </div>
+        )
+      }
+
+      return (
+        <div style={socialPreviewFallbackStyle}>
+          <span style={{ fontSize: '20px' }}>🔗</span>
+          <span style={{ fontSize: '9px', fontWeight: 800 }}>
+            {item.caption || 'SOCIAL'}
+          </span>
         </div>
       )
     }
@@ -1436,13 +1568,11 @@ function AreaUtente() {
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Immagine news opzionale</label>
                         <input key={newsInputKey} type="file" accept="image/*" onChange={(e) => setNewsImageFile(e.target.files?.[0] ?? null)} />
-
                         {newsImageFile && <small style={mutedText}>File selezionato: {newsImageFile.name}</small>}
                       </div>
 
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Documenti news opzionali</label>
-
                         <input
                           key={newsDocsInputKey}
                           type="file"
@@ -1450,11 +1580,8 @@ function AreaUtente() {
                           accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"
                           onChange={(e) => setNewsDocumentFiles(e.target.files)}
                         />
-
                         {newsDocumentFiles && newsDocumentFiles.length > 0 && (
-                          <small style={mutedText}>
-                            Documenti selezionati: {newsDocumentFiles.length}
-                          </small>
+                          <small style={mutedText}>Documenti selezionati: {newsDocumentFiles.length}</small>
                         )}
                       </div>
 
@@ -1574,7 +1701,7 @@ function AreaUtente() {
                     </div>
 
                     <div style={adminCardStyle}>
-                      <h3>Carica foto, video o documenti</h3>
+                      <h3>Carica foto, video o PDF</h3>
 
                       <form onSubmit={handleUploadAlbumMedia} style={formStyle}>
                         <select value={selectedAlbumId} onChange={(e) => setSelectedAlbumId(e.target.value)}>
@@ -1589,7 +1716,7 @@ function AreaUtente() {
                         <input
                           key={galleryInputKey}
                           type="file"
-                          accept="image/*,video/mp4,video/webm,video/quicktime,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                          accept="image/*,video/mp4,video/webm,video/quicktime,.pdf"
                           multiple
                           onChange={(e) => setGalleryFiles(e.target.files)}
                         />
@@ -1615,7 +1742,41 @@ function AreaUtente() {
 
                       <form onSubmit={handleAddYoutubeVideo} style={formStyle}>
                         <input type="url" placeholder="Incolla link YouTube" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
-                        <button className="secondary-auth-button" type="submit">Aggiungi YouTube</button>
+                        <button className="primary-auth-button" type="submit">Aggiungi YouTube</button>
+                      </form>
+
+                      <hr style={dividerStyle} />
+
+                      <h4>Aggiungi link social</h4>
+
+                      <form onSubmit={handleAddSocialLink} style={formStyle}>
+                        <input
+                          type="url"
+                          placeholder="Incolla link Facebook, Instagram o TikTok"
+                          value={socialUrl}
+                          onChange={(e) => setSocialUrl(e.target.value)}
+                        />
+
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          <label style={mutedText}>Immagine anteprima opzionale</label>
+
+                          <input
+                            key={socialPreviewInputKey}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setSocialPreviewFile(e.target.files?.[0] ?? null)}
+                          />
+
+                          {socialPreviewFile && (
+                            <small style={mutedText}>
+                              Anteprima selezionata: {socialPreviewFile.name}
+                            </small>
+                          )}
+                        </div>
+
+                        <button className="primary-auth-button" type="submit">
+                          Aggiungi Social
+                        </button>
                       </form>
                     </div>
                   </div>
@@ -1641,107 +1802,150 @@ function AreaUtente() {
                         const albumMedia = media.filter((item) => item.album_id === album.id)
 
                         return (
-                          <article
-                            key={album.id}
-                            style={{
-                              ...compactAlbumCard,
-                              border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)',
-                            }}
-                          >
-                            <div style={compactAlbumMain}>
-                              {album.cover_image_url ? (
-                                <img src={album.cover_image_url} alt={album.title} style={compactCoverStyle} />
-                              ) : (
-                                <div style={compactCoverPlaceholder}>📁</div>
-                              )}
+                          <div key={album.id} style={{ display: 'grid', gap: '8px' }}>
+                            <article
+                              style={{
+                                ...compactAlbumCard,
+                                border:
+                                  selectedAlbumId === album.id
+                                    ? '1px solid rgba(185,68,79,0.80)'
+                                    : '1px solid rgba(255,255,255,0.10)',
+                              }}
+                            >
+                              <div style={compactAlbumMain}>
+                                {album.cover_image_url ? (
+                                  <img src={album.cover_image_url} alt={album.title} style={compactCoverStyle} />
+                                ) : (
+                                  <div style={compactCoverPlaceholder}>📁</div>
+                                )}
 
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <h4 style={compactAlbumTitle}>{album.title}</h4>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <h4 style={compactAlbumTitle}>{album.title}</h4>
 
-                                <p style={compactAlbumMeta}>
-                                  {album.event_year}
-                                  {album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}
-                                  {album.category ? ` · ${album.category}` : ''}
-                                  {' · '}
-                                  {album.visible ? 'Visibile' : 'Nascosto'}
-                                  {' · '}
-                                  {albumMedia.length} contenuti
-                                </p>
+                                  <p style={compactAlbumMeta}>
+                                    {album.event_year}
+                                    {album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}
+                                    {album.category ? ` · ${album.category}` : ''}
+                                    {' · '}
+                                    {album.visible ? 'Visibile' : 'Nascosto'}
+                                    {' · '}
+                                    {albumMedia.length} contenuti
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div style={compactActionsRow}>
-                              <button type="button" className="secondary-auth-button" onClick={() => handleManageAlbumMedia(album)} style={smallAdminButton}>Media</button>
-                              <button type="button" className="secondary-auth-button" onClick={() => handleEditAlbum(album)} style={smallAdminButton}>Modifica</button>
-                              <button type="button" className="secondary-auth-button" onClick={() => handleToggleAlbumVisible(album)} style={smallAdminButton}>
-                                {album.visible ? 'Nascondi' : 'Pubblica'}
-                              </button>
-                              <button type="button" className="primary-auth-button" onClick={() => handleDeleteAlbum(album.id)} style={smallDangerButton}>Elimina</button>
-                            </div>
-                          </article>
+                              <div style={compactActionsRow}>
+                                <button
+                                  type="button"
+                                  className="secondary-auth-button"
+                                  onClick={() => handleManageAlbumMedia(album)}
+                                  style={smallAdminButton}
+                                >
+                                  Media
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="secondary-auth-button"
+                                  onClick={() => handleEditAlbum(album)}
+                                  style={smallAdminButton}
+                                >
+                                  Modifica
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="secondary-auth-button"
+                                  onClick={() => handleToggleAlbumVisible(album)}
+                                  style={smallAdminButton}
+                                >
+                                  {album.visible ? 'Nascondi' : 'Pubblica'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="primary-auth-button"
+                                  onClick={() => handleDeleteAlbum(album.id)}
+                                  style={smallDangerButton}
+                                >
+                                  Elimina
+                                </button>
+                              </div>
+                            </article>
+
+                            {selectedAlbumId === album.id && (
+                              <div style={inlineMediaPanelStyle}>
+                                <div style={photoManagerHeader}>
+                                  <div>
+                                    <h3 style={{ marginBottom: '6px' }}>Contenuti album: {album.title}</h3>
+                                    <p style={{ ...mutedText, margin: 0 }}>
+                                      {album.event_year} · {albumMedia.length} elementi
+                                    </p>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="secondary-auth-button"
+                                    onClick={() => {
+                                      setSelectedAlbumId('')
+                                      setGalleryFiles(null)
+                                      setYoutubeUrl('')
+                                      setSocialUrl('')
+                                      setSocialPreviewFile(null)
+                                      setGalleryInputKey((prev) => prev + 1)
+                                      setSocialPreviewInputKey((prev) => prev + 1)
+                                    }}
+                                    style={smallAdminButton}
+                                  >
+                                    Chiudi
+                                  </button>
+                                </div>
+
+                                {albumMedia.length === 0 && (
+                                  <p style={mutedText}>Questo album non contiene ancora media.</p>
+                                )}
+
+                                {albumMedia.length > 0 && (
+                                  <div style={tinyPhotoGrid}>
+                                    {albumMedia.map((item) => {
+                                      const coverUrl =
+                                        item.media_type === 'youtube'
+                                          ? item.thumbnail_url
+                                          : item.media_type === 'image'
+                                            ? item.image_url
+                                            : item.media_type === 'social'
+                                              ? item.thumbnail_url
+                                              : null
+
+                                      const isCover = coverUrl && album.cover_image_url === coverUrl
+
+                                      return (
+                                        <div key={item.id} style={tinyPhotoCard}>
+                                          {renderTinyMediaPreview(item)}
+
+                                          {isCover && <span style={coverBadge}>Cover</span>}
+
+                                          <div style={tinyPhotoActions}>
+                                            <button type="button" onClick={() => handleSetCover(item)} style={tinyButton}>
+                                              Cover
+                                            </button>
+
+                                            <button type="button" onClick={() => handleDeleteMedia(item)} style={tinyDeleteButton}>
+                                              X
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
                     </div>
                   </div>
-
-                  {selectedAlbum && (
-                    <div style={{ ...adminCardStyle, marginTop: '30px' }}>
-                      <div style={photoManagerHeader}>
-                        <div>
-                          <h3 style={{ marginBottom: '6px' }}>Contenuti album: {selectedAlbum.title}</h3>
-                          <p style={{ ...mutedText, margin: 0 }}>
-                            {selectedAlbum.event_year} · {selectedAlbumMedia.length} elementi
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="secondary-auth-button"
-                          onClick={() => {
-                            setSelectedAlbumId('')
-                            setGalleryFiles(null)
-                            setYoutubeUrl('')
-                            setGalleryInputKey((prev) => prev + 1)
-                          }}
-                          style={smallAdminButton}
-                        >
-                          Chiudi
-                        </button>
-                      </div>
-
-                      {selectedAlbumMedia.length === 0 && (
-                        <p style={mutedText}>Questo album non contiene ancora media.</p>
-                      )}
-
-                      {selectedAlbumMedia.length > 0 && (
-                        <div style={tinyPhotoGrid}>
-                          {selectedAlbumMedia.map((item) => {
-                            const coverUrl =
-                              item.media_type === 'youtube'
-                                ? item.thumbnail_url
-                                : item.media_type === 'image'
-                                  ? item.image_url
-                                  : null
-
-                            const isCover = coverUrl && selectedAlbum.cover_image_url === coverUrl
-
-                            return (
-                              <div key={item.id} style={tinyPhotoCard}>
-                                {renderTinyMediaPreview(item)}
-
-                                {isCover && <span style={coverBadge}>Cover</span>}
-
-                                <div style={tinyPhotoActions}>
-                                  <button type="button" onClick={() => handleSetCover(item)} style={tinyButton}>Cover</button>
-                                  <button type="button" onClick={() => handleDeleteMedia(item)} style={tinyDeleteButton}>X</button>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1752,9 +1956,7 @@ function AreaUtente() {
 
                     <form onSubmit={handleSaveEvent} style={formStyle}>
                       <input type="text" placeholder="Titolo evento" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
-
                       <textarea placeholder="Descrizione evento" value={eventDescription} onChange={(e) => setEventDescription(e.target.value)} rows={5} style={textareaStyle} />
-
                       <input type="text" placeholder="Luogo evento" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} />
 
                       <label style={checkboxLabelStyle}>
@@ -1798,7 +2000,6 @@ function AreaUtente() {
                       )}
 
                       <input type="url" placeholder="Link esterno opzionale" value={eventExternalUrl} onChange={(e) => setEventExternalUrl(e.target.value)} />
-
                       <input type="text" placeholder="Testo pulsante link, es. Iscriviti all’evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
 
                       {existingEventImageUrl && (
@@ -2318,6 +2519,13 @@ const smallDangerButton: CSSProperties = {
   borderRadius: '999px',
 }
 
+const inlineMediaPanelStyle: CSSProperties = {
+  background: 'rgba(0,0,0,0.16)',
+  border: '1px solid rgba(185,68,79,0.26)',
+  borderRadius: '14px',
+  padding: '14px',
+}
+
 const photoManagerHeader: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -2359,7 +2567,38 @@ const filePreviewStyle: CSSProperties = {
   width: '100%',
   height: '56px',
   borderRadius: '7px',
-  background: 'rgba(255,255,255,0.10)',
+  background:
+    'linear-gradient(135deg, rgba(185,68,79,0.26), rgba(255,255,255,0.10))',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '2px',
+  color: 'white',
+}
+
+const socialPreviewBadgeStyle: CSSProperties = {
+  position: 'absolute',
+  left: '5px',
+  bottom: '5px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  borderRadius: '999px',
+  padding: '3px 6px',
+  fontSize: '9px',
+  fontWeight: 900,
+  maxWidth: 'calc(100% - 10px)',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const socialPreviewFallbackStyle: CSSProperties = {
+  width: '100%',
+  height: '56px',
+  borderRadius: '7px',
+  background:
+    'linear-gradient(135deg, rgba(185,68,79,0.26), rgba(255,255,255,0.10))',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import type { CSSProperties } from 'react'
 
 type GalleryAlbum = {
   id: string
@@ -22,7 +21,7 @@ type GalleryMedia = {
   caption: string | null
   sort_order: number
   created_at: string
-  media_type: 'image' | 'video' | 'youtube'
+  media_type: 'image' | 'video' | 'youtube' | 'file' | 'social' | string
   thumbnail_url: string | null
   video_url: string | null
 }
@@ -33,7 +32,7 @@ function GalleriaAlbum() {
   const [album, setAlbum] = useState<GalleryAlbum | null>(null)
   const [media, setMedia] = useState<GalleryMedia[]>([])
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   useEffect(() => {
@@ -44,19 +43,21 @@ function GalleriaAlbum() {
     function handleKeyDown(event: KeyboardEvent) {
       if (activeIndex === null) return
 
-      if (event.key === 'Escape') setActiveIndex(null)
+      if (event.key === 'Escape') {
+        setActiveIndex(null)
+      }
 
       if (event.key === 'ArrowRight') {
         setActiveIndex((current) => {
-          if (current === null || media.length === 0) return current
-          return current === media.length - 1 ? 0 : current + 1
+          if (current === null || viewableMedia.length === 0) return current
+          return current === viewableMedia.length - 1 ? 0 : current + 1
         })
       }
 
       if (event.key === 'ArrowLeft') {
         setActiveIndex((current) => {
-          if (current === null || media.length === 0) return current
-          return current === 0 ? media.length - 1 : current - 1
+          if (current === null || viewableMedia.length === 0) return current
+          return current === 0 ? viewableMedia.length - 1 : current - 1
         })
       }
     }
@@ -66,14 +67,14 @@ function GalleriaAlbum() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [activeIndex, media.length])
+  }, [activeIndex, media])
 
   async function loadAlbum() {
     setLoading(true)
-    setMessage('')
+    setError('')
 
     if (!albumId) {
-      setMessage('Album non valido.')
+      setError('Album non valido.')
       setLoading(false)
       return
     }
@@ -87,9 +88,9 @@ function GalleriaAlbum() {
       .eq('visible', true)
       .single()
 
-    if (albumError) {
+    if (albumError || !albumData) {
       console.error('Errore caricamento album:', albumError)
-      setMessage('Album non trovato o non disponibile.')
+      setError('Album non trovato o non disponibile.')
       setLoading(false)
       return
     }
@@ -104,8 +105,8 @@ function GalleriaAlbum() {
       .order('created_at', { ascending: true })
 
     if (mediaError) {
-      console.error('Errore caricamento media album:', mediaError)
-      setMessage('Errore durante il caricamento dei contenuti dell’album.')
+      console.error('Errore caricamento contenuti album:', mediaError)
+      setError(`Errore caricamento contenuti album: ${mediaError.message}`)
       setLoading(false)
       return
     }
@@ -115,10 +116,25 @@ function GalleriaAlbum() {
     setLoading(false)
   }
 
-  const activeMedia = useMemo(() => {
-    if (activeIndex === null) return null
-    return media[activeIndex] ?? null
-  }, [activeIndex, media])
+  const sortedMedia = useMemo(() => {
+    return [...media].sort((a, b) => {
+      if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
+  }, [media])
+
+  const viewableMedia = useMemo(() => {
+    return sortedMedia.filter(
+      (item) => item.media_type === 'image' || item.media_type === 'video'
+    )
+  }, [sortedMedia])
+
+  const activeMedia =
+    activeIndex !== null && activeIndex >= 0 ? viewableMedia[activeIndex] : null
+
+  function getMediaUrl(item: GalleryMedia) {
+    return item.video_url || item.image_url || ''
+  }
 
   function formatAlbumDate(item: GalleryAlbum) {
     if (item.event_date) {
@@ -132,460 +148,567 @@ function GalleriaAlbum() {
     return String(item.event_year)
   }
 
-  function getYoutubeEmbedUrl(url: string) {
-    const patterns = [
-      /youtube\.com\/watch\?v=([^&]+)/,
-      /youtu\.be\/([^?&]+)/,
-      /youtube\.com\/shorts\/([^?&]+)/,
-      /youtube\.com\/embed\/([^?&]+)/,
-    ]
+  function isPdf(item: GalleryMedia) {
+    const url = getMediaUrl(item).toLowerCase()
+    const caption = (item.caption || '').toLowerCase()
 
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match?.[1]) return `https://www.youtube.com/embed/${match[1]}`
-    }
-
-    return url
+    return item.media_type === 'file' && (url.includes('.pdf') || caption.includes('.pdf'))
   }
 
-  function renderMediaThumb(item: GalleryMedia) {
-    if (item.media_type === 'youtube') {
-      return (
-        <div style={thumbWrapperStyle}>
-          <img
-            src={item.thumbnail_url ?? ''}
-            alt={item.caption || 'Video YouTube'}
-            style={thumbImageStyle}
-          />
-          <span style={videoBadgeStyle}>YT</span>
-        </div>
-      )
-    }
-
-    if (item.media_type === 'video') {
-      return (
-        <div style={thumbWrapperStyle}>
-          <video
-            src={item.video_url ?? item.image_url}
-            style={thumbImageStyle}
-            muted
-          />
-          <span style={videoBadgeStyle}>▶</span>
-        </div>
-      )
-    }
+  function isSocial(item: GalleryMedia) {
+    const url = getMediaUrl(item).toLowerCase()
 
     return (
-      <img
-        src={item.image_url}
-        alt={item.caption || album?.title || 'Foto galleria'}
-        style={thumbImageStyle}
-      />
+      item.media_type === 'social' ||
+      url.includes('instagram.com') ||
+      url.includes('facebook.com') ||
+      url.includes('fb.com') ||
+      url.includes('tiktok.com')
     )
   }
 
-  function renderLightboxMedia(item: GalleryMedia) {
-    if (item.media_type === 'youtube') {
-      return (
-        <iframe
-          title={item.caption || 'Video YouTube'}
-          src={getYoutubeEmbedUrl(item.video_url ?? item.image_url)}
-          style={lightboxIframeStyle}
-          allowFullScreen
-        />
-      )
+  function getSocialPlatform(item: GalleryMedia) {
+    const url = getMediaUrl(item).toLowerCase()
+    const caption = (item.caption || '').toLowerCase()
+
+    if (url.includes('instagram.com') || caption.includes('instagram')) {
+      return {
+        label: 'Instagram',
+        icon: '◎',
+        gradient: 'linear-gradient(135deg, #833ab4 0%, #fd1d1d 52%, #fcb045 100%)',
+      }
     }
 
-    if (item.media_type === 'video') {
-      return (
-        <video
-          src={item.video_url ?? item.image_url}
-          style={lightboxVideoStyle}
-          controls
-          autoPlay
-        />
-      )
+    if (url.includes('facebook.com') || url.includes('fb.com') || caption.includes('facebook')) {
+      return {
+        label: 'Facebook',
+        icon: 'f',
+        gradient: 'linear-gradient(135deg, #1877f2 0%, #0d47a1 100%)',
+      }
     }
 
-    return (
-      <img
-        src={item.image_url}
-        alt={item.caption || album?.title || 'Foto galleria'}
-        style={lightboxImageStyle}
-      />
-    )
+    if (url.includes('tiktok.com') || caption.includes('tiktok')) {
+      return {
+        label: 'TikTok',
+        icon: '♪',
+        gradient: 'linear-gradient(135deg, #111111 0%, #25f4ee 48%, #fe2c55 100%)',
+      }
+    }
+
+    return {
+      label: 'Social',
+      icon: '↗',
+      gradient: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+    }
+  }
+
+  function getCardType(item: GalleryMedia) {
+    if (item.media_type === 'youtube') return 'YOUTUBE'
+    if (isSocial(item)) return 'SOCIAL'
+    if (item.media_type === 'video') return 'VIDEO'
+    if (item.media_type === 'file' || isPdf(item)) return 'DOCUMENTO'
+    return 'IMMAGINE'
+  }
+
+  function handleCardClick(item: GalleryMedia) {
+    if (item.media_type === 'image' || item.media_type === 'video') {
+      const index = viewableMedia.findIndex((mediaItem) => mediaItem.id === item.id)
+      if (index >= 0) setActiveIndex(index)
+      return
+    }
+
+    window.open(getMediaUrl(item), '_blank', 'noopener,noreferrer')
   }
 
   function goPrev() {
-    if (media.length === 0) return
+    if (viewableMedia.length === 0) return
 
     setActiveIndex((current) => {
       if (current === null) return 0
-      return current === 0 ? media.length - 1 : current - 1
+      return current === 0 ? viewableMedia.length - 1 : current - 1
     })
   }
 
   function goNext() {
-    if (media.length === 0) return
+    if (viewableMedia.length === 0) return
 
     setActiveIndex((current) => {
       if (current === null) return 0
-      return current === media.length - 1 ? 0 : current + 1
+      return current === viewableMedia.length - 1 ? 0 : current + 1
     })
   }
 
-  return (
-    <main style={pageStyle}>
-      <section style={heroStyle}>
+  function renderPreview(item: GalleryMedia) {
+    const mediaUrl = getMediaUrl(item)
+
+    if (item.media_type === 'youtube') {
+      return (
+        <div style={previewWrapperStyle}>
+          <img
+            src={item.thumbnail_url || ''}
+            alt="YouTube"
+            style={previewImageStyle}
+          />
+
+          <div style={playOverlayStyle}>▶</div>
+        </div>
+      )
+    }
+
+    if (isSocial(item)) {
+      const platform = getSocialPlatform(item)
+
+      if (item.thumbnail_url) {
+        return (
+          <div style={previewWrapperStyle}>
+            <img
+              src={item.thumbnail_url}
+              alt={platform.label}
+              style={previewImageStyle}
+            />
+
+            <div style={socialMiniBadgeStyle}>{platform.label}</div>
+          </div>
+        )
+      }
+
+      return (
+        <div style={previewWrapperStyle}>
+          <div
+            style={{
+              ...socialPreviewStyle,
+              background: platform.gradient,
+            }}
+          >
+            <div style={socialIconStyle}>{platform.icon}</div>
+            <div style={socialTitleStyle}>{platform.label}</div>
+          </div>
+        </div>
+      )
+    }
+
+    if (item.media_type === 'video') {
+      return (
+        <div style={previewWrapperStyle}>
+          <video
+            src={mediaUrl}
+            style={previewImageStyle}
+            muted
+            playsInline
+            preload="metadata"
+          />
+
+          <div style={playOverlayStyle}>▶</div>
+        </div>
+      )
+    }
+
+    if (item.media_type === 'file') {
+      return (
+        <div style={previewWrapperStyle}>
+          <div style={documentPreviewStyle}>
+            <div style={documentIconStyle}>PDF</div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div style={previewWrapperStyle}>
+        <img
+          src={item.image_url}
+          alt="Immagine galleria"
+          style={previewImageStyle}
+        />
+      </div>
+    )
+  }
+
+  function renderLightboxContent(item: GalleryMedia) {
+    if (item.media_type === 'video') {
+      return (
+        <video
+          src={item.video_url || item.image_url}
+          controls
+          autoPlay
+          style={lightboxMediaStyle}
+        />
+      )
+    }
+
+    return (
+      <img
+        src={item.image_url}
+        alt={album?.title || 'Immagine galleria'}
+        style={lightboxMediaStyle}
+      />
+    )
+  }
+
+  if (loading) {
+    return (
+      <main style={pageStyle}>
+        <div style={containerStyle}>
+          <p style={smallLabelStyle}>GALLERIA</p>
+          <h1 style={titleStyle}>Caricamento album...</h1>
+        </div>
+      </main>
+    )
+  }
+
+  if (error || !album) {
+    return (
+      <main style={pageStyle}>
         <div style={containerStyle}>
           <Link to="/galleria" style={backLinkStyle}>
-            ← Torna alla galleria
+            ← Torna agli anni
           </Link>
 
-          {loading && <p style={mutedTextStyle}>Caricamento album...</p>}
+          <p style={smallLabelStyle}>GALLERIA</p>
+          <h1 style={titleStyle}>Album non disponibile</h1>
 
-          {!loading && message && <div style={messageBoxStyle}>{message}</div>}
+          <div style={emptyBoxStyle}>{error || 'Album non trovato.'}</div>
+        </div>
+      </main>
+    )
+  }
 
-          {!loading && !message && album && (
-            <>
-              <p style={labelStyle}>Album</p>
+  return (
+    <>
+      <main style={pageStyle}>
+        <div style={containerStyle}>
+          <Link to="/galleria" style={backLinkStyle}>
+            ← Torna agli anni
+          </Link>
 
-              <h1 style={albumPageTitleBadgeStyle}>{album.title}</h1>
+          <p style={smallLabelStyle}>GALLERIA</p>
 
-              <p style={albumMetaStyle}>
-                {formatAlbumDate(album)}
-                {album.category ? ` · ${album.category}` : ''}
-                {' · '}
-                {media.length} contenuti
-              </p>
+          <h1 style={titleStyle}>{album.title}</h1>
 
-              {album.description && (
-                <p style={introTextStyle}>{album.description}</p>
-              )}
-            </>
+          <div style={metaRowStyle}>
+            <span>{formatAlbumDate(album)}</span>
+            {album.category && <span>• {album.category}</span>}
+            <span>• {sortedMedia.length} contenuti</span>
+          </div>
+
+          {album.description && <p style={descriptionStyle}>{album.description}</p>}
+
+          {sortedMedia.length === 0 ? (
+            <div style={emptyBoxStyle}>Questo album non contiene ancora materiali.</div>
+          ) : (
+            <div style={gridStyle}>
+              {sortedMedia.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleCardClick(item)}
+                  style={cardStyle}
+                >
+                  {renderPreview(item)}
+
+                  <div style={cardBodyStyle}>
+                    <div style={mediaLabelStyle}>{getCardType(item)}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
-      </section>
+      </main>
 
-      {!loading && !message && album && (
-        <section style={contentStyle}>
-          <div style={containerStyle}>
-            {media.length === 0 && (
-              <div style={emptyBoxStyle}>
-                Questo album non contiene ancora foto o video.
-              </div>
-            )}
-
-            {media.length > 0 && (
-              <div style={mediaGridStyle}>
-                {media.map((item, index) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    style={mediaCardStyle}
-                    onClick={() => setActiveIndex(index)}
-                  >
-                    {renderMediaThumb(item)}
-
-                    {item.caption && (
-                      <span style={captionStyle}>{item.caption}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {activeMedia && activeIndex !== null && (
+      {activeMedia && (
         <div style={lightboxOverlayStyle} onClick={() => setActiveIndex(null)}>
           <button
             type="button"
-            style={closeButtonStyle}
             onClick={() => setActiveIndex(null)}
+            style={closeButtonStyle}
           >
             ×
           </button>
 
-          <button
-            type="button"
-            style={prevButtonStyle}
-            onClick={(e) => {
-              e.stopPropagation()
-              goPrev()
-            }}
-          >
-            ‹
-          </button>
+          {viewableMedia.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  goPrev()
+                }}
+                style={navButtonLeftStyle}
+              >
+                ‹
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  goNext()
+                }}
+                style={navButtonRightStyle}
+              >
+                ›
+              </button>
+            </>
+          )}
 
           <div
             style={lightboxContentStyle}
             onClick={(e) => e.stopPropagation()}
           >
-            {renderLightboxMedia(activeMedia)}
-
-            {activeMedia.caption && (
-              <p style={lightboxCaptionStyle}>{activeMedia.caption}</p>
-            )}
-
-            <p style={lightboxCounterStyle}>
-              {activeIndex + 1} / {media.length}
-            </p>
+            {renderLightboxContent(activeMedia)}
           </div>
-
-          <button
-            type="button"
-            style={nextButtonStyle}
-            onClick={(e) => {
-              e.stopPropagation()
-              goNext()
-            }}
-          >
-            ›
-          </button>
         </div>
       )}
-    </main>
+    </>
   )
 }
 
-const pageStyle: CSSProperties = {
-  minHeight: '90vh',
+const pageStyle: React.CSSProperties = {
+  minHeight: '100vh',
   background:
-    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
+    'radial-gradient(circle at top, rgba(120,20,40,0.18), transparent 35%), #020817',
   color: 'white',
+  padding: '54px 24px 80px',
 }
 
-const containerStyle: CSSProperties = {
-  width: 'min(1120px, calc(100% - 32px))',
+const containerStyle: React.CSSProperties = {
+  maxWidth: '1180px',
   margin: '0 auto',
 }
 
-const heroStyle: CSSProperties = {
-  padding: '54px 0 24px',
-}
-
-const backLinkStyle: CSSProperties = {
+const backLinkStyle: React.CSSProperties = {
   display: 'inline-block',
-  color: '#d95b64',
+  marginBottom: '28px',
+  color: '#ff5c70',
   textDecoration: 'none',
-  fontWeight: 900,
-  marginBottom: '20px',
+  fontWeight: 800,
 }
 
-const labelStyle: CSSProperties = {
-  color: '#d95b64',
+const smallLabelStyle: React.CSSProperties = {
+  color: '#ff4d5f',
   fontWeight: 900,
   letterSpacing: '2px',
-  textTransform: 'uppercase',
-  fontSize: '12px',
-  marginBottom: '10px',
-}
-
-const albumPageTitleBadgeStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  width: 'fit-content',
-  maxWidth: '100%',
-  margin: '0 0 12px',
-  padding: '8px 17px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: 'clamp(18px, 4vw, 28px)',
-  lineHeight: 1.12,
-  fontWeight: 850,
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
-}
-
-const albumMetaStyle: CSSProperties = {
-  margin: '0 0 10px',
-  color: '#f2f2f2',
   fontSize: '14px',
-  fontWeight: 800,
-  lineHeight: 1.45,
+  margin: '0 0 14px',
 }
 
-const introTextStyle: CSSProperties = {
-  maxWidth: '860px',
-  color: '#d7dbe3',
-  fontSize: '15px',
-  lineHeight: 1.7,
-  marginTop: '10px',
+const titleStyle: React.CSSProperties = {
+  fontSize: 'clamp(40px, 7vw, 72px)',
+  lineHeight: 1.02,
+  margin: '0 0 16px',
 }
 
-const contentStyle: CSSProperties = {
-  padding: '0 0 72px',
+const metaRowStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+  color: '#cbd5e1',
+  marginBottom: '14px',
+  fontSize: '14px',
+  fontWeight: 700,
 }
 
-const mutedTextStyle: CSSProperties = {
-  color: '#d7dbe3',
+const descriptionStyle: React.CSSProperties = {
+  color: '#e5e7eb',
+  fontSize: '18px',
   lineHeight: 1.6,
+  maxWidth: '820px',
+  marginBottom: '34px',
 }
 
-const messageBoxStyle: CSSProperties = {
-  background: 'rgba(185,68,79,0.18)',
-  border: '1px solid rgba(185,68,79,0.28)',
-  color: '#f3dede',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const emptyBoxStyle: CSSProperties = {
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  borderRadius: '18px',
-  padding: '20px',
-  color: '#d7dbe3',
-}
-
-const mediaGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
-  gap: '8px',
-}
-
-const mediaCardStyle: CSSProperties = {
-  cursor: 'pointer',
+const emptyBoxStyle: React.CSSProperties = {
+  padding: '22px',
+  borderRadius: '20px',
   border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
-  borderRadius: '12px',
-  padding: '5px',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e5e7eb',
+}
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+  gap: '16px',
+  alignItems: 'start',
+}
+
+const cardStyle: React.CSSProperties = {
+  textDecoration: 'none',
   color: 'white',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '16px',
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '174px',
+  padding: 0,
+  cursor: 'pointer',
   textAlign: 'left',
 }
 
-const thumbWrapperStyle: CSSProperties = {
+const previewWrapperStyle: React.CSSProperties = {
   position: 'relative',
-}
-
-const thumbImageStyle: CSSProperties = {
   width: '100%',
-  height: '78px',
+  height: '132px',
+  background: '#111827',
+  overflow: 'hidden',
+}
+
+const previewImageStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
   objectFit: 'cover',
-  borderRadius: '8px',
   display: 'block',
-  background: '#111',
 }
 
-const videoBadgeStyle: CSSProperties = {
+const playOverlayStyle: React.CSSProperties = {
   position: 'absolute',
-  left: '5px',
-  bottom: '5px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  borderRadius: '999px',
-  padding: '3px 6px',
-  fontSize: '9px',
-  fontWeight: 900,
-}
-
-const captionStyle: CSSProperties = {
-  display: 'block',
-  color: '#d7dbe3',
-  fontSize: '10px',
-  lineHeight: 1.25,
-  marginTop: '5px',
-}
-
-const lightboxOverlayStyle: CSSProperties = {
-  position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,0.88)',
-  zIndex: 9999,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '24px',
+  fontSize: '42px',
+  color: 'white',
+  textShadow: '0 4px 18px rgba(0,0,0,0.6)',
+  background: 'linear-gradient(to top, rgba(0,0,0,0.22), rgba(0,0,0,0.12))',
 }
 
-const lightboxContentStyle: CSSProperties = {
-  maxWidth: 'min(1000px, 90vw)',
-  maxHeight: '86vh',
-  textAlign: 'center',
+const documentPreviewStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  background: 'linear-gradient(180deg, #1f2937 0%, #111827 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 }
 
-const lightboxImageStyle: CSSProperties = {
-  maxWidth: '100%',
-  maxHeight: '76vh',
+const documentIconStyle: React.CSSProperties = {
+  width: '82px',
+  height: '82px',
+  borderRadius: '18px',
+  background: 'rgba(255,255,255,0.10)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 900,
+  fontSize: '20px',
+  color: 'white',
+  letterSpacing: '1px',
+}
+
+const socialPreviewStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'white',
+  gap: '8px',
+}
+
+const socialIconStyle: React.CSSProperties = {
+  fontSize: '34px',
+  lineHeight: 1,
+  fontWeight: 900,
+}
+
+const socialTitleStyle: React.CSSProperties = {
+  fontSize: '16px',
+  fontWeight: 900,
+}
+
+const socialMiniBadgeStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: '10px',
+  bottom: '10px',
+  background: 'rgba(0,0,0,0.62)',
+  color: 'white',
+  padding: '6px 10px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
+const cardBodyStyle: React.CSSProperties = {
+  padding: '9px 12px 10px',
+  display: 'grid',
+  gap: 0,
+}
+
+const mediaLabelStyle: React.CSSProperties = {
+  color: '#ff4d5f',
+  fontWeight: 900,
+  letterSpacing: '1.3px',
+  fontSize: '12px',
+}
+
+const lightboxOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.92)',
+  zIndex: 1000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '30px',
+}
+
+const lightboxContentStyle: React.CSSProperties = {
+  maxWidth: '92vw',
+  maxHeight: '88vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const lightboxMediaStyle: React.CSSProperties = {
+  maxWidth: '92vw',
+  maxHeight: '88vh',
+  borderRadius: '16px',
   objectFit: 'contain',
-  borderRadius: '16px',
 }
 
-const lightboxVideoStyle: CSSProperties = {
-  maxWidth: '100%',
-  maxHeight: '76vh',
-  borderRadius: '16px',
-}
-
-const lightboxIframeStyle: CSSProperties = {
-  width: 'min(900px, 86vw)',
-  height: 'min(520px, 60vw)',
-  border: 'none',
-  borderRadius: '16px',
-  background: '#111',
-}
-
-const closeButtonStyle: CSSProperties = {
+const closeButtonStyle: React.CSSProperties = {
   position: 'fixed',
   top: '18px',
-  right: '22px',
-  width: '42px',
-  height: '42px',
+  right: '18px',
+  width: '52px',
+  height: '52px',
   borderRadius: '999px',
   border: 'none',
-  cursor: 'pointer',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: '30px',
-  lineHeight: 1,
-  fontWeight: 800,
-}
-
-const prevButtonStyle: CSSProperties = {
-  position: 'fixed',
-  left: '22px',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: '44px',
-  height: '44px',
-  borderRadius: '999px',
-  border: 'none',
-  cursor: 'pointer',
-  background: 'rgba(255,255,255,0.12)',
-  color: 'white',
+  background: 'white',
+  color: '#111',
   fontSize: '34px',
   lineHeight: 1,
+  cursor: 'pointer',
+  zIndex: 1001,
 }
 
-const nextButtonStyle: CSSProperties = {
+const navButtonBase: React.CSSProperties = {
   position: 'fixed',
-  right: '22px',
   top: '50%',
   transform: 'translateY(-50%)',
-  width: '44px',
-  height: '44px',
+  width: '56px',
+  height: '56px',
   borderRadius: '999px',
   border: 'none',
-  cursor: 'pointer',
-  background: 'rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.14)',
   color: 'white',
   fontSize: '34px',
-  lineHeight: 1,
+  cursor: 'pointer',
+  zIndex: 1001,
 }
 
-const lightboxCaptionStyle: CSSProperties = {
-  color: '#f2f2f2',
-  fontSize: '14px',
-  lineHeight: 1.5,
-  marginTop: '12px',
+const navButtonLeftStyle: React.CSSProperties = {
+  ...navButtonBase,
+  left: '18px',
 }
 
-const lightboxCounterStyle: CSSProperties = {
-  color: '#b9bec9',
-  fontSize: '13px',
-  marginTop: '8px',
+const navButtonRightStyle: React.CSSProperties = {
+  ...navButtonBase,
+  right: '18px',
 }
 
 export default GalleriaAlbum
