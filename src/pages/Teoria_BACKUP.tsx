@@ -21,7 +21,6 @@ function Teoria() {
 
   const [resources, setResources] = useState<TheoryResource[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedVideo, setSelectedVideo] = useState<TheoryResource | null>(null)
 
   useEffect(() => {
     loadResources()
@@ -89,69 +88,7 @@ function Teoria() {
     return 'Documento'
   }
 
-  function getYoutubeEmbedUrl(url: string) {
-    const patterns = [
-      /youtube\.com\/watch\?v=([^&]+)/,
-      /youtu\.be\/([^?&]+)/,
-      /youtube\.com\/shorts\/([^?&]+)/,
-      /youtube\.com\/embed\/([^?&]+)/,
-    ]
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match?.[1]) return `https://www.youtube.com/embed/${match[1]}`
-    }
-
-    return null
-  }
-
-  function renderVideoPreview(item: TheoryResource) {
-    const videoUrl = getResourceUrl(item)
-
-    return (
-      <button
-        key={item.id}
-        type="button"
-        style={videoResourceItemStyle}
-        onClick={() => setSelectedVideo(item)}
-        aria-label={`Apri video ${item.title}`}
-      >
-        <div style={videoThumbStyle}>
-          {item.resource_type === 'youtube' ? (
-            <div style={youtubeThumbFallbackStyle}>YT</div>
-          ) : (
-            <video
-              src={videoUrl}
-              style={videoPreviewStyle}
-              muted
-              preload="metadata"
-              playsInline
-              controls={false}
-              onContextMenu={(e) => e.preventDefault()}
-            />
-          )}
-
-          <span style={playOverlayStyle}>▶</span>
-        </div>
-
-        <span style={resourceTextWrapperStyle}>
-          <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
-
-          <strong style={resourceTitleStyle}>{item.title}</strong>
-
-          {item.description && (
-            <span style={resourceDescriptionStyle}>{item.description}</span>
-          )}
-        </span>
-      </button>
-    )
-  }
-
   function renderResource(item: TheoryResource) {
-    if (item.resource_type === 'video' || item.resource_type === 'youtube') {
-      return renderVideoPreview(item)
-    }
-
     return (
       <a
         key={item.id}
@@ -170,73 +107,6 @@ function Teoria() {
           )}
         </span>
       </a>
-    )
-  }
-
-  function renderVideoModal() {
-    if (!selectedVideo) return null
-
-    const videoUrl = getResourceUrl(selectedVideo)
-
-    if (selectedVideo.resource_type === 'youtube') {
-      const embedUrl = getYoutubeEmbedUrl(videoUrl)
-
-      return (
-        <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
-          <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              style={closeButtonStyle}
-              onClick={() => setSelectedVideo(null)}
-              aria-label="Chiudi video"
-            >
-              ×
-            </button>
-
-            {embedUrl ? (
-              <iframe
-                src={embedUrl}
-                title={selectedVideo.title}
-                style={youtubeFrameStyle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <p style={modalTextStyle}>Video YouTube non disponibile.</p>
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
-        <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={closeButtonStyle}
-            onClick={() => setSelectedVideo(null)}
-            aria-label="Chiudi video"
-          >
-            ×
-          </button>
-
-          <video
-            src={videoUrl}
-            style={modalVideoStyle}
-            controls
-            autoPlay
-            playsInline
-            controlsList="nodownload noplaybackrate"
-            disablePictureInPicture
-            onContextMenu={(e) => e.preventDefault()}
-          />
-
-          <p style={videoNoticeStyle}>
-            Video visualizzabile direttamente nella pagina.
-          </p>
-        </div>
-      </div>
     )
   }
 
@@ -342,8 +212,6 @@ function Teoria() {
             </div>
           )}
         </section>
-
-        {renderVideoModal()}
       </main>
     )
   }
@@ -392,8 +260,6 @@ function Teoria() {
             </div>
           )}
         </section>
-
-        {renderVideoModal()}
       </main>
     )
   }
@@ -541,64 +407,8 @@ const resourceItemStyle: CSSProperties = {
   padding: '12px 14px',
 }
 
-const videoResourceItemStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-  alignItems: 'center',
-  width: '100%',
-  textAlign: 'left',
-  color: 'white',
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
-  padding: '10px',
-  cursor: 'pointer',
-}
-
-const videoThumbStyle: CSSProperties = {
-  position: 'relative',
-  width: '96px',
-  height: '62px',
-  flexShrink: 0,
-  borderRadius: '10px',
-  overflow: 'hidden',
-  background: '#111827',
-}
-
-const videoPreviewStyle: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'cover',
-  display: 'block',
-}
-
-const youtubeThumbFallbackStyle: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontWeight: 950,
-  fontSize: '18px',
-}
-
-const playOverlayStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(0,0,0,0.22)',
-  color: 'white',
-  fontWeight: 950,
-  fontSize: '18px',
-}
-
 const resourceBadgeStyle: CSSProperties = {
   flexShrink: 0,
-  width: 'fit-content',
   padding: '6px 10px',
   borderRadius: '999px',
   background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
@@ -609,7 +419,7 @@ const resourceBadgeStyle: CSSProperties = {
 
 const resourceTextWrapperStyle: CSSProperties = {
   display: 'grid',
-  gap: '4px',
+  gap: '3px',
   minWidth: 0,
 }
 
@@ -677,71 +487,6 @@ const emptyBoxStyle: CSSProperties = {
 
 const mutedTextStyle: CSSProperties = {
   color: '#d8d8d8',
-}
-
-const modalOverlayStyle: CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 1000,
-  background: 'rgba(0,0,0,0.76)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '20px',
-}
-
-const videoModalStyle: CSSProperties = {
-  position: 'relative',
-  width: 'min(760px, 96vw)',
-  background: '#020817',
-  borderRadius: '20px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  padding: '16px',
-  boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
-}
-
-const closeButtonStyle: CSSProperties = {
-  position: 'absolute',
-  top: '-14px',
-  right: '-14px',
-  width: '36px',
-  height: '36px',
-  borderRadius: '999px',
-  border: 'none',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: '24px',
-  fontWeight: 900,
-  cursor: 'pointer',
-  lineHeight: 1,
-  zIndex: 2,
-}
-
-const modalVideoStyle: CSSProperties = {
-  width: '100%',
-  maxHeight: '70vh',
-  borderRadius: '14px',
-  background: '#111827',
-  display: 'block',
-}
-
-const youtubeFrameStyle: CSSProperties = {
-  width: '100%',
-  aspectRatio: '16 / 9',
-  border: 0,
-  borderRadius: '14px',
-  display: 'block',
-}
-
-const modalTextStyle: CSSProperties = {
-  color: '#d8d8d8',
-  margin: 0,
-}
-
-const videoNoticeStyle: CSSProperties = {
-  margin: '10px 2px 0',
-  color: '#aeb6c4',
-  fontSize: '12px',
 }
 
 export default Teoria
