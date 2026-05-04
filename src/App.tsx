@@ -1,433 +1,280 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
-
-import { supabase } from './lib/supabaseClient'
+import { NavLink, Route, Routes } from 'react-router-dom'
 
 import Home from './pages/Home'
 import ChiSiamo from './pages/ChiSiamo'
 import Insegnanti from './pages/Insegnanti'
 import Corsi from './pages/Corsi'
-import CalendarioEventi from './pages/CalendarioEventi'
-import EventoDettaglio from './pages/EventoDettaglio'
 import Galleria from './pages/Galleria'
 import GalleriaAlbum from './pages/GalleriaAlbum'
 import Teoria from './pages/Teoria'
-import Documenti from './pages/Documenti'
 import News from './pages/News'
-import AreaUtente from './pages/AreaUtente'
+import NewsDetail from './pages/NewsDetail'
 import Contatti from './pages/Contatti'
-
-function AppHeader() {
-  const location = useLocation()
-  const [hasRecentNews, setHasRecentNews] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => {
-    checkRecentNews()
-  }, [])
-
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [location.pathname])
-
-  async function checkRecentNews() {
-    const today = new Date()
-    const fiveDaysAgo = new Date(today)
-    fiveDaysAgo.setDate(today.getDate() - 5)
-
-    const fiveDaysAgoText = fiveDaysAgo.toISOString().slice(0, 10)
-
-    const { data, error } = await supabase
-      .from('news')
-      .select('id, news_date, created_at')
-      .eq('published', true)
-      .or(`news_date.gte.${fiveDaysAgoText},created_at.gte.${fiveDaysAgo.toISOString()}`)
-      .limit(1)
-
-    if (error) {
-      console.error('Errore controllo news recenti:', error)
-      setHasRecentNews(false)
-      return
-    }
-
-    setHasRecentNews((data ?? []).length > 0)
-  }
-
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/'
-    return location.pathname.startsWith(path)
-  }
-
-  return (
-    <>
-      <style>{headerResponsiveCss}</style>
-
-      <header className="site-header" style={headerStyle}>
-        <Link to="/" style={logoStyle}>
-          <img
-            src="/images/logo-dojo-yamato.png"
-            alt="Logo A.S.D. Dojo Yamato"
-            style={logoImageStyle}
-          />
-
-          <span style={logoTextWrapperStyle}>
-            <span style={logoTitleStyle}>A.S.D. DOJO YAMATO</span>
-            <span style={logoSubtitleStyle}>ARTI MARZIALI</span>
-          </span>
-        </Link>
-
-        <button
-          type="button"
-          className={`hamburger-button ${menuOpen ? 'is-open' : ''}`}
-          onClick={() => setMenuOpen((prev) => !prev)}
-          aria-label="Apri menu"
-          aria-expanded={menuOpen}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-
-        <nav className={`header-nav ${menuOpen ? 'is-open' : ''}`} style={navStyle}>
-          <Link
-            to="/news"
-            style={{
-              ...navLinkStyle,
-              ...(hasRecentNews ? newsActiveStyle : {}),
-              ...(isActive('/news') && !hasRecentNews ? currentPageStyle : {}),
-            }}
-          >
-            News
-          </Link>
-
-          <Link
-            to="/"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/') ? currentPageStyle : {}),
-            }}
-          >
-            Home
-          </Link>
-
-          <Link
-            to="/chi-siamo"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/chi-siamo') ? currentPageStyle : {}),
-            }}
-          >
-            Chi siamo
-          </Link>
-
-          <Link
-            to="/insegnanti"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/insegnanti') ? currentPageStyle : {}),
-            }}
-          >
-            Insegnanti
-          </Link>
-
-          <Link
-            to="/corsi"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/corsi') ? currentPageStyle : {}),
-            }}
-          >
-            Corsi
-          </Link>
-
-          <Link
-            to="/calendario-eventi"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/calendario-eventi') ? currentPageStyle : {}),
-            }}
-          >
-            Eventi
-          </Link>
-
-          <Link
-            to="/galleria"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/galleria') ? currentPageStyle : {}),
-            }}
-          >
-            Galleria
-          </Link>
-
-          <Link
-            to="/teoria"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/teoria') ? currentPageStyle : {}),
-            }}
-          >
-            Teoria
-          </Link>
-
-          <Link
-            to="/documenti"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/documenti') ? currentPageStyle : {}),
-            }}
-          >
-            Documenti
-          </Link>
-
-          <Link
-            to="/contatti"
-            style={{
-              ...navLinkStyle,
-              ...(isActive('/contatti') ? currentPageStyle : {}),
-            }}
-          >
-            Contatti
-          </Link>
-
-          <Link
-            to="/area-utente"
-            style={{
-              ...areaUtenteStyle,
-              ...(isActive('/area-utente') ? areaUtenteActiveStyle : {}),
-            }}
-          >
-            Area Utente
-          </Link>
-        </nav>
-      </header>
-    </>
-  )
-}
+import AreaUtente from './pages/AreaUtente'
+import Bacheca from './pages/Bacheca'
+import CalendarioEventi from './pages/CalendarioEventi'
+import EventoDettaglio from './pages/EventoDettaglio'
+import Documenti from './pages/Documenti'
+import DifesaPersonale from './pages/DifesaPersonale'
 
 function App() {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function closeMenu() {
+    setMenuOpen(false)
+  }
+
   return (
     <>
-      <AppHeader />
+      <style>{responsiveCss}</style>
+
+      <header style={headerStyle}>
+        <div style={headerInnerStyle}>
+          <NavLink to="/" onClick={closeMenu} style={brandStyle}>
+            <div style={logoBoxStyle}>
+              <img
+                src="/images/logo-dojo-yamato.png"
+                alt="Logo A.S.D. Dojo Yamato"
+                style={logoImageStyle}
+              />
+            </div>
+
+            <div style={brandTextStyle}>
+              <div style={brandTitleStyle}>A.S.D. DOJO YAMATO</div>
+              <div style={brandSubtitleStyle}>ARTI MARZIALI</div>
+            </div>
+          </NavLink>
+
+          <button
+            type="button"
+            className="mobile-menu-button"
+            style={mobileMenuButtonStyle}
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label="Apri menu"
+          >
+            ☰
+          </button>
+
+          <nav
+            className={`site-nav ${menuOpen ? 'site-nav-open' : ''}`}
+            style={navStyle}
+          >
+            <HeaderLink to="/news" label="News" onClick={closeMenu} />
+            <HeaderLink to="/" label="Home" onClick={closeMenu} end />
+            <HeaderLink to="/chi-siamo" label="Chi siamo" onClick={closeMenu} />
+            <HeaderLink to="/insegnanti" label="Insegnanti" onClick={closeMenu} />
+            <HeaderLink to="/corsi" label="Corsi" onClick={closeMenu} />
+            <HeaderLink to="/calendario-eventi" label="Eventi" onClick={closeMenu} />
+            <HeaderLink to="/galleria" label="Galleria" onClick={closeMenu} />
+            <HeaderLink to="/teoria" label="Teoria" onClick={closeMenu} />
+            <HeaderLink to="/documenti" label="Documenti" onClick={closeMenu} />
+            <HeaderLink to="/contatti" label="Contatti" onClick={closeMenu} />
+            <HeaderLink to="/area-utente" label="Area Utente" onClick={closeMenu} />
+          </nav>
+        </div>
+      </header>
 
       <Routes>
         <Route path="/" element={<Home />} />
-
         <Route path="/chi-siamo" element={<ChiSiamo />} />
         <Route path="/insegnanti" element={<Insegnanti />} />
         <Route path="/corsi" element={<Corsi />} />
-
-        <Route path="/calendario-eventi" element={<CalendarioEventi />} />
-        <Route path="/calendario-eventi/:eventId" element={<EventoDettaglio />} />
-
         <Route path="/galleria" element={<Galleria />} />
         <Route path="/galleria/:albumId" element={<GalleriaAlbum />} />
-
         <Route path="/teoria" element={<Teoria />} />
-        <Route path="/teoria/:section" element={<Teoria />} />
-
-        <Route path="/documenti" element={<Documenti />} />
         <Route path="/news" element={<News />} />
-        <Route path="/area-utente" element={<AreaUtente />} />
+        <Route path="/news/:newsId" element={<NewsDetail />} />
         <Route path="/contatti" element={<Contatti />} />
+        <Route path="/area-utente" element={<AreaUtente />} />
+        <Route path="/bacheca" element={<Bacheca />} />
+        <Route path="/calendario-eventi" element={<CalendarioEventi />} />
+        <Route path="/eventi/:eventoId" element={<EventoDettaglio />} />
+        <Route path="/documenti" element={<Documenti />} />
+        <Route path="/difesa-personale" element={<DifesaPersonale />} />
       </Routes>
     </>
   )
 }
 
-const headerResponsiveCss = `
-.hamburger-button {
-  display: none;
-  width: 46px;
-  height: 46px;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #b9444f 0%, #82232b 100%);
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  box-shadow: 0 8px 18px rgba(80,10,18,0.24);
+type HeaderLinkProps = {
+  to: string
+  label: string
+  onClick: () => void
+  end?: boolean
 }
 
-.hamburger-button span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: white;
-  border-radius: 999px;
-  margin: 5px auto;
-  transition: transform 0.22s ease, opacity 0.22s ease;
+function HeaderLink({ to, label, onClick, end = false }: HeaderLinkProps) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClick}
+      style={({ isActive }) => ({
+        ...navLinkStyle,
+        ...(isActive ? activeNavLinkStyle : {}),
+      })}
+    >
+      {label}
+    </NavLink>
+  )
 }
 
-.hamburger-button.is-open span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
+const responsiveCss = `
+.mobile-menu-button {
+  display: none !important;
 }
 
-.hamburger-button.is-open span:nth-child(2) {
-  opacity: 0;
+.site-nav {
+  display: flex !important;
 }
 
-.hamburger-button.is-open span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
-}
-
-@media (max-width: 1320px) {
-  .hamburger-button {
-    display: block;
+@media (max-width: 1180px) {
+  .mobile-menu-button {
+    display: inline-flex !important;
   }
 
-  .header-nav {
-    position: absolute;
-    top: calc(100% + 1px);
-    left: 0;
-    right: 0;
+  .site-nav {
+    position: absolute !important;
+    top: 88px !important;
+    left: 16px !important;
+    right: 16px !important;
     display: none !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    justify-content: flex-start !important;
     gap: 8px !important;
-    padding: 16px 18px 20px !important;
-    background: rgba(21, 25, 37, 0.98);
-    border-bottom: 1px solid rgba(255,255,255,0.10);
-    box-shadow: 0 18px 36px rgba(0,0,0,0.32);
+    padding: 14px !important;
+    border-radius: 18px !important;
+    background: rgba(11, 15, 26, 0.98) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    box-shadow: 0 18px 36px rgba(0,0,0,0.35) !important;
   }
 
-  .header-nav.is-open {
+  .site-nav-open {
     display: flex !important;
-  }
-
-  .header-nav a {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 13px 16px !important;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.06);
-    text-align: center;
-  }
-
-  .header-nav a:last-child {
-    margin-top: 6px;
   }
 }
 
-@media (max-width: 620px) {
-  .site-header {
-    padding: 8px 14px !important;
-    min-height: 76px !important;
-    gap: 10px !important;
-  }
-
-  .site-header img {
-    width: 58px !important;
-    height: 58px !important;
+@media (max-width: 700px) {
+  .brand-title-responsive {
+    font-size: 15px !important;
   }
 }
 `
 
 const headerStyle: CSSProperties = {
-  minHeight: '82px',
-  background: '#151925',
+  position: 'sticky',
+  top: 0,
+  zIndex: 1000,
+  background: 'rgba(11, 15, 26, 0.97)',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
+  backdropFilter: 'blur(14px)',
+}
+
+const headerInnerStyle: CSSProperties = {
+  width: 'min(1380px, calc(100% - 28px))',
+  minHeight: '88px',
+  margin: '0 auto',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '24px',
-  padding: '10px 22px',
-  position: 'sticky',
-  top: 0,
-  zIndex: 100,
+  gap: '20px',
+  position: 'relative',
 }
 
-const logoStyle: CSSProperties = {
+const brandStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '14px',
-  color: 'white',
   textDecoration: 'none',
+  color: 'white',
   flexShrink: 0,
-  minWidth: 0,
+}
+
+const logoBoxStyle: CSSProperties = {
+  width: '78px',
+  height: '78px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+  flexShrink: 0,
+  background: 'transparent',
 }
 
 const logoImageStyle: CSSProperties = {
-  width: '68px',
-  height: '68px',
+  width: '100%',
+  height: '100%',
   objectFit: 'contain',
-  flexShrink: 0,
-  transform: 'scale(1.2)',
-  transformOrigin: 'center',
-}
-
-const logoTextWrapperStyle: CSSProperties = {
-  display: 'grid',
-  gap: '3px',
-  minWidth: 0,
-  justifyItems: 'center',
-  textAlign: 'center',
-}
-
-const logoTitleStyle: CSSProperties = {
-  fontSize: '18px',
-  fontWeight: 950,
-  letterSpacing: '0.8px',
-  lineHeight: 1,
-  whiteSpace: 'nowrap',
+  transform: 'scale(1.18)',
   display: 'block',
+  background: 'transparent',
+}
+
+const brandTextStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  lineHeight: 1.05,
   textAlign: 'center',
 }
 
-const logoSubtitleStyle: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 700,
-  letterSpacing: '2px',
-  color: '#d7dbe3',
-  whiteSpace: 'nowrap',
-  display: 'block',
-  textAlign: 'center',
+const brandTitleStyle: CSSProperties = {
+  fontSize: '19px',
+  fontWeight: 900,
+  letterSpacing: '2.2px',
+  color: '#ffffff',
+}
+
+const brandSubtitleStyle: CSSProperties = {
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '2.4px',
+  color: '#e5e7eb',
+  marginTop: '2px',
 }
 
 const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
-  gap: '18px',
+  gap: '8px',
   flexWrap: 'wrap',
 }
 
 const navLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
   color: 'white',
   textDecoration: 'none',
-  fontWeight: 850,
   fontSize: '14px',
-  lineHeight: 1,
-  padding: '8px 0',
+  fontWeight: 800,
+  transition: 'all 0.2s ease',
 }
 
-const currentPageStyle: CSSProperties = {
-  color: '#f3dede',
+const activeNavLinkStyle: CSSProperties = {
+  background: 'linear-gradient(180deg, #d94a57 0%, #8f2430 100%)',
+  boxShadow: '0 8px 20px rgba(143, 36, 48, 0.35)',
 }
 
-const newsActiveStyle: CSSProperties = {
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+const mobileMenuButtonStyle: CSSProperties = {
+  width: '46px',
+  height: '46px',
+  borderRadius: '12px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.08)',
   color: 'white',
-  padding: '11px 18px',
-  borderRadius: '999px',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
-}
-
-const areaUtenteStyle: CSSProperties = {
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  textDecoration: 'none',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  fontWeight: 900,
-  fontSize: '14px',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
-}
-
-const areaUtenteActiveStyle: CSSProperties = {
-  outline: '2px solid rgba(255,255,255,0.22)',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '24px',
+  cursor: 'pointer',
+  flexShrink: 0,
 }
 
 export default App

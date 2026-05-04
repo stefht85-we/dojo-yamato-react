@@ -25,15 +25,31 @@ type NewsItem = {
   news_documents?: NewsDocument[]
 }
 
-type GalleryItem = {
+type GalleryPhoto = {
+  id: string
+  album_id: string
+  image_url: string | null
+  media_type: string | null
+  sort_order: number | null
+  created_at: string
+}
+
+type GalleryAlbum = {
   id: string
   title: string
-  image_url: string
+  description: string | null
+  category: string | null
+  event_date: string | null
+  event_year: number | null
+  cover_image_url: string | null
+  visible: boolean
+  created_at: string
+  gallery_photos?: GalleryPhoto[]
 }
 
 function Home() {
   const [news, setNews] = useState<NewsItem[]>([])
-  const [gallery, setGallery] = useState<GalleryItem[]>([])
+  const [albums, setAlbums] = useState<GalleryAlbum[]>([])
 
   useEffect(() => {
     async function loadHomeData() {
@@ -65,20 +81,35 @@ function Home() {
         console.error('Errore caricamento news Home:', newsError.message)
       }
 
-      console.log('NEWS HOME CARICATE:', newsData)
+      const { data: albumsData, error: albumsError } = await supabase
+        .from('gallery_albums')
+        .select(`
+          id,
+          title,
+          description,
+          category,
+          event_date,
+          event_year,
+          cover_image_url,
+          visible,
+          created_at,
+          gallery_photos (
+            id,
+            album_id,
+            image_url,
+            media_type,
+            sort_order,
+            created_at
+          )
+        `)
+        .eq('visible', true)
 
-      const { data: galleryData, error: galleryError } = await supabase
-        .from('gallery')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3)
-
-      if (galleryError) {
-        console.error('Errore caricamento galleria Home:', galleryError.message)
+      if (albumsError) {
+        console.error('Errore caricamento album Home:', albumsError.message)
       }
 
       setNews((newsData ?? []) as NewsItem[])
-      setGallery((galleryData ?? []) as GalleryItem[])
+      setAlbums(getDailyAlbumSelection((albumsData ?? []) as GalleryAlbum[]))
     }
 
     loadHomeData()
@@ -103,7 +134,7 @@ function Home() {
     }
   }, [])
 
-  function formatNewsDate(item: NewsItem) {
+  function getNewsDate(item: NewsItem) {
     const dateValue = item.news_date || item.created_at
 
     if (!dateValue) return ''
@@ -115,9 +146,73 @@ function Home() {
     })
   }
 
-  function getShortTitle(title: string) {
-    if (title.length <= 46) return title
-    return `${title.substring(0, 46)}...`
+  function getAlbumTimestamp(album: GalleryAlbum) {
+    if (album.event_date) {
+      return new Date(album.event_date).getTime()
+    }
+
+    if (album.event_year) {
+      return new Date(album.event_year, 0, 1).getTime()
+    }
+
+    if (album.created_at) {
+      return new Date(album.created_at).getTime()
+    }
+
+    return 0
+  }
+
+  function getAlbumDisplayDate(album: GalleryAlbum) {
+    if (album.event_date) {
+      return new Date(album.event_date).toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    }
+
+    if (album.event_year) {
+      return String(album.event_year)
+    }
+
+    if (album.created_at) {
+      return new Date(album.created_at).toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    }
+
+    return ''
+  }
+
+  function getAlbumPreviewImage(album: GalleryAlbum) {
+    const coverUrl = album.cover_image_url?.trim()
+
+    if (coverUrl) return coverUrl
+
+    const firstImage = album.gallery_photos
+      ?.filter((photo) => {
+        const imageUrl = photo.image_url?.trim()
+        const mediaType = photo.media_type?.toLowerCase() || ''
+
+        return Boolean(imageUrl) && (mediaType === 'image' || mediaType === '' || mediaType === 'photo')
+      })
+      .sort((a, b) => {
+        const orderA = a.sort_order ?? 9999
+        const orderB = b.sort_order ?? 9999
+
+        if (orderA !== orderB) return orderA - orderB
+
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      })[0]
+
+    return firstImage?.image_url?.trim() || ''
+  }
+
+  function getShortTitle(title: string, max = 44) {
+    if (title.length <= max) return title
+    return `${title.substring(0, max)}...`
   }
 
   function getDocumentLabel(doc?: NewsDocument) {
@@ -132,6 +227,40 @@ function Home() {
     if (fileType.includes('excel') || title.endsWith('.xls') || title.endsWith('.xlsx')) return 'EXCEL'
 
     return 'FILE'
+  }
+
+  function hashString(value: string) {
+    let hash = 0
+
+    for (let i = 0; i < value.length; i++) {
+      hash = (hash << 5) - hash + value.charCodeAt(i)
+      hash |= 0
+    }
+
+    return Math.abs(hash)
+  }
+
+  function seededShuffle<T>(array: T[], seedString: string) {
+    const result = [...array]
+    let seed = hashString(seedString) || 1
+
+    for (let i = result.length - 1; i > 0; i--) {
+      seed = (seed * 9301 + 49297) % 233280
+      const randomIndex = Math.floor((seed / 233280) * (i + 1))
+      ;[result[i], result[randomIndex]] = [result[randomIndex], result[i]]
+    }
+
+    return result
+  }
+
+  function getDailyAlbumSelection(allAlbums: GalleryAlbum[]) {
+    if (!allAlbums.length) return []
+
+    const todayKey = new Date().toISOString().slice(0, 10)
+    const shuffled = seededShuffle(allAlbums, todayKey)
+    const selected = shuffled.slice(0, 3)
+
+    return selected.sort((a, b) => getAlbumTimestamp(b) - getAlbumTimestamp(a))
   }
 
   return (
@@ -252,20 +381,33 @@ function Home() {
           {news.length > 0 && (
             <div className="home-card-grid" style={newsPreviewGrid}>
               {news.map((item) => (
-                <article key={item.id} className="reveal" style={newsPreviewCard}>
-                  <p style={newsDateStyle}>
-                    Pubblicata il {formatNewsDate(item)}
-                  </p>
+                <article key={item.id} style={newsPreviewCard}>
+                  <p style={newsDateStyle}>Pubblicata il {getNewsDate(item)}</p>
 
                   <Link to="/news" style={newsPreviewLink}>
                     <div style={newsPreviewBox}>
-                      <NewsPreview item={item} getDocumentLabel={getDocumentLabel} />
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url.trim()}
+                          alt={item.title}
+                          style={newsPreviewImage}
+                        />
+                      ) : item.news_documents && item.news_documents.length > 0 ? (
+                        <div style={newsDocumentPreview}>
+                          <div style={newsDocumentIcon}>
+                            {getDocumentLabel(item.news_documents[0])}
+                          </div>
+                          <p style={newsDocumentText}>Documento allegato</p>
+                        </div>
+                      ) : (
+                        <div style={newsEmptyPreview}>
+                          <span style={newsEmptyText}>NEWS</span>
+                        </div>
+                      )}
                     </div>
                   </Link>
 
-                  <h3 style={newsTitlePreview}>
-                    {getShortTitle(item.title)}
-                  </h3>
+                  <h3 style={newsTitlePreview}>{getShortTitle(item.title)}</h3>
                 </article>
               ))}
             </div>
@@ -291,7 +433,7 @@ function Home() {
           <p style={labelStyle}>GALLERIA</p>
           <h2 style={titleStyle}>Momenti dal Dojo</h2>
 
-          {gallery.length === 0 && (
+          {albums.length === 0 && (
             <div
               className="reveal"
               style={{
@@ -304,38 +446,44 @@ function Home() {
               }}
             >
               <p style={{ margin: 0 }}>
-                Al momento non ci sono immagini disponibili in galleria.
+                Al momento non ci sono album disponibili in galleria.
               </p>
             </div>
           )}
 
-          {gallery.length > 0 && (
-            <div className="home-card-grid" style={cardGrid}>
-              {gallery.map((item) => (
-                <div
-                  key={item.id}
-                  className="course-card reveal"
-                  style={{
-                    ...cardStyle,
-                    padding: 0,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <img
-                    src={item.image_url}
-                    alt={item.title}
-                    style={{
-                      width: '100%',
-                      height: '220px',
-                      objectFit: 'cover',
-                    }}
-                  />
+          {albums.length > 0 && (
+            <div className="home-card-grid" style={galleryPreviewGrid}>
+              {albums.map((album) => {
+                const previewImage = getAlbumPreviewImage(album)
 
-                  <div style={{ padding: '20px' }}>
-                    <h3>{item.title}</h3>
-                  </div>
-                </div>
-              ))}
+                return (
+                  <article key={album.id} style={galleryPreviewCard}>
+                    <p style={galleryDateStyle}>
+                      Album del {getAlbumDisplayDate(album)}
+                    </p>
+
+                    <Link to={`/galleria/${album.id}`} style={galleryPreviewLink}>
+                      <div style={galleryPreviewBox}>
+                        {previewImage ? (
+                          <img
+                            src={previewImage}
+                            alt={album.title}
+                            style={galleryPreviewImage}
+                          />
+                        ) : (
+                          <div style={galleryEmptyPreview}>
+                            <span style={galleryEmptyText}>ALBUM</span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+
+                    <h3 style={galleryTitlePreview}>
+                      {getShortTitle(album.title, 40)}
+                    </h3>
+                  </article>
+                )
+              })}
             </div>
           )}
 
@@ -449,138 +597,97 @@ function Home() {
   )
 }
 
-type NewsPreviewProps = {
-  item: NewsItem
-  getDocumentLabel: (doc?: NewsDocument) => string
-}
-
-function NewsPreview({ item, getDocumentLabel }: NewsPreviewProps) {
-  const cleanImageUrl = item.image_url?.trim()
-  const firstDocument = item.news_documents?.[0]
-
-  if (cleanImageUrl) {
-    return (
-      <div
-        style={{
-          ...newsImageBackgroundPreview,
-          backgroundImage: `url("${cleanImageUrl}")`,
-        }}
-        title={item.title}
-      />
-    )
-  }
-
-  if (firstDocument) {
-    return (
-      <div style={newsDocumentPreview}>
-        <div style={newsDocumentIcon}>
-          {getDocumentLabel(firstDocument)}
-        </div>
-
-        <p style={newsDocumentText}>Documento allegato</p>
-      </div>
-    )
-  }
-
-  return (
-    <div style={newsEmptyPreview}>
-      <span style={newsEmptyText}>NEWS</span>
-    </div>
-  )
-}
-
-const sectionStyle = {
+const sectionStyle: CSSProperties = {
   padding: '90px 32px',
   background: '#0b0f1a',
   color: 'white',
 }
 
-const containerStyle = {
+const containerStyle: CSSProperties = {
   maxWidth: '1200px',
   margin: '0 auto',
 }
 
-const labelStyle = {
+const labelStyle: CSSProperties = {
   color: '#e63946',
   fontWeight: 700,
   letterSpacing: '2px',
 }
 
-const titleStyle = {
+const titleStyle: CSSProperties = {
   fontSize: '42px',
   margin: '12px 0 20px',
 }
 
-const textStyle = {
+const textStyle: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1.7,
   maxWidth: '850px',
   color: '#d8d8d8',
 }
 
-const cardGrid = {
+const cardGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, 1fr)',
   gap: '24px',
   marginTop: '36px',
-} as CSSProperties
+}
 
-const cardStyle = {
+const cardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   padding: '28px',
   borderRadius: '16px',
   border: '1px solid rgba(255,255,255,0.08)',
   color: 'white',
-} as CSSProperties
+}
 
-const newsPreviewGrid = {
+const newsPreviewGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
   gap: '34px',
   marginTop: '36px',
   maxWidth: '1120px',
-} as CSSProperties
+}
 
-const newsPreviewCard = {
+const newsPreviewCard: CSSProperties = {
   display: 'grid',
   gap: '10px',
   minWidth: 0,
-} as CSSProperties
+}
 
-const newsDateStyle = {
+const newsDateStyle: CSSProperties = {
   margin: 0,
   color: '#e63946',
   fontSize: '14px',
   fontWeight: 800,
   lineHeight: 1.3,
   textAlign: 'center',
-} as CSSProperties
+}
 
-const newsPreviewLink = {
+const newsPreviewLink: CSSProperties = {
   display: 'block',
   textDecoration: 'none',
   color: 'inherit',
-} as CSSProperties
+}
 
-const newsPreviewBox = {
+const newsPreviewBox: CSSProperties = {
   width: '100%',
   height: '175px',
   overflow: 'hidden',
   background: '#176a82',
   border: '2px solid rgba(23,106,130,0.65)',
   boxShadow: '0 10px 22px rgba(0,0,0,0.22)',
-} as CSSProperties
+}
 
-const newsImageBackgroundPreview = {
+const newsPreviewImage: CSSProperties = {
   width: '100%',
   height: '100%',
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  backgroundRepeat: 'no-repeat',
+  objectFit: 'cover',
+  display: 'block',
   backgroundColor: '#176a82',
-} as CSSProperties
+}
 
-const newsDocumentPreview = {
+const newsDocumentPreview: CSSProperties = {
   width: '100%',
   height: '100%',
   background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
@@ -589,9 +696,9 @@ const newsDocumentPreview = {
   alignContent: 'center',
   gap: '10px',
   color: 'white',
-} as CSSProperties
+}
 
-const newsDocumentIcon = {
+const newsDocumentIcon: CSSProperties = {
   width: '62px',
   height: '62px',
   borderRadius: '14px',
@@ -602,40 +709,110 @@ const newsDocumentIcon = {
   justifyContent: 'center',
   fontWeight: 900,
   fontSize: '15px',
-} as CSSProperties
+}
 
-const newsDocumentText = {
+const newsDocumentText: CSSProperties = {
   margin: 0,
   color: 'rgba(255,255,255,0.9)',
   fontSize: '13px',
   fontWeight: 700,
-} as CSSProperties
+}
 
-const newsEmptyPreview = {
+const newsEmptyPreview: CSSProperties = {
   width: '100%',
   height: '100%',
   background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-} as CSSProperties
+}
 
-const newsEmptyText = {
+const newsEmptyText: CSSProperties = {
   color: 'white',
   fontWeight: 900,
   letterSpacing: '1px',
-} as CSSProperties
+}
 
-const newsTitlePreview = {
+const newsTitlePreview: CSSProperties = {
   margin: 0,
   color: '#e63946',
   fontSize: '17px',
   lineHeight: 1.25,
   fontWeight: 800,
   textAlign: 'center',
-} as CSSProperties
+}
 
-const primaryButton = {
+const galleryPreviewGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gap: '34px',
+  marginTop: '36px',
+  maxWidth: '1120px',
+}
+
+const galleryPreviewCard: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const galleryDateStyle: CSSProperties = {
+  margin: 0,
+  color: '#e63946',
+  fontSize: '14px',
+  fontWeight: 800,
+  lineHeight: 1.3,
+  textAlign: 'center',
+}
+
+const galleryPreviewLink: CSSProperties = {
+  display: 'block',
+  textDecoration: 'none',
+  color: 'inherit',
+}
+
+const galleryPreviewBox: CSSProperties = {
+  width: '100%',
+  height: '175px',
+  overflow: 'hidden',
+  background: '#176a82',
+  border: '2px solid rgba(23,106,130,0.65)',
+  boxShadow: '0 10px 22px rgba(0,0,0,0.22)',
+}
+
+const galleryPreviewImage: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+  backgroundColor: '#176a82',
+}
+
+const galleryEmptyPreview: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const galleryEmptyText: CSSProperties = {
+  color: 'white',
+  fontWeight: 900,
+  letterSpacing: '1px',
+}
+
+const galleryTitlePreview: CSSProperties = {
+  margin: 0,
+  color: '#e63946',
+  fontSize: '17px',
+  lineHeight: 1.25,
+  fontWeight: 800,
+  textAlign: 'center',
+}
+
+const primaryButton: CSSProperties = {
   padding: '15px 28px',
   background: '#e63946',
   color: 'white',
@@ -644,9 +821,9 @@ const primaryButton = {
   fontSize: '16px',
   fontWeight: 700,
   cursor: 'pointer',
-} as CSSProperties
+}
 
-const secondaryButton = {
+const secondaryButton: CSSProperties = {
   padding: '15px 28px',
   background: 'white',
   color: '#111',
@@ -655,6 +832,6 @@ const secondaryButton = {
   fontSize: '16px',
   fontWeight: 700,
   cursor: 'pointer',
-} as CSSProperties
+}
 
 export default Home
