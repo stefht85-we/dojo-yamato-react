@@ -12,6 +12,7 @@ type MediaType =
   | 'tiktok'
   | 'link'
   | 'pdf'
+  | 'social'
 
 type NewsItem = {
   id: number
@@ -126,17 +127,6 @@ function NewsDetail() {
     return ''
   }
 
-  function getMediaLabel(type: MediaType) {
-    if (type === 'image') return 'Immagine'
-    if (type === 'video') return 'Video'
-    if (type === 'youtube') return 'YouTube'
-    if (type === 'instagram') return 'Instagram'
-    if (type === 'facebook') return 'Facebook'
-    if (type === 'tiktok') return 'TikTok'
-    if (type === 'pdf') return 'PDF'
-    return 'Link'
-  }
-
   function getSocialGradient(type: MediaType) {
     if (type === 'instagram') return 'linear-gradient(135deg, #d62976 0%, #fa7e1e 100%)'
     if (type === 'facebook') return 'linear-gradient(135deg, #1877f2 0%, #0b3d91 100%)'
@@ -149,7 +139,7 @@ function NewsDetail() {
     if (item.media_type === 'image') {
       return (
         <button type="button" style={mediaButtonStyle} onClick={() => setSelectedImage(item.url)}>
-          <img src={item.url} alt={item.title || 'Immagine news'} style={mediaImageStyle} />
+          <img src={item.url} alt="Immagine news" style={mediaImageStyle} />
         </button>
       )
     }
@@ -159,7 +149,7 @@ function NewsDetail() {
         <button type="button" style={mediaButtonStyle} onClick={() => setSelectedVideo(item)}>
           <div style={mediaPreviewBoxStyle}>
             {item.thumbnail_url ? (
-              <img src={item.thumbnail_url} alt={item.title || 'Video news'} style={mediaImageStyle} />
+              <img src={item.thumbnail_url} alt="Video news" style={mediaImageStyle} />
             ) : (
               <video src={item.url} muted preload="metadata" style={mediaImageStyle} />
             )}
@@ -176,16 +166,13 @@ function NewsDetail() {
         <button type="button" style={mediaButtonStyle} onClick={() => setSelectedVideo(item)}>
           <div style={mediaPreviewBoxStyle}>
             {item.thumbnail_url ? (
-              <img src={item.thumbnail_url} alt={item.title || 'YouTube'} style={mediaImageStyle} />
+              <img src={item.thumbnail_url} alt="YouTube" style={mediaImageStyle} />
             ) : embedUrl ? (
               <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }}>
-                <span style={socialTypeStyle}>YouTube</span>
-                <strong style={socialTitleStyle}>{item.title || 'Apri video'}</strong>
+                <span style={socialIconStyle}>▶</span>
               </div>
             ) : (
-              <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }}>
-                <span style={socialTypeStyle}>YouTube</span>
-              </div>
+              <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }} />
             )}
             <span style={playButtonStyle}>▶</span>
           </div>
@@ -198,7 +185,6 @@ function NewsDetail() {
         <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
           <div style={pdfPreviewStyle}>
             <span style={pdfIconStyle}>PDF</span>
-            <span style={pdfTextStyle}>{item.title || 'Apri PDF'}</span>
           </div>
         </a>
       )
@@ -207,8 +193,11 @@ function NewsDetail() {
     return (
       <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
         <div style={{ ...socialPreviewStyle, background: getSocialGradient(item.media_type) }}>
-          <span style={socialTypeStyle}>{getMediaLabel(item.media_type)}</span>
-          <strong style={socialTitleStyle}>{item.title || 'Apri contenuto'}</strong>
+          {item.thumbnail_url ? (
+            <img src={item.thumbnail_url} alt="Contenuto social" style={mediaImageStyle} />
+          ) : (
+            <span style={socialIconStyle}>🔗</span>
+          )}
         </div>
       </a>
     )
@@ -230,7 +219,7 @@ function NewsDetail() {
             {embedUrl ? (
               <iframe
                 src={embedUrl}
-                title={selectedVideo.title || 'YouTube'}
+                title="YouTube"
                 style={youtubeFrameStyle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -321,17 +310,12 @@ function NewsDetail() {
 
       {media.length > 0 && (
         <section style={mediaSectionStyle}>
-          <h2 style={mediaTitleStyle}>Contenuti collegati</h2>
+          <h2 style={mediaTitleStyle}>Galleria</h2>
 
           <div style={mediaGridStyle}>
             {media.map((item) => (
               <article key={item.id} style={mediaCardStyle}>
                 {renderMediaCard(item)}
-
-                <div style={mediaInfoStyle}>
-                  <span style={mediaBadgeStyle}>{getMediaLabel(item.media_type)}</span>
-                  {item.title && <strong style={mediaItemTitleStyle}>{item.title}</strong>}
-                </div>
               </article>
             ))}
           </div>
@@ -487,7 +471,6 @@ const pdfPreviewStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
   alignContent: 'center',
-  gap: '10px',
   background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
 }
 
@@ -503,58 +486,21 @@ const pdfIconStyle: CSSProperties = {
   fontWeight: 950,
 }
 
-const pdfTextStyle: CSSProperties = {
-  color: 'white',
-  fontWeight: 800,
-  fontSize: '13px',
-  padding: '0 14px',
-  textAlign: 'center',
-}
-
 const socialPreviewStyle: CSSProperties = {
   width: '100%',
   height: '100%',
   display: 'grid',
   placeItems: 'center',
   alignContent: 'center',
-  gap: '8px',
   color: 'white',
   padding: '16px',
   boxSizing: 'border-box',
   textAlign: 'center',
 }
 
-const socialTypeStyle: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '1px',
-}
-
-const socialTitleStyle: CSSProperties = {
-  fontSize: '18px',
-}
-
-const mediaInfoStyle: CSSProperties = {
-  display: 'grid',
-  gap: '6px',
-  padding: '12px',
-}
-
-const mediaBadgeStyle: CSSProperties = {
-  width: 'fit-content',
-  padding: '5px 9px',
-  borderRadius: '999px',
-  background: '#e63946',
-  color: 'white',
-  fontSize: '11px',
-  fontWeight: 900,
-}
-
-const mediaItemTitleStyle: CSSProperties = {
-  color: 'white',
-  fontSize: '14px',
-  lineHeight: 1.3,
+const socialIconStyle: CSSProperties = {
+  fontSize: '34px',
+  fontWeight: 950,
 }
 
 const modalOverlayStyle: CSSProperties = {

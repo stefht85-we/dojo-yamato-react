@@ -2,28 +2,9 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import hero from '../assets/hero.jpg'
+import PublicNews from '../components/PublicNews'
 import { supabase } from '../lib/supabaseClient'
 import './Home.css'
-
-type NewsDocument = {
-  id: string
-  news_id: string
-  title: string
-  file_url: string
-  file_type: string | null
-  created_at: string
-}
-
-type NewsItem = {
-  id: string
-  title: string
-  content: string
-  image_url: string | null
-  published: boolean
-  news_date: string | null
-  created_at: string
-  news_documents?: NewsDocument[]
-}
 
 type GalleryPhoto = {
   id: string
@@ -48,39 +29,10 @@ type GalleryAlbum = {
 }
 
 function Home() {
-  const [news, setNews] = useState<NewsItem[]>([])
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
 
   useEffect(() => {
     async function loadHomeData() {
-      const { data: newsData, error: newsError } = await supabase
-        .from('news')
-        .select(`
-          id,
-          title,
-          content,
-          image_url,
-          published,
-          news_date,
-          created_at,
-          news_documents (
-            id,
-            news_id,
-            title,
-            file_url,
-            file_type,
-            created_at
-          )
-        `)
-        .eq('published', true)
-        .order('news_date', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false })
-        .limit(3)
-
-      if (newsError) {
-        console.error('Errore caricamento news Home:', newsError.message)
-      }
-
       const { data: albumsData, error: albumsError } = await supabase
         .from('gallery_albums')
         .select(`
@@ -108,7 +60,6 @@ function Home() {
         console.error('Errore caricamento album Home:', albumsError.message)
       }
 
-      setNews((newsData ?? []) as NewsItem[])
       setAlbums(getDailyAlbumSelection((albumsData ?? []) as GalleryAlbum[]))
     }
 
@@ -134,31 +85,10 @@ function Home() {
     }
   }, [])
 
-  function getNewsDate(item: NewsItem) {
-    const dateValue = item.news_date || item.created_at
-
-    if (!dateValue) return ''
-
-    return new Date(dateValue).toLocaleDateString('it-IT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
-  }
-
   function getAlbumTimestamp(album: GalleryAlbum) {
-    if (album.event_date) {
-      return new Date(album.event_date).getTime()
-    }
-
-    if (album.event_year) {
-      return new Date(album.event_year, 0, 1).getTime()
-    }
-
-    if (album.created_at) {
-      return new Date(album.created_at).getTime()
-    }
-
+    if (album.event_date) return new Date(album.event_date).getTime()
+    if (album.event_year) return new Date(album.event_year, 0, 1).getTime()
+    if (album.created_at) return new Date(album.created_at).getTime()
     return 0
   }
 
@@ -171,9 +101,7 @@ function Home() {
       })
     }
 
-    if (album.event_year) {
-      return String(album.event_year)
-    }
+    if (album.event_year) return String(album.event_year)
 
     if (album.created_at) {
       return new Date(album.created_at).toLocaleDateString('it-IT', {
@@ -188,14 +116,12 @@ function Home() {
 
   function getAlbumPreviewImage(album: GalleryAlbum) {
     const coverUrl = album.cover_image_url?.trim()
-
     if (coverUrl) return coverUrl
 
     const firstImage = album.gallery_photos
       ?.filter((photo) => {
         const imageUrl = photo.image_url?.trim()
         const mediaType = photo.media_type?.toLowerCase() || ''
-
         return Boolean(imageUrl) && (mediaType === 'image' || mediaType === '' || mediaType === 'photo')
       })
       .sort((a, b) => {
@@ -213,20 +139,6 @@ function Home() {
   function getShortTitle(title: string, max = 44) {
     if (title.length <= max) return title
     return `${title.substring(0, max)}...`
-  }
-
-  function getDocumentLabel(doc?: NewsDocument) {
-    if (!doc) return 'FILE'
-
-    const fileType = doc.file_type?.toLowerCase() || ''
-    const title = doc.title.toLowerCase()
-
-    if (fileType.includes('pdf') || title.endsWith('.pdf')) return 'PDF'
-    if (fileType.includes('word') || title.endsWith('.doc') || title.endsWith('.docx')) return 'WORD'
-    if (fileType.includes('powerpoint') || title.endsWith('.ppt') || title.endsWith('.pptx')) return 'PPT'
-    if (fileType.includes('excel') || title.endsWith('.xls') || title.endsWith('.xlsx')) return 'EXCEL'
-
-    return 'FILE'
   }
 
   function hashString(value: string) {
@@ -275,79 +187,24 @@ function Home() {
           alignItems: 'center',
         }}
       >
-        <div
-          style={{
-            maxWidth: '1200px',
-            width: '100%',
-            margin: '0 auto',
-            padding: '0 32px',
-            color: 'white',
-          }}
-        >
+        <div style={heroInnerStyle}>
           <div className="hero-content" style={{ maxWidth: '540px' }}>
-            <h1
-              className="hero-title"
-              style={{
-                fontSize: '58px',
-                lineHeight: 1.05,
-                margin: 0,
-              }}
-            >
+            <h1 className="hero-title" style={heroTitleStyle}>
               Karate per bambini, ragazzi e adulti
             </h1>
 
-            <div
-              style={{
-                width: '70px',
-                height: '4px',
-                background: '#e63946',
-                marginTop: '24px',
-                marginBottom: '24px',
-              }}
-            />
+            <div style={heroDividerStyle} />
 
-            <p
-              className="hero-text"
-              style={{
-                fontSize: '21px',
-                lineHeight: 1.6,
-                color: '#f0f0f0',
-                margin: 0,
-              }}
-            >
+            <p className="hero-text" style={heroTextStyle}>
               Disciplina, rispetto e crescita personale attraverso il Karate Shotokan.
             </p>
 
-            <div
-              className="hero-buttons"
-              style={{
-                display: 'flex',
-                gap: '16px',
-                marginTop: '34px',
-                flexWrap: 'wrap',
-              }}
-            >
-              <Link
-                className="home-button"
-                to="/contatti"
-                style={{
-                  ...primaryButton,
-                  textDecoration: 'none',
-                  display: 'inline-block',
-                }}
-              >
+            <div className="hero-buttons" style={heroButtonsStyle}>
+              <Link className="home-button" to="/contatti" style={{ ...primaryButton, textDecoration: 'none', display: 'inline-block' }}>
                 Prova gratuita
               </Link>
 
-              <Link
-                className="home-button"
-                to="/corsi"
-                style={{
-                  ...secondaryButton,
-                  textDecoration: 'none',
-                  display: 'inline-block',
-                }}
-              >
+              <Link className="home-button" to="/corsi" style={{ ...secondaryButton, textDecoration: 'none', display: 'inline-block' }}>
                 Scopri i corsi
               </Link>
             </div>
@@ -357,72 +214,9 @@ function Home() {
 
       <section style={sectionStyle}>
         <div style={containerStyle}>
-          <p style={labelStyle}>ULTIME NEWS</p>
-          <h2 style={titleStyle}>Novità dal Dojo</h2>
+          <PublicNews limit={3} compact />
 
-          {news.length === 0 && (
-            <div
-              className="reveal"
-              style={{
-                marginTop: '32px',
-                background: 'rgba(255,255,255,0.06)',
-                padding: '28px',
-                borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#d8d8d8',
-              }}
-            >
-              <p style={{ margin: 0 }}>
-                Al momento non ci sono news pubblicate. Torna presto per scoprire le novità dal Dojo.
-              </p>
-            </div>
-          )}
-
-          {news.length > 0 && (
-            <div className="home-card-grid" style={newsPreviewGrid}>
-              {news.map((item) => (
-                <article key={item.id} style={newsPreviewCard}>
-                  <p style={newsDateStyle}>Pubblicata il {getNewsDate(item)}</p>
-
-                  <Link to="/news" style={newsPreviewLink}>
-                    <div style={newsPreviewBox}>
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url.trim()}
-                          alt={item.title}
-                          style={newsPreviewImage}
-                        />
-                      ) : item.news_documents && item.news_documents.length > 0 ? (
-                        <div style={newsDocumentPreview}>
-                          <div style={newsDocumentIcon}>
-                            {getDocumentLabel(item.news_documents[0])}
-                          </div>
-                          <p style={newsDocumentText}>Documento allegato</p>
-                        </div>
-                      ) : (
-                        <div style={newsEmptyPreview}>
-                          <span style={newsEmptyText}>NEWS</span>
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-
-                  <h3 style={newsTitlePreview}>{getShortTitle(item.title)}</h3>
-                </article>
-              ))}
-            </div>
-          )}
-
-          <Link
-            to="/news"
-            className="home-button"
-            style={{
-              ...primaryButton,
-              display: 'inline-block',
-              textDecoration: 'none',
-              marginTop: '32px',
-            }}
-          >
+          <Link to="/news" className="home-button" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: '32px' }}>
             Vai a tutte le news
           </Link>
         </div>
@@ -430,24 +224,12 @@ function Home() {
 
       <section style={{ ...sectionStyle, background: '#101827' }}>
         <div style={containerStyle}>
-          <p style={labelStyle}>GALLERIA</p>
+          <p style={labelStyle}>Galleria</p>
           <h2 style={titleStyle}>Momenti dal Dojo</h2>
 
           {albums.length === 0 && (
-            <div
-              className="reveal"
-              style={{
-                marginTop: '32px',
-                background: 'rgba(255,255,255,0.06)',
-                padding: '28px',
-                borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#d8d8d8',
-              }}
-            >
-              <p style={{ margin: 0 }}>
-                Al momento non ci sono album disponibili in galleria.
-              </p>
+            <div className="reveal" style={emptyBoxStyle}>
+              <p style={{ margin: 0 }}>Al momento non ci sono album disponibili in galleria.</p>
             </div>
           )}
 
@@ -458,18 +240,12 @@ function Home() {
 
                 return (
                   <article key={album.id} style={galleryPreviewCard}>
-                    <p style={galleryDateStyle}>
-                      Album del {getAlbumDisplayDate(album)}
-                    </p>
+                    <p style={galleryDateStyle}>Album del {getAlbumDisplayDate(album)}</p>
 
                     <Link to={`/galleria/${album.id}`} style={galleryPreviewLink}>
                       <div style={galleryPreviewBox}>
                         {previewImage ? (
-                          <img
-                            src={previewImage}
-                            alt={album.title}
-                            style={galleryPreviewImage}
-                          />
+                          <img src={previewImage} alt={album.title} style={galleryPreviewImage} />
                         ) : (
                           <div style={galleryEmptyPreview}>
                             <span style={galleryEmptyText}>ALBUM</span>
@@ -478,25 +254,14 @@ function Home() {
                       </div>
                     </Link>
 
-                    <h3 style={galleryTitlePreview}>
-                      {getShortTitle(album.title, 40)}
-                    </h3>
+                    <h3 style={galleryTitlePreview}>{getShortTitle(album.title, 40)}</h3>
                   </article>
                 )
               })}
             </div>
           )}
 
-          <Link
-            to="/galleria"
-            className="home-button"
-            style={{
-              ...primaryButton,
-              display: 'inline-block',
-              textDecoration: 'none',
-              marginTop: '32px',
-            }}
-          >
+          <Link to="/galleria" className="home-button" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: '32px' }}>
             Vai alla galleria
           </Link>
         </div>
@@ -504,7 +269,7 @@ function Home() {
 
       <section style={sectionStyle}>
         <div style={containerStyle}>
-          <p style={labelStyle}>CHI SIAMO</p>
+          <p style={labelStyle}>Chi siamo</p>
           <h2 style={titleStyle}>Non solo sport. Un percorso di vita.</h2>
 
           <p style={textStyle}>
@@ -512,16 +277,7 @@ function Home() {
             ragazzi e adulti a crescere con rispetto, concentrazione e fiducia in sé stessi.
           </p>
 
-          <Link
-            to="/chi-siamo"
-            className="home-button"
-            style={{
-              ...primaryButton,
-              display: 'inline-block',
-              textDecoration: 'none',
-              marginTop: '28px',
-            }}
-          >
+          <Link to="/chi-siamo" className="home-button" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: '28px' }}>
             Scopri chi siamo
           </Link>
         </div>
@@ -529,7 +285,7 @@ function Home() {
 
       <section style={{ ...sectionStyle, background: '#101827' }}>
         <div style={containerStyle}>
-          <p style={labelStyle}>I NOSTRI CORSI</p>
+          <p style={labelStyle}>I nostri corsi</p>
           <h2 style={titleStyle}>Allenamenti per ogni età e livello</h2>
 
           <div className="home-card-grid" style={cardGrid}>
@@ -549,52 +305,70 @@ function Home() {
             </div>
           </div>
 
-          <Link
-            to="/corsi"
-            className="home-button"
-            style={{
-              ...primaryButton,
-              display: 'inline-block',
-              textDecoration: 'none',
-              marginTop: '32px',
-            }}
-          >
+          <Link to="/corsi" className="home-button" style={{ ...primaryButton, display: 'inline-block', textDecoration: 'none', marginTop: '32px' }}>
             Vedi corsi e orari
           </Link>
         </div>
       </section>
 
-      <section
-        style={{
-          padding: '80px 32px',
-          background: '#e63946',
-          textAlign: 'center',
-          color: 'white',
-        }}
-      >
-        <h2 style={{ fontSize: '36px', margin: 0 }}>
-          Vieni a provare una lezione gratuita
-        </h2>
-
-        <p style={{ fontSize: '18px', marginTop: '16px' }}>
-          Scopri il Karate con noi. Nessuna esperienza richiesta.
-        </p>
-
-        <Link
-          to="/contatti"
-          className="home-button"
-          style={{
-            ...secondaryButton,
-            marginTop: '24px',
-            display: 'inline-block',
-            textDecoration: 'none',
-          }}
-        >
+      <section style={ctaStyle}>
+        <h2 style={{ fontSize: '36px', margin: 0 }}>Vieni a provare una lezione gratuita</h2>
+        <p style={{ fontSize: '18px', marginTop: '16px' }}>Scopri il Karate con noi. Nessuna esperienza richiesta.</p>
+        <Link to="/contatti" className="home-button" style={{ ...secondaryButton, marginTop: '24px', display: 'inline-block', textDecoration: 'none' }}>
           Contattaci
         </Link>
       </section>
     </main>
   )
+}
+
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+}
+
+const heroInnerStyle: CSSProperties = {
+  maxWidth: '1200px',
+  width: '100%',
+  margin: '0 auto',
+  padding: '0 32px',
+  color: 'white',
+}
+
+const heroTitleStyle: CSSProperties = {
+  fontSize: '58px',
+  lineHeight: 1.05,
+  margin: 0,
+}
+
+const heroDividerStyle: CSSProperties = {
+  width: '70px',
+  height: '4px',
+  background: '#e63946',
+  marginTop: '24px',
+  marginBottom: '24px',
+}
+
+const heroTextStyle: CSSProperties = {
+  fontSize: '21px',
+  lineHeight: 1.6,
+  color: '#f0f0f0',
+  margin: 0,
+}
+
+const heroButtonsStyle: CSSProperties = {
+  display: 'flex',
+  gap: '16px',
+  marginTop: '34px',
+  flexWrap: 'wrap',
 }
 
 const sectionStyle: CSSProperties = {
@@ -608,21 +382,26 @@ const containerStyle: CSSProperties = {
   margin: '0 auto',
 }
 
-const labelStyle: CSSProperties = {
-  color: '#e63946',
-  fontWeight: 700,
-  letterSpacing: '2px',
-}
+const labelStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   fontSize: '42px',
-  margin: '12px 0 20px',
+  margin: '18px 0 20px',
 }
 
 const textStyle: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1.7,
   maxWidth: '850px',
+  color: '#d8d8d8',
+}
+
+const emptyBoxStyle: CSSProperties = {
+  marginTop: '32px',
+  background: 'rgba(255,255,255,0.06)',
+  padding: '28px',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
   color: '#d8d8d8',
 }
 
@@ -641,107 +420,6 @@ const cardStyle: CSSProperties = {
   color: 'white',
 }
 
-const newsPreviewGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '34px',
-  marginTop: '36px',
-  maxWidth: '1120px',
-}
-
-const newsPreviewCard: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const newsDateStyle: CSSProperties = {
-  margin: 0,
-  color: '#e63946',
-  fontSize: '14px',
-  fontWeight: 800,
-  lineHeight: 1.3,
-  textAlign: 'center',
-}
-
-const newsPreviewLink: CSSProperties = {
-  display: 'block',
-  textDecoration: 'none',
-  color: 'inherit',
-}
-
-const newsPreviewBox: CSSProperties = {
-  width: '100%',
-  height: '175px',
-  overflow: 'hidden',
-  background: '#176a82',
-  border: '2px solid rgba(23,106,130,0.65)',
-  boxShadow: '0 10px 22px rgba(0,0,0,0.22)',
-}
-
-const newsPreviewImage: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'cover',
-  display: 'block',
-  backgroundColor: '#176a82',
-}
-
-const newsDocumentPreview: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
-  display: 'grid',
-  placeItems: 'center',
-  alignContent: 'center',
-  gap: '10px',
-  color: 'white',
-}
-
-const newsDocumentIcon: CSSProperties = {
-  width: '62px',
-  height: '62px',
-  borderRadius: '14px',
-  background: 'rgba(255,255,255,0.92)',
-  color: '#0f2633',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 900,
-  fontSize: '15px',
-}
-
-const newsDocumentText: CSSProperties = {
-  margin: 0,
-  color: 'rgba(255,255,255,0.9)',
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const newsEmptyPreview: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  background: 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const newsEmptyText: CSSProperties = {
-  color: 'white',
-  fontWeight: 900,
-  letterSpacing: '1px',
-}
-
-const newsTitlePreview: CSSProperties = {
-  margin: 0,
-  color: '#e63946',
-  fontSize: '17px',
-  lineHeight: 1.25,
-  fontWeight: 800,
-  textAlign: 'center',
-}
-
 const galleryPreviewGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -752,15 +430,20 @@ const galleryPreviewGrid: CSSProperties = {
 
 const galleryPreviewCard: CSSProperties = {
   display: 'grid',
-  gap: '10px',
+  gap: '12px',
   minWidth: 0,
+  padding: '14px',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045))',
+  border: '1px solid rgba(255,255,255,0.12)',
+  boxShadow: '0 16px 36px rgba(0,0,0,0.32)',
 }
 
 const galleryDateStyle: CSSProperties = {
   margin: 0,
-  color: '#e63946',
+  color: 'white',
   fontSize: '14px',
-  fontWeight: 800,
+  fontWeight: 850,
   lineHeight: 1.3,
   textAlign: 'center',
 }
@@ -773,11 +456,12 @@ const galleryPreviewLink: CSSProperties = {
 
 const galleryPreviewBox: CSSProperties = {
   width: '100%',
-  height: '175px',
+  height: '190px',
   overflow: 'hidden',
   background: '#176a82',
-  border: '2px solid rgba(23,106,130,0.65)',
-  boxShadow: '0 10px 22px rgba(0,0,0,0.22)',
+  borderRadius: '17px',
+  border: '1px solid rgba(255,255,255,0.14)',
+  boxShadow: '0 12px 30px rgba(0,0,0,0.34)',
 }
 
 const galleryPreviewImage: CSSProperties = {
@@ -805,11 +489,18 @@ const galleryEmptyText: CSSProperties = {
 
 const galleryTitlePreview: CSSProperties = {
   margin: 0,
-  color: '#e63946',
-  fontSize: '17px',
+  color: 'white',
+  fontSize: '18px',
   lineHeight: 1.25,
-  fontWeight: 800,
+  fontWeight: 900,
   textAlign: 'center',
+}
+
+const ctaStyle: CSSProperties = {
+  padding: '80px 32px',
+  background: '#e63946',
+  textAlign: 'center',
+  color: 'white',
 }
 
 const primaryButton: CSSProperties = {

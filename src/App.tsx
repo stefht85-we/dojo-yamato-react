@@ -57,12 +57,9 @@ function App() {
             ☰
           </button>
 
-          <nav
-            className={`site-nav ${menuOpen ? 'site-nav-open' : ''}`}
-            style={navStyle}
-          >
-            <HeaderLink to="/news" label="News" onClick={closeMenu} />
+          <nav className={`site-nav ${menuOpen ? 'site-nav-open' : ''}`} style={navStyle}>
             <HeaderLink to="/" label="Home" onClick={closeMenu} end />
+            <HeaderLink to="/news" label="News" onClick={closeMenu} />
             <HeaderLink to="/chi-siamo" label="Chi siamo" onClick={closeMenu} />
             <HeaderLink to="/insegnanti" label="Insegnanti" onClick={closeMenu} />
             <HeaderLink to="/corsi" label="Corsi" onClick={closeMenu} />
@@ -84,6 +81,7 @@ function App() {
         <Route path="/galleria" element={<Galleria />} />
         <Route path="/galleria/:albumId" element={<GalleriaAlbum />} />
         <Route path="/teoria" element={<Teoria />} />
+        <Route path="/teoria/:section" element={<Teoria />} />
         <Route path="/news" element={<News />} />
         <Route path="/news/:newsId" element={<NewsDetail />} />
         <Route path="/contatti" element={<Contatti />} />

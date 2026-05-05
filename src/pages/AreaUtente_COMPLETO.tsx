@@ -8,7 +8,6 @@ import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
 import './AreaUtente.css'
 
-
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const GALLERY_BUCKET = 'gallery'
 const EVENT_IMAGES_BUCKET = 'event-images'
