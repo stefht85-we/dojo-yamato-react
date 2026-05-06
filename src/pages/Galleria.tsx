@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import type { User } from '@supabase/supabase-js'
 import type { CSSProperties } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { canOpenMedia } from '../lib/permissions'
 
 type GalleryAlbum = {
   id: string
@@ -16,14 +18,23 @@ type GalleryAlbum = {
 }
 
 function Galleria() {
+  const [user, setUser] = useState<User | null>(null)
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
+  const userCanOpenMedia = canOpenMedia(user)
+
   useEffect(() => {
+    loadUser()
     loadAlbums()
   }, [])
+
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user)
+  }
 
   async function loadAlbums() {
     setLoading(true)
@@ -31,9 +42,7 @@ function Galleria() {
 
     const { data, error } = await supabase
       .from('gallery_albums')
-      .select(
-        'id, title, description, category, event_date, event_year, cover_image_url, visible, created_at'
-      )
+      .select('id, title, description, category, event_date, event_year, cover_image_url, visible, created_at')
       .eq('visible', true)
       .order('event_year', { ascending: false })
       .order('event_date', { ascending: false, nullsFirst: false })
@@ -51,9 +60,7 @@ function Galleria() {
   }
 
   const years = useMemo(() => {
-    return Array.from(new Set(albums.map((album) => album.event_year))).sort(
-      (a, b) => b - a
-    )
+    return Array.from(new Set(albums.map((album) => album.event_year))).sort((a, b) => b - a)
   }, [albums])
 
   const albumsByYear = useMemo(() => {
@@ -61,13 +68,8 @@ function Galleria() {
       acc[year] = albums
         .filter((album) => album.event_year === year)
         .sort((a, b) => {
-          const dateA = a.event_date
-            ? new Date(a.event_date).getTime()
-            : new Date(a.created_at).getTime()
-
-          const dateB = b.event_date
-            ? new Date(b.event_date).getTime()
-            : new Date(b.created_at).getTime()
+          const dateA = a.event_date ? new Date(a.event_date).getTime() : new Date(a.created_at).getTime()
+          const dateB = b.event_date ? new Date(b.event_date).getTime() : new Date(b.created_at).getTime()
 
           return dateB - dateA
         })
@@ -97,10 +99,17 @@ function Galleria() {
           <h1 style={titleStyle}>Album fotografici</h1>
 
           <p style={introTextStyle}>
-            Le immagini e i ricordi del Dojo Yamato raccolti per anno: eventi,
-            allenamenti, gare, esami e momenti importanti della nostra
-            associazione.
+            Le immagini e i ricordi del Dojo Yamato raccolti per anno: eventi, allenamenti,
+            gare, esami e momenti importanti della nostra associazione.
           </p>
+
+          {!userCanOpenMedia && (
+            <div style={loginNoticeStyle}>
+              <strong>Media riservati agli utenti registrati.</strong>
+              Puoi consultare l’elenco degli album, ma per ingrandire e scaricare foto, video e documenti devi accedere.
+              <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -111,9 +120,7 @@ function Galleria() {
           {!loading && message && <div style={messageBoxStyle}>{message}</div>}
 
           {!loading && !message && albums.length === 0 && (
-            <div style={emptyBoxStyle}>
-              Non ci sono ancora album pubblicati in galleria.
-            </div>
+            <div style={emptyBoxStyle}>Non ci sono ancora album pubblicati in galleria.</div>
           )}
 
           {!loading && !message && albums.length > 0 && (
@@ -128,22 +135,13 @@ function Galleria() {
                       type="button"
                       style={{
                         ...yearButtonStyle,
-                        background: isActive
-                          ? 'rgba(185,68,79,0.14)'
-                          : 'rgba(255,255,255,0.035)',
-                        border: isActive
-                          ? '1px solid rgba(185,68,79,0.42)'
-                          : '1px solid rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(185,68,79,0.14)' : 'rgba(255,255,255,0.035)',
+                        border: isActive ? '1px solid rgba(185,68,79,0.42)' : '1px solid rgba(255,255,255,0.08)',
                       }}
-                      onClick={() =>
-                        setSelectedYear(selectedYear === year ? null : year)
-                      }
+                      onClick={() => setSelectedYear(selectedYear === year ? null : year)}
                     >
                       <span style={yearBadgeStyle}>{year}</span>
-
-                      <span style={yearMetaStyle}>
-                        {albumsByYear[year]?.length ?? 0} album
-                      </span>
+                      <span style={yearMetaStyle}>{albumsByYear[year]?.length ?? 0} album</span>
                     </button>
                   )
                 })}
@@ -153,19 +151,12 @@ function Galleria() {
                 <section style={selectedYearSectionStyle}>
                   <div style={selectedYearHeaderStyle}>
                     <h2 style={sectionTitleStyle}>Album {selectedYear}</h2>
-
-                    <span style={sectionCountStyle}>
-                      {albumsByYear[selectedYear]?.length ?? 0} album
-                    </span>
+                    <span style={sectionCountStyle}>{albumsByYear[selectedYear]?.length ?? 0} album</span>
                   </div>
 
                   <div style={albumListStyle}>
                     {albumsByYear[selectedYear]?.map((album) => (
-                      <Link
-                        key={album.id}
-                        to={`/galleria/${album.id}`}
-                        style={albumRowStyle}
-                      >
+                      <Link key={album.id} to={`/galleria/${album.id}`} style={albumRowStyle}>
                         <div style={{ minWidth: 0 }}>
                           <h3 style={albumTitleBadgeStyle}>{album.title}</h3>
 
@@ -189,10 +180,22 @@ function Galleria() {
   )
 }
 
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+}
+
 const pageStyle: CSSProperties = {
   minHeight: '90vh',
-  background:
-    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
+  background: 'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
   color: 'white',
 }
 
@@ -205,19 +208,12 @@ const heroStyle: CSSProperties = {
   padding: '54px 0 24px',
 }
 
-const labelStyle: CSSProperties = {
-  color: '#d95b64',
-  fontWeight: 900,
-  letterSpacing: '2px',
-  textTransform: 'uppercase',
-  fontSize: '12px',
-  marginBottom: '8px',
-}
+const labelStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   fontSize: 'clamp(2.2rem, 6vw, 4.4rem)',
   lineHeight: 1.02,
-  margin: 0,
+  margin: '16px 0 0',
   letterSpacing: '-0.7px',
 }
 
@@ -227,6 +223,31 @@ const introTextStyle: CSSProperties = {
   fontSize: '16px',
   lineHeight: 1.7,
   marginTop: '16px',
+}
+
+const loginNoticeStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  width: 'fit-content',
+  maxWidth: '100%',
+  marginTop: '22px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  color: '#f3dede',
+}
+
+const loginButtonStyle: CSSProperties = {
+  padding: '8px 13px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 900,
 }
 
 const contentStyle: CSSProperties = {

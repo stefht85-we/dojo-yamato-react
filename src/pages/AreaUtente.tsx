@@ -6,15 +6,23 @@ import AdminNews from '../components/AdminNews'
 import AdminInsegnanti from '../components/AdminInsegnanti'
 import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
+import AdminIscritti from '../components/AdminIscritti'
+import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
 import './AreaUtente.css'
 
-
-const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const GALLERY_BUCKET = 'gallery'
 const EVENT_IMAGES_BUCKET = 'event-images'
 const EVENT_DOCUMENTS_BUCKET = 'event-documents'
 
-type AdminTab = 'news' | 'galleria' | 'eventi' | 'documenti' | 'insegnanti' | 'teoria' | 'difesa'
+type AdminTab =
+  | 'news'
+  | 'galleria'
+  | 'eventi'
+  | 'documenti'
+  | 'insegnanti'
+  | 'teoria'
+  | 'difesa'
+  | 'iscritti'
 
 type GalleryAlbum = {
   id: string
@@ -73,6 +81,10 @@ function AreaUtente() {
   const [password, setPassword] = useState('')
   const [nome, setNome] = useState('')
   const [cognome, setCognome] = useState('')
+  const [phone, setPhone] = useState('')
+  const [birthDate, setBirthDate] = useState('')
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false)
   const [message, setMessage] = useState('')
 
   const [adminTab, setAdminTab] = useState<AdminTab>('news')
@@ -115,13 +127,9 @@ function AreaUtente() {
   const [eventImageInputKey, setEventImageInputKey] = useState(0)
   const [eventDocsInputKey, setEventDocsInputKey] = useState(0)
 
-  const isAdmin = user?.email === ADMIN_EMAIL
-
+  const isAdmin = checkIsAdmin(user)
   const selectedAlbum = albums.find((album) => album.id === selectedAlbumId) ?? null
-
-  const selectedAlbumMedia = selectedAlbumId
-    ? media.filter((item) => item.album_id === selectedAlbumId)
-    : []
+  const selectedAlbumMedia = selectedAlbumId ? media.filter((item) => item.album_id === selectedAlbumId) : []
 
   const availableYears = useMemo(() => {
     return Array.from(new Set(albums.map((album) => album.event_year))).sort((a, b) => b - a)
@@ -133,20 +141,27 @@ function AreaUtente() {
   }, [albums, albumYearFilter])
 
   async function loadProfile(currentUser: User) {
-    await supabase.from('profiles').upsert({
+    const profilePayload = {
       id: currentUser.id,
-      email: currentUser.email,
-    })
+      email: currentUser.email ?? null,
+      role: checkIsAdmin(currentUser) ? 'admin' : 'user',
+    }
+
+    await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
 
     const { data } = await supabase
       .from('profiles')
-      .select('nome, cognome')
+      .select('nome, cognome, phone, birth_date, newsletter_opt_in, privacy_accepted')
       .eq('id', currentUser.id)
       .single()
 
     if (data) {
       setNome(data.nome ?? '')
       setCognome(data.cognome ?? '')
+      setPhone(data.phone ?? '')
+      setBirthDate(data.birth_date ?? '')
+      setNewsletterOptIn(Boolean(data.newsletter_opt_in))
+      setPrivacyAccepted(Boolean(data.privacy_accepted))
     }
   }
 
@@ -257,12 +272,84 @@ function AreaUtente() {
 
   async function handleSignup(e: FormEvent | MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
-    setMessage('Registrazione...')
 
-    const { error } = await supabase.auth.signUp({ email, password })
+    if (!nome.trim() || !cognome.trim()) {
+      setMessage('Inserisci nome e cognome')
+      return
+    }
 
-    if (error) setMessage(error.message)
-    else setMessage('Registrazione completata')
+    if (!birthDate) {
+      setMessage('Inserisci la data di nascita')
+      return
+    }
+
+    if (!email.trim() || !password.trim()) {
+      setMessage('Inserisci email e password')
+      return
+    }
+
+    if (!privacyAccepted) {
+      setMessage('Devi accettare la privacy policy per registrarti')
+      return
+    }
+
+    setMessage('Registrazione in corso...')
+
+    const cleanEmail = email.trim().toLowerCase()
+
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          nome: nome.trim(),
+          cognome: cognome.trim(),
+          phone: phone.trim() || null,
+          birth_date: birthDate,
+          newsletter_opt_in: newsletterOptIn,
+          privacy_accepted: privacyAccepted,
+          role: 'user',
+        },
+      },
+    })
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    if (data.user) {
+      const profilePayload = {
+        id: data.user.id,
+        email: cleanEmail,
+        nome: nome.trim(),
+        cognome: cognome.trim(),
+        phone: phone.trim() || null,
+        birth_date: birthDate,
+        role: cleanEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user',
+        newsletter_opt_in: newsletterOptIn,
+        privacy_accepted: privacyAccepted,
+      }
+
+      await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
+
+      if (newsletterOptIn) {
+        await supabase.from('newsletter_subscribers').upsert(
+          {
+            user_id: data.user.id,
+            email: cleanEmail,
+            nome: nome.trim(),
+            cognome: cognome.trim(),
+            active: true,
+            consent_newsletter: true,
+            consent_privacy: true,
+          },
+          { onConflict: 'email' }
+        )
+      }
+    }
+
+    setMessage('Registrazione inviata. Controlla la tua email per confermare l’account.')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -286,13 +373,52 @@ function AreaUtente() {
 
     if (!user) return
 
+    if (!privacyAccepted) {
+      setMessage('Devi accettare la privacy policy')
+      return
+    }
+
+    const cleanEmail = user.email?.toLowerCase() ?? ''
+
     const { error } = await supabase
       .from('profiles')
-      .update({ nome, cognome })
+      .update({
+        nome: nome.trim(),
+        cognome: cognome.trim(),
+        phone: phone.trim() || null,
+        birth_date: birthDate || null,
+        newsletter_opt_in: newsletterOptIn,
+        privacy_accepted: privacyAccepted,
+        role: checkIsAdmin(user) ? 'admin' : 'user',
+      })
       .eq('id', user.id)
 
-    if (error) setMessage(error.message)
-    else setMessage('Profilo salvato')
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    if (newsletterOptIn) {
+      await supabase.from('newsletter_subscribers').upsert(
+        {
+          user_id: user.id,
+          email: cleanEmail,
+          nome: nome.trim(),
+          cognome: cognome.trim(),
+          active: true,
+          consent_newsletter: true,
+          consent_privacy: true,
+        },
+        { onConflict: 'email' }
+      )
+    } else {
+      await supabase
+        .from('newsletter_subscribers')
+        .update({ active: false, consent_newsletter: false })
+        .eq('email', cleanEmail)
+    }
+
+    setMessage('Profilo salvato')
   }
 
   async function uploadFileToBucket(file: File, bucket: string, folder: string) {
@@ -360,11 +486,7 @@ function AreaUtente() {
 
       setMessage('Album aggiornato correttamente')
     } else {
-      const { data, error } = await supabase
-        .from('gallery_albums')
-        .insert(payload)
-        .select('id')
-        .single()
+      const { data, error } = await supabase.from('gallery_albums').insert(payload).select('id').single()
 
       if (error) {
         setMessage(`Errore creazione album: ${error.message}`)
@@ -417,7 +539,6 @@ function AreaUtente() {
 
   async function handleDeleteAlbum(albumId: string) {
     const confirmDelete = window.confirm('Vuoi davvero eliminare questo album? Verranno eliminati anche tutti i contenuti collegati.')
-
     if (!confirmDelete) return
 
     const { error } = await supabase.from('gallery_albums').delete().eq('id', albumId)
@@ -512,10 +633,7 @@ function AreaUtente() {
       const firstImage = uploadedMedia.find((item) => item.media_type === 'image')
 
       if (!album.cover_image_url && firstImage) {
-        await supabase
-          .from('gallery_albums')
-          .update({ cover_image_url: firstImage.image_url })
-          .eq('id', selectedAlbumId)
+        await supabase.from('gallery_albums').update({ cover_image_url: firstImage.image_url }).eq('id', selectedAlbumId)
       }
 
       setGalleryFiles(null)
@@ -525,12 +643,7 @@ function AreaUtente() {
       loadMedia()
     } catch (error) {
       console.error(error)
-
-      if (error instanceof Error) {
-        setMessage(`Errore durante upload file album: ${error.message}`)
-      } else {
-        setMessage('Errore durante upload file album')
-      }
+      setMessage(error instanceof Error ? `Errore durante upload file album: ${error.message}` : 'Errore durante upload file album')
     }
   }
 
@@ -667,12 +780,7 @@ function AreaUtente() {
       loadMedia()
     } catch (error) {
       console.error(error)
-
-      if (error instanceof Error) {
-        setMessage(`Errore durante salvataggio link social: ${error.message}`)
-      } else {
-        setMessage('Errore durante salvataggio link social')
-      }
+      setMessage(error instanceof Error ? `Errore durante salvataggio link social: ${error.message}` : 'Errore durante salvataggio link social')
     }
   }
 
@@ -707,10 +815,7 @@ function AreaUtente() {
       return
     }
 
-    const { error } = await supabase
-      .from('gallery_albums')
-      .update({ cover_image_url: coverUrl })
-      .eq('id', item.album_id)
+    const { error } = await supabase.from('gallery_albums').update({ cover_image_url: coverUrl }).eq('id', item.album_id)
 
     if (error) {
       setMessage(`Errore aggiornamento copertina: ${error.message}`)
@@ -880,7 +985,6 @@ function AreaUtente() {
 
   async function handleDeleteEvent(id: string) {
     const confirmDelete = window.confirm('Vuoi eliminare questo evento? Verranno eliminati anche i documenti collegati.')
-
     if (!confirmDelete) return
 
     const { error } = await supabase.from('events').delete().eq('id', id)
@@ -910,9 +1014,7 @@ function AreaUtente() {
   }
 
   function formatEventDate(event: DojoEvent) {
-    if (event.event_date && !event.is_date_provisional) {
-      return new Date(event.event_date).toLocaleDateString('it-IT')
-    }
+    if (event.event_date && !event.is_date_provisional) return new Date(event.event_date).toLocaleDateString('it-IT')
 
     if (event.provisional_year && event.provisional_month) {
       const date = new Date(event.provisional_year, event.provisional_month - 1, 1)
@@ -975,19 +1077,48 @@ function AreaUtente() {
     return (
       <>
         <style>{areaUtenteInlineStyles}</style>
+
         <div className="auth-page">
           <div className="auth-card">
+            <p style={dojoBadgeStyle}>Area riservata</p>
             <h1>Accesso Dojo Yamato</h1>
 
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleLogin} style={authFormStyle}>
+              <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <button className="primary-auth-button" type="submit">Login</button>
+            </form>
+
+            <div style={authDividerStyle} />
+
+            <h2 style={{ marginBottom: '8px' }}>Registrazione nuovo utente</h2>
+            <p style={mutedText}>Registrandoti potrai accedere ai contenuti riservati, ingrandire e scaricare i media consentiti.</p>
+
+            <form onSubmit={handleSignup} style={authFormStyle}>
+              <div style={twoColumnsStyle}>
+                <input type="text" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+                <input type="text" placeholder="Cognome" value={cognome} onChange={(e) => setCognome(e.target.value)} />
+              </div>
+
+              <div style={twoColumnsStyle}>
+                <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                <input type="tel" placeholder="Telefono opzionale" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+
               <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
               <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-              <button className="primary-auth-button" type="submit">Login</button>
+              <label style={checkboxLabelStyle}>
+                <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
+                Accetto la privacy policy e il trattamento dei dati per la registrazione
+              </label>
 
-              <button className="secondary-auth-button" type="button" onClick={handleSignup}>
-                Registrati
-              </button>
+              <label style={checkboxLabelStyle}>
+                <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} />
+                Voglio iscrivermi alla newsletter del Dojo Yamato
+              </label>
+
+              <button className="secondary-auth-button" type="submit">Registrati</button>
             </form>
 
             {message && <p style={{ marginTop: '16px' }}>{message}</p>}
@@ -1005,17 +1136,31 @@ function AreaUtente() {
         <div className="profile-card">
           <h1>Area Utente</h1>
 
-          <p>
-            Loggato come: <strong>{user.email}</strong>
-          </p>
+          <p>Loggato come: <strong>{user.email}</strong></p>
+          <p style={mutedText}>Ruolo: <strong>{isAdmin ? 'Admin' : 'User registrato'}</strong></p>
 
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '20px' }}>
-            <input type="text" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-            <input type="text" placeholder="Cognome" value={cognome} onChange={(e) => setCognome(e.target.value)} />
+            <div style={twoColumnsStyle}>
+              <input type="text" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+              <input type="text" placeholder="Cognome" value={cognome} onChange={(e) => setCognome(e.target.value)} />
+            </div>
 
-            <button className="primary-auth-button" type="submit">
-              Salva profilo
-            </button>
+            <div style={twoColumnsStyle}>
+              <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <input type="tel" placeholder="Telefono opzionale" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+
+            <label style={checkboxLabelStyle}>
+              <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
+              Accetto la privacy policy
+            </label>
+
+            <label style={checkboxLabelStyle}>
+              <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} />
+              Iscrivimi alla newsletter
+            </label>
+
+            <button className="primary-auth-button" type="submit">Salva profilo</button>
           </form>
 
           {isAdmin && (
@@ -1031,14 +1176,14 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'insegnanti')} onClick={() => setAdminTab('insegnanti')}>Insegnanti</button>
                 <button type="button" style={tabButton(adminTab === 'teoria')} onClick={() => setAdminTab('teoria')}>Teoria</button>
                 <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>Difesa personale</button>
+                <button type="button" style={tabButton(adminTab === 'iscritti')} onClick={() => setAdminTab('iscritti')}>Iscritti</button>
               </div>
 
-              {message && adminTab !== 'news' && adminTab !== 'documenti' && adminTab !== 'insegnanti' && adminTab !== 'teoria' && (
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && (
                 <div style={messageBox}>{message}</div>
               )}
 
               {adminTab === 'news' && <AdminNews />}
-              {adminTab === 'documenti' && <AdminDocumenti />}
 
               {adminTab === 'galleria' && (
                 <div>
@@ -1063,15 +1208,8 @@ function AreaUtente() {
                         </label>
 
                         <div style={actionsRow}>
-                          <button className="primary-auth-button" type="submit">
-                            {editingAlbumId ? 'Aggiorna album' : 'Crea album'}
-                          </button>
-
-                          {editingAlbumId && (
-                            <button className="secondary-auth-button" type="button" onClick={resetAlbumForm}>
-                              Annulla modifica
-                            </button>
-                          )}
+                          <button className="primary-auth-button" type="submit">{editingAlbumId ? 'Aggiorna album' : 'Crea album'}</button>
+                          {editingAlbumId && <button className="secondary-auth-button" type="button" onClick={resetAlbumForm}>Annulla modifica</button>}
                         </div>
                       </form>
                     </div>
@@ -1082,24 +1220,18 @@ function AreaUtente() {
                       <form onSubmit={handleUploadAlbumMedia} style={formStyle}>
                         <select value={selectedAlbumId} onChange={(e) => setSelectedAlbumId(e.target.value)}>
                           <option value="">Seleziona album</option>
-                          {albums.map((album) => (
-                            <option key={album.id} value={album.id}>{album.event_year} - {album.title}</option>
-                          ))}
+                          {albums.map((album) => <option key={album.id} value={album.id}>{album.event_year} - {album.title}</option>)}
                         </select>
 
                         <input key={galleryInputKey} type="file" accept="image/*,video/mp4,video/webm,video/quicktime,.pdf" multiple onChange={(e) => setGalleryFiles(e.target.files)} />
-
                         {galleryFiles && galleryFiles.length > 0 && <small style={mutedText}>File selezionati: {galleryFiles.length}</small>}
-
                         <button className="primary-auth-button" type="submit">Carica file selezionati</button>
                       </form>
 
                       {selectedAlbum && (
                         <div style={selectedAlbumBox}>
-                          <strong>Album selezionato:</strong>
-                          <br />
-                          {selectedAlbum.title} · {selectedAlbum.event_year}
-                          <br />
+                          <strong>Album selezionato:</strong><br />
+                          {selectedAlbum.title} · {selectedAlbum.event_year}<br />
                           <span style={mutedText}>Contenuti presenti: {selectedAlbumMedia.length}</span>
                         </div>
                       )}
@@ -1117,13 +1249,11 @@ function AreaUtente() {
                       <h4>Aggiungi link social</h4>
                       <form onSubmit={handleAddSocialLink} style={formStyle}>
                         <input type="url" placeholder="Incolla link Facebook, Instagram o TikTok" value={socialUrl} onChange={(e) => setSocialUrl(e.target.value)} />
-
                         <div style={{ display: 'grid', gap: '8px' }}>
                           <label style={mutedText}>Immagine anteprima opzionale</label>
                           <input key={socialPreviewInputKey} type="file" accept="image/*" onChange={(e) => setSocialPreviewFile(e.target.files?.[0] ?? null)} />
                           {socialPreviewFile && <small style={mutedText}>Anteprima selezionata: {socialPreviewFile.name}</small>}
                         </div>
-
                         <button className="primary-auth-button" type="submit">Aggiungi Social</button>
                       </form>
                     </div>
@@ -1149,15 +1279,9 @@ function AreaUtente() {
                             <article style={{ ...compactAlbumCard, border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)' }}>
                               <div style={compactAlbumMain}>
                                 {album.cover_image_url ? <img src={album.cover_image_url} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
-
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <h4 style={compactAlbumTitle}>{album.title}</h4>
-                                  <p style={compactAlbumMeta}>
-                                    {album.event_year}
-                                    {album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}
-                                    {album.category ? ` · ${album.category}` : ''}
-                                    {' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti
-                                  </p>
+                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` · ${album.category}` : ''}{' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti</p>
                                 </div>
                               </div>
 
@@ -1176,17 +1300,23 @@ function AreaUtente() {
                                     <h3 style={{ marginBottom: '6px' }}>Contenuti album: {album.title}</h3>
                                     <p style={{ ...mutedText, margin: 0 }}>{album.event_year} · {albumMedia.length} elementi</p>
                                   </div>
-                                  <button type="button" className="secondary-auth-button" onClick={() => setSelectedAlbumId('')} style={smallAdminButton}>Chiudi</button>
+                                  <button type="button" className="secondary-auth-button" onClick={() => {
+                                    setSelectedAlbumId('')
+                                    setGalleryFiles(null)
+                                    setYoutubeUrl('')
+                                    setSocialUrl('')
+                                    setSocialPreviewFile(null)
+                                    setGalleryInputKey((prev) => prev + 1)
+                                    setSocialPreviewInputKey((prev) => prev + 1)
+                                  }} style={smallAdminButton}>Chiudi</button>
                                 </div>
 
                                 {albumMedia.length === 0 && <p style={mutedText}>Questo album non contiene ancora media.</p>}
-
                                 {albumMedia.length > 0 && (
                                   <div style={tinyPhotoGrid}>
                                     {albumMedia.map((item) => {
                                       const coverUrl = item.media_type === 'youtube' ? item.thumbnail_url : item.media_type === 'image' ? item.image_url : item.media_type === 'social' ? item.thumbnail_url : null
                                       const isCover = coverUrl && album.cover_image_url === coverUrl
-
                                       return (
                                         <div key={item.id} style={tinyPhotoCard}>
                                           {renderTinyMediaPreview(item)}
@@ -1214,7 +1344,6 @@ function AreaUtente() {
                 <div>
                   <div style={adminCardStyle}>
                     <h3>{editingEventId ? 'Modifica evento' : 'Crea nuovo evento'}</h3>
-
                     <form onSubmit={handleSaveEvent} style={formStyle}>
                       <input type="text" placeholder="Titolo evento" value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
                       <textarea placeholder="Descrizione evento" value={eventDescription} onChange={(e) => setEventDescription(e.target.value)} rows={5} style={textareaStyle} />
@@ -1241,7 +1370,6 @@ function AreaUtente() {
                               <option value="1">Gennaio</option><option value="2">Febbraio</option><option value="3">Marzo</option><option value="4">Aprile</option><option value="5">Maggio</option><option value="6">Giugno</option><option value="7">Luglio</option><option value="8">Agosto</option><option value="9">Settembre</option><option value="10">Ottobre</option><option value="11">Novembre</option><option value="12">Dicembre</option>
                             </select>
                           </div>
-
                           <div style={{ display: 'grid', gap: '8px' }}>
                             <label style={mutedText}>Anno provvisorio</label>
                             <input type="number" value={eventProvisionalYear} onChange={(e) => setEventProvisionalYear(e.target.value)} />
@@ -1252,12 +1380,7 @@ function AreaUtente() {
                       <input type="url" placeholder="Link esterno opzionale" value={eventExternalUrl} onChange={(e) => setEventExternalUrl(e.target.value)} />
                       <input type="text" placeholder="Testo pulsante link, es. Iscriviti all’evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
 
-                      {existingEventImageUrl && (
-                        <div>
-                          <p style={mutedText}>Immagine attuale:</p>
-                          <img src={existingEventImageUrl} alt="Immagine evento attuale" style={previewImageStyle} />
-                        </div>
-                      )}
+                      {existingEventImageUrl && <div><p style={mutedText}>Immagine attuale:</p><img src={existingEventImageUrl} alt="Immagine evento attuale" style={previewImageStyle} /></div>}
 
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Immagine evento opzionale</label>
@@ -1286,7 +1409,6 @@ function AreaUtente() {
                   <div style={{ marginTop: '30px' }}>
                     <h3>Eventi inseriti</h3>
                     {events.length === 0 && <p style={mutedText}>Non ci sono ancora eventi inseriti.</p>}
-
                     <div style={compactAlbumList}>
                       {events.map((event) => (
                         <article key={event.id} style={compactAlbumCard}>
@@ -1321,8 +1443,10 @@ function AreaUtente() {
                 </div>
               )}
 
+              {adminTab === 'documenti' && <AdminDocumenti />}
               {adminTab === 'insegnanti' && <AdminInsegnanti />}
               {adminTab === 'teoria' && <AdminTeoria />}
+              {adminTab === 'iscritti' && <AdminIscritti />}
 
               {adminTab === 'difesa' && (
                 <div style={adminCardStyle}>
@@ -1333,10 +1457,9 @@ function AreaUtente() {
             </section>
           )}
 
-          {!isAdmin && <div style={userInfoBox}>Area personale utente. I contenuti amministrativi sono visibili solo all’admin.</div>}
+          {!isAdmin && <div style={userInfoBox}><strong>Account user attivo.</strong><br />Ora puoi accedere ai contenuti riservati disponibili per gli utenti registrati.</div>}
 
           <button style={{ marginTop: '30px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
-
           {!isAdmin && message && <p style={{ marginTop: '16px' }}>{message}</p>}
         </div>
       </div>
@@ -1369,24 +1492,29 @@ const areaUtenteInlineStyles = `
 }
 `
 
-const adminSectionStyle: CSSProperties = { marginTop: '42px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.12)' }
-const adminLabelStyle: CSSProperties = { color: '#d95b64', fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase' }
-const tabsWrapper: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '22px 0' }
-
-const tabButton = (active: boolean): CSSProperties => ({
-  padding: '10px 16px',
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
   borderRadius: '999px',
-  border: 'none',
-  cursor: 'pointer',
-  fontWeight: 800,
-  background: active ? 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)' : 'rgba(255,255,255,0.10)',
-  color: active ? 'white' : '#d8d8d8',
-  boxShadow: active ? '0 8px 18px rgba(80,10,18,0.24)' : 'none',
-})
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+}
 
+const authFormStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '14px' }
+const authDividerStyle: CSSProperties = { height: '1px', background: 'rgba(255,255,255,0.14)', margin: '24px 0' }
+const adminSectionStyle: CSSProperties = { marginTop: '42px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.12)' }
+const adminLabelStyle: CSSProperties = dojoBadgeStyle
+const tabsWrapper: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '22px 0' }
+const tabButton = (active: boolean): CSSProperties => ({ padding: '10px 16px', borderRadius: '999px', border: 'none', cursor: 'pointer', fontWeight: 800, background: active ? 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)' : 'rgba(255,255,255,0.10)', color: active ? 'white' : '#d8d8d8', boxShadow: active ? '0 8px 18px rgba(80,10,18,0.24)' : 'none' })
 const adminCardStyle: CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '18px', padding: '22px' }
 const galleryAdminLayout: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }
 const formStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '18px' }
+const twoColumnsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }
 const textareaStyle: CSSProperties = { borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.16)', resize: 'vertical', fontFamily: 'inherit' }
 const mutedText: CSSProperties = { color: '#d8d8d8', lineHeight: 1.6 }
 const checkboxLabelStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', color: '#d8d8d8' }

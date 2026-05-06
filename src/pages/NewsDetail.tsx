@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import {
+  canDownloadMedia,
+  canOpenMedia,
+  getAccessDeniedMessage,
+} from '../lib/permissions'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 type MediaType =
   | 'image'
@@ -39,15 +46,26 @@ type NewsMedia = {
 function NewsDetail() {
   const { newsId } = useParams()
 
+  const [user, setUser] = useState<User | null>(null)
   const [news, setNews] = useState<NewsItem | null>(null)
   const [media, setMedia] = useState<NewsMedia[]>([])
   const [loading, setLoading] = useState(true)
+  const [accessMessage, setAccessMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<NewsMedia | null>(null)
 
+  const userCanOpenMedia = canOpenMedia(user)
+  const userCanDownloadMedia = canDownloadMedia(user)
+
   useEffect(() => {
+    loadUser()
     loadNews()
   }, [newsId])
+
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user)
+  }
 
   async function loadNews() {
     if (!newsId) {
@@ -90,9 +108,45 @@ function NewsDetail() {
       console.error('Errore caricamento media dettaglio news:', mediaError.message)
     }
 
-    setNews(newsData as NewsItem)
-    setMedia((mediaData ?? []) as NewsMedia[])
+    const signedImageUrl = newsData.image_url
+      ? await getSignedUrlFromPublicUrl(newsData.image_url)
+      : null
+
+    const signedCoverUrl = newsData.cover_image_url
+      ? await getSignedUrlFromPublicUrl(newsData.cover_image_url)
+      : null
+
+    const signedMedia = await Promise.all(
+      ((mediaData ?? []) as NewsMedia[]).map(async (item) => {
+        const signedUrl = item.url ? await getSignedUrlFromPublicUrl(item.url) : ''
+        const signedThumbnailUrl = item.thumbnail_url
+          ? await getSignedUrlFromPublicUrl(item.thumbnail_url)
+          : null
+
+        return {
+          ...item,
+          url: signedUrl || item.url,
+          thumbnail_url: signedThumbnailUrl || item.thumbnail_url,
+        }
+      })
+    )
+
+    setNews({
+      ...(newsData as NewsItem),
+      image_url: signedImageUrl || newsData.image_url,
+      cover_image_url: signedCoverUrl || newsData.cover_image_url,
+    })
+
+    setMedia(signedMedia)
     setLoading(false)
+  }
+
+  function showAccessDenied() {
+    setAccessMessage(getAccessDeniedMessage('i contenuti collegati alla news'))
+
+    window.setTimeout(() => {
+      setAccessMessage('')
+    }, 5000)
   }
 
   function getDate(item: NewsItem) {
@@ -135,27 +189,105 @@ function NewsDetail() {
     return 'linear-gradient(135deg, #176a82 0%, #0f4658 100%)'
   }
 
+  function getDownloadName(item: NewsMedia) {
+    const extension = item.media_type === 'pdf' ? 'pdf' : item.media_type === 'video' ? 'mp4' : 'jpg'
+    const cleanTitle =
+      news?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
+      'dojo-yamato-news'
+
+    return `${cleanTitle}-${item.id}.${extension}`
+  }
+
+  function handleImageClick(item: NewsMedia) {
+    if (!userCanOpenMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setSelectedImage(item.url)
+  }
+
+  function handleVideoClick(item: NewsMedia) {
+    if (!userCanOpenMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setSelectedVideo(item)
+  }
+
+  function renderLockedOverlay() {
+    if (userCanOpenMedia) return null
+
+    return (
+      <div style={lockedOverlayStyle}>
+        <span style={lockedBadgeStyle}>Accesso utenti</span>
+      </div>
+    )
+  }
+
+  function renderDownloadButton(item: NewsMedia) {
+    if (!userCanDownloadMedia) return null
+
+    if (
+      item.media_type === 'youtube' ||
+      item.media_type === 'instagram' ||
+      item.media_type === 'facebook' ||
+      item.media_type === 'tiktok' ||
+      item.media_type === 'link' ||
+      item.media_type === 'social'
+    ) {
+      return (
+        <a href={item.url} target="_blank" rel="noreferrer" style={downloadButtonStyle}>
+          Apri
+        </a>
+      )
+    }
+
+    return (
+      <a
+        href={item.url}
+        download={getDownloadName(item)}
+        target="_blank"
+        rel="noreferrer"
+        style={downloadButtonStyle}
+      >
+        Download
+      </a>
+    )
+  }
+
   function renderMediaCard(item: NewsMedia) {
     if (item.media_type === 'image') {
       return (
-        <button type="button" style={mediaButtonStyle} onClick={() => setSelectedImage(item.url)}>
-          <img src={item.url} alt="Immagine news" style={mediaImageStyle} />
-        </button>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleImageClick(item)}>
+            <div style={mediaPreviewBoxStyle}>
+              <img src={item.url} alt="Immagine news" style={mediaImageStyle} />
+              {renderLockedOverlay()}
+            </div>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     if (item.media_type === 'video') {
       return (
-        <button type="button" style={mediaButtonStyle} onClick={() => setSelectedVideo(item)}>
-          <div style={mediaPreviewBoxStyle}>
-            {item.thumbnail_url ? (
-              <img src={item.thumbnail_url} alt="Video news" style={mediaImageStyle} />
-            ) : (
-              <video src={item.url} muted preload="metadata" style={mediaImageStyle} />
-            )}
-            <span style={playButtonStyle}>▶</span>
-          </div>
-        </button>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)}>
+            <div style={mediaPreviewBoxStyle}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="Video news" style={mediaImageStyle} />
+              ) : (
+                <video src={item.url} muted preload="metadata" style={mediaImageStyle} />
+              )}
+              <span style={playButtonStyle}>▶</span>
+              {renderLockedOverlay()}
+            </div>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
@@ -163,43 +295,75 @@ function NewsDetail() {
       const embedUrl = getYoutubeEmbedUrl(item.url)
 
       return (
-        <button type="button" style={mediaButtonStyle} onClick={() => setSelectedVideo(item)}>
-          <div style={mediaPreviewBoxStyle}>
-            {item.thumbnail_url ? (
-              <img src={item.thumbnail_url} alt="YouTube" style={mediaImageStyle} />
-            ) : embedUrl ? (
-              <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }}>
-                <span style={socialIconStyle}>▶</span>
-              </div>
-            ) : (
-              <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }} />
-            )}
-            <span style={playButtonStyle}>▶</span>
-          </div>
-        </button>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)}>
+            <div style={mediaPreviewBoxStyle}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="YouTube" style={mediaImageStyle} />
+              ) : embedUrl ? (
+                <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }}>
+                  <span style={socialIconStyle}>▶</span>
+                </div>
+              ) : (
+                <div style={{ ...socialPreviewStyle, background: getSocialGradient('youtube') }} />
+              )}
+              <span style={playButtonStyle}>▶</span>
+              {renderLockedOverlay()}
+            </div>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     if (item.media_type === 'pdf') {
       return (
-        <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
-          <div style={pdfPreviewStyle}>
-            <span style={pdfIconStyle}>PDF</span>
-          </div>
-        </a>
+        <>
+          {userCanOpenMedia ? (
+            <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
+              <div style={pdfPreviewStyle}>
+                <span style={pdfIconStyle}>PDF</span>
+              </div>
+            </a>
+          ) : (
+            <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
+              <div style={pdfPreviewStyle}>
+                <span style={pdfIconStyle}>PDF</span>
+                {renderLockedOverlay()}
+              </div>
+            </button>
+          )}
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     return (
-      <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
-        <div style={{ ...socialPreviewStyle, background: getSocialGradient(item.media_type) }}>
-          {item.thumbnail_url ? (
-            <img src={item.thumbnail_url} alt="Contenuto social" style={mediaImageStyle} />
-          ) : (
-            <span style={socialIconStyle}>🔗</span>
-          )}
-        </div>
-      </a>
+      <>
+        {userCanOpenMedia ? (
+          <a href={item.url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
+            <div style={{ ...socialPreviewStyle, background: getSocialGradient(item.media_type) }}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="Contenuto social" style={mediaImageStyle} />
+              ) : (
+                <span style={socialIconStyle}>🔗</span>
+              )}
+            </div>
+          </a>
+        ) : (
+          <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
+            <div style={{ ...socialPreviewStyle, background: getSocialGradient(item.media_type) }}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="Contenuto social" style={mediaImageStyle} />
+              ) : (
+                <span style={socialIconStyle}>🔗</span>
+              )}
+              {renderLockedOverlay()}
+            </div>
+          </button>
+        )}
+        {renderDownloadButton(item)}
+      </>
     )
   }
 
@@ -212,9 +376,7 @@ function NewsDetail() {
       return (
         <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
           <div style={videoModalStyle} onClick={(event) => event.stopPropagation()}>
-            <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)}>
-              ×
-            </button>
+            <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)}>×</button>
 
             {embedUrl ? (
               <iframe
@@ -235,9 +397,7 @@ function NewsDetail() {
     return (
       <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
         <div style={videoModalStyle} onClick={(event) => event.stopPropagation()}>
-          <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)}>
-            ×
-          </button>
+          <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)}>×</button>
 
           <video
             src={selectedVideo.url}
@@ -260,10 +420,7 @@ function NewsDetail() {
     return (
       <div style={modalOverlayStyle} onClick={() => setSelectedImage(null)}>
         <div style={imageModalStyle} onClick={(event) => event.stopPropagation()}>
-          <button type="button" style={closeButtonStyle} onClick={() => setSelectedImage(null)}>
-            ×
-          </button>
-
+          <button type="button" style={closeButtonStyle} onClick={() => setSelectedImage(null)}>×</button>
           <img src={selectedImage} alt="Immagine news" style={modalImageStyle} />
         </div>
       </div>
@@ -296,6 +453,13 @@ function NewsDetail() {
 
         <p style={labelStyle}>Pubblicata il {getDate(news)}</p>
         <h1 style={titleStyle}>{news.title}</h1>
+
+        {!userCanOpenMedia && media.length > 0 && (
+          <div style={loginNoticeStyle}>
+            <strong>Area media riservata.</strong> Accedi o registrati per aprire, ingrandire e scaricare i contenuti collegati.
+            <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
+          </div>
+        )}
       </section>
 
       {cover && (
@@ -308,15 +472,15 @@ function NewsDetail() {
         <p style={contentTextStyle}>{news.content}</p>
       </section>
 
+      {accessMessage && <div style={floatingMessageStyle}>{accessMessage}</div>}
+
       {media.length > 0 && (
         <section style={mediaSectionStyle}>
           <h2 style={mediaTitleStyle}>Galleria</h2>
 
           <div style={mediaGridStyle}>
             {media.map((item) => (
-              <article key={item.id} style={mediaCardStyle}>
-                {renderMediaCard(item)}
-              </article>
+              <article key={item.id} style={mediaCardStyle}>{renderMediaCard(item)}</article>
             ))}
           </div>
         </section>
@@ -326,6 +490,19 @@ function NewsDetail() {
       {renderImageModal()}
     </main>
   )
+}
+
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
 const pageStyle: CSSProperties = {
@@ -349,20 +526,52 @@ const backLinkStyle: CSSProperties = {
   fontWeight: 900,
 }
 
-const labelStyle: CSSProperties = {
-  margin: 0,
-  color: '#e63946',
-  fontWeight: 900,
-  letterSpacing: '1px',
-  textTransform: 'uppercase',
-  fontSize: '13px',
-}
+const labelStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   margin: 0,
   fontSize: 'clamp(42px, 7vw, 76px)',
   lineHeight: 1,
   fontWeight: 950,
+}
+
+const loginNoticeStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  color: '#f3dede',
+}
+
+const loginButtonStyle: CSSProperties = {
+  padding: '8px 13px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 900,
+}
+
+const floatingMessageStyle: CSSProperties = {
+  position: 'fixed',
+  left: '50%',
+  bottom: '24px',
+  transform: 'translateX(-50%)',
+  zIndex: 1001,
+  width: 'min(560px, calc(100% - 32px))',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.95)',
+  color: 'white',
+  fontWeight: 800,
+  boxShadow: '0 18px 40px rgba(0,0,0,0.36)',
 }
 
 const coverSectionStyle: CSSProperties = {
@@ -456,7 +665,7 @@ const playButtonStyle: CSSProperties = {
   width: '48px',
   height: '48px',
   borderRadius: '999px',
-  background: '#e63946',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
   display: 'flex',
   alignItems: 'center',
@@ -465,7 +674,41 @@ const playButtonStyle: CSSProperties = {
   boxShadow: '0 8px 18px rgba(0,0,0,0.28)',
 }
 
+const lockedOverlayStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'flex-end',
+  padding: '8px',
+  background: 'linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.16))',
+  pointerEvents: 'none',
+}
+
+const lockedBadgeStyle: CSSProperties = {
+  padding: '5px 9px',
+  borderRadius: '999px',
+  background: 'rgba(0,0,0,0.72)',
+  color: 'white',
+  fontSize: '10px',
+  fontWeight: 900,
+}
+
+const downloadButtonStyle: CSSProperties = {
+  display: 'block',
+  width: 'fit-content',
+  margin: '10px',
+  padding: '7px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
 const pdfPreviewStyle: CSSProperties = {
+  position: 'relative',
   width: '100%',
   height: '100%',
   display: 'grid',
@@ -475,18 +718,18 @@ const pdfPreviewStyle: CSSProperties = {
 }
 
 const pdfIconStyle: CSSProperties = {
+  ...dojoBadgeStyle,
   width: '64px',
   height: '64px',
-  borderRadius: '16px',
-  background: 'white',
-  color: '#111827',
+  padding: 0,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontWeight: 950,
+  borderRadius: '16px',
 }
 
 const socialPreviewStyle: CSSProperties = {
+  position: 'relative',
   width: '100%',
   height: '100%',
   display: 'grid',
@@ -540,7 +783,7 @@ const closeButtonStyle: CSSProperties = {
   height: '36px',
   borderRadius: '999px',
   border: 'none',
-  background: '#e63946',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
   fontSize: '24px',
   fontWeight: 900,

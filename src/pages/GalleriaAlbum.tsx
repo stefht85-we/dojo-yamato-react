@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import {
+  canDownloadMedia,
+  canOpenMedia,
+  getAccessDeniedMessage,
+} from '../lib/permissions'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 type GalleryAlbum = {
   id: string
@@ -30,17 +37,28 @@ type GalleryMedia = {
 function GalleriaAlbum() {
   const { albumId } = useParams()
 
+  const [user, setUser] = useState<User | null>(null)
   const [album, setAlbum] = useState<GalleryAlbum | null>(null)
   const [media, setMedia] = useState<GalleryMedia[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [accessMessage, setAccessMessage] = useState('')
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<GalleryMedia | null>(null)
 
+  const userCanOpenMedia = canOpenMedia(user)
+  const userCanDownloadMedia = canDownloadMedia(user)
+
   useEffect(() => {
+    loadUser()
     loadAlbum()
   }, [albumId])
+
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user)
+  }
 
   async function loadAlbum() {
     if (!albumId) {
@@ -54,24 +72,21 @@ function GalleriaAlbum() {
 
     const { data: albumData, error: albumError } = await supabase
       .from('gallery_albums')
-      .select(
-        'id, title, description, category, event_date, event_year, cover_image_url, visible, created_at'
-      )
+      .select('id, title, description, category, event_date, event_year, cover_image_url, visible, created_at')
       .eq('id', albumId)
+      .eq('visible', true)
       .single()
 
     if (albumError) {
       console.error('Errore caricamento album:', albumError)
-      setMessage('Errore durante il caricamento dell’album.')
+      setMessage('Errore durante il caricamento dell’album oppure album non disponibile.')
       setLoading(false)
       return
     }
 
     const { data: mediaData, error: mediaError } = await supabase
       .from('gallery_photos')
-      .select(
-        'id, album_id, image_url, caption, sort_order, created_at, media_type, thumbnail_url, video_url'
-      )
+      .select('id, album_id, image_url, caption, sort_order, created_at, media_type, thumbnail_url, video_url')
       .eq('album_id', albumId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
@@ -83,9 +98,48 @@ function GalleriaAlbum() {
       return
     }
 
-    setAlbum(albumData as GalleryAlbum)
-    setMedia((mediaData ?? []) as GalleryMedia[])
+    const signedCoverUrl = albumData.cover_image_url
+      ? await getSignedUrlFromPublicUrl(albumData.cover_image_url)
+      : null
+
+    const signedMedia = await Promise.all(
+      ((mediaData ?? []) as GalleryMedia[]).map(async (item) => {
+        const signedImageUrl = item.image_url
+          ? await getSignedUrlFromPublicUrl(item.image_url)
+          : ''
+
+        const signedVideoUrl = item.video_url
+          ? await getSignedUrlFromPublicUrl(item.video_url)
+          : null
+
+        const signedThumbnailUrl = item.thumbnail_url
+          ? await getSignedUrlFromPublicUrl(item.thumbnail_url)
+          : null
+
+        return {
+          ...item,
+          image_url: signedImageUrl || item.image_url,
+          video_url: signedVideoUrl || item.video_url,
+          thumbnail_url: signedThumbnailUrl || item.thumbnail_url,
+        }
+      })
+    )
+
+    setAlbum({
+      ...(albumData as GalleryAlbum),
+      cover_image_url: signedCoverUrl || albumData.cover_image_url,
+    })
+
+    setMedia(signedMedia)
     setLoading(false)
+  }
+
+  function showAccessDenied() {
+    setAccessMessage(getAccessDeniedMessage('i contenuti della galleria'))
+
+    window.setTimeout(() => {
+      setAccessMessage('')
+    }, 5000)
   }
 
   function getYoutubeEmbedUrl(url: string) {
@@ -104,75 +158,127 @@ function GalleriaAlbum() {
     return null
   }
 
+  function getMediaUrl(item: GalleryMedia) {
+    return item.video_url ?? item.image_url
+  }
+
+  function handleImageClick(item: GalleryMedia) {
+    if (!userCanOpenMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setSelectedImage(item.image_url)
+  }
+
+  function handleVideoClick(item: GalleryMedia) {
+    if (!userCanOpenMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setSelectedVideo(item)
+  }
+
+  function getDownloadName(item: GalleryMedia) {
+    const extension = item.media_type === 'file' ? 'pdf' : item.media_type === 'video' ? 'mp4' : 'jpg'
+    const cleanTitle =
+      album?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
+      'dojo-yamato'
+
+    return `${cleanTitle}-${item.id}.${extension}`
+  }
+
+  function renderDownloadButton(item: GalleryMedia) {
+    if (!userCanDownloadMedia) return null
+
+    if (item.media_type === 'youtube' || item.media_type === 'social') {
+      return (
+        <a href={getMediaUrl(item)} target="_blank" rel="noreferrer" style={downloadButtonStyle}>
+          Apri
+        </a>
+      )
+    }
+
+    return (
+      <a
+        href={getMediaUrl(item)}
+        download={getDownloadName(item)}
+        target="_blank"
+        rel="noreferrer"
+        style={downloadButtonStyle}
+      >
+        Download
+      </a>
+    )
+  }
+
+  function renderLockedOverlay() {
+    if (userCanOpenMedia) return null
+
+    return (
+      <div style={lockedOverlayStyle}>
+        <span style={lockedBadgeStyle}>Accesso utenti</span>
+      </div>
+    )
+  }
+
   function renderMediaPreview(item: GalleryMedia) {
     if (item.media_type === 'image') {
       return (
-        <button
-          type="button"
-          style={mediaButtonStyle}
-          onClick={() => setSelectedImage(item.image_url)}
-          aria-label="Apri immagine"
-        >
-          <img
-            src={item.image_url}
-            alt={item.caption || album?.title || 'Immagine galleria'}
-            style={mediaImageStyle}
-          />
-        </button>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleImageClick(item)} aria-label="Apri immagine">
+            <div style={previewWrapperStyle}>
+              <img src={item.image_url} alt={item.caption || album?.title || 'Immagine galleria'} style={mediaImageStyle} />
+              {renderLockedOverlay()}
+            </div>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     if (item.media_type === 'video') {
       return (
-        <button
-          type="button"
-          style={mediaButtonStyle}
-          onClick={() => setSelectedVideo(item)}
-          aria-label="Apri video"
-        >
-          <div style={videoPreviewWrapperStyle}>
-            <video
-              src={item.video_url ?? item.image_url}
-              style={mediaImageStyle}
-              muted
-              preload="metadata"
-              playsInline
-              controls={false}
-              onContextMenu={(e) => e.preventDefault()}
-            />
-
-            <div style={playOverlayStyle}>
-              <span style={playCircleStyle}>▶</span>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)} aria-label="Apri video">
+            <div style={videoPreviewWrapperStyle}>
+              <video
+                src={item.video_url ?? item.image_url}
+                style={mediaImageStyle}
+                muted
+                preload="metadata"
+                playsInline
+                controls={false}
+                onContextMenu={(e) => e.preventDefault()}
+              />
+              <div style={playOverlayStyle}><span style={playCircleStyle}>▶</span></div>
+              <span style={mediaBadgeStyle}>Video</span>
+              {renderLockedOverlay()}
             </div>
-
-            <span style={mediaBadgeStyle}>Video</span>
-          </div>
-        </button>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     if (item.media_type === 'youtube') {
       return (
-        <button
-          type="button"
-          style={mediaButtonStyle}
-          onClick={() => setSelectedVideo(item)}
-          aria-label="Apri video YouTube"
-        >
-          <div style={videoPreviewWrapperStyle}>
-            <img
-              src={item.thumbnail_url ?? ''}
-              alt="Anteprima YouTube"
-              style={mediaImageStyle}
-            />
-
-            <div style={playOverlayStyle}>
-              <span style={playCircleStyle}>▶</span>
+        <>
+          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)} aria-label="Apri video YouTube">
+            <div style={videoPreviewWrapperStyle}>
+              {item.thumbnail_url ? (
+                <img src={item.thumbnail_url} alt="Anteprima YouTube" style={mediaImageStyle} />
+              ) : (
+                <div style={placeholderStyle}>YouTube</div>
+              )}
+              <div style={playOverlayStyle}><span style={playCircleStyle}>▶</span></div>
+              <span style={mediaBadgeStyle}>YouTube</span>
+              {renderLockedOverlay()}
             </div>
-
-            <span style={mediaBadgeStyle}>YouTube</span>
-          </div>
-        </button>
+          </button>
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
@@ -180,41 +286,55 @@ function GalleriaAlbum() {
       const hasPreview = Boolean(item.thumbnail_url)
 
       return (
-        <a
-          href={item.video_url ?? item.image_url}
-          target="_blank"
-          rel="noreferrer"
-          style={mediaButtonStyle}
-        >
-          <div style={videoPreviewWrapperStyle}>
-            {hasPreview ? (
-              <img
-                src={item.thumbnail_url ?? ''}
-                alt={item.caption || 'Link social'}
-                style={mediaImageStyle}
-              />
-            ) : (
-              <div style={placeholderStyle}>Social</div>
-            )}
-
-            <span style={mediaBadgeStyle}>{item.caption || 'Social'}</span>
-          </div>
-        </a>
+        <>
+          {userCanOpenMedia ? (
+            <a href={item.video_url ?? item.image_url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
+              <div style={videoPreviewWrapperStyle}>
+                {hasPreview ? (
+                  <img src={item.thumbnail_url ?? ''} alt={item.caption || 'Link social'} style={mediaImageStyle} />
+                ) : (
+                  <div style={placeholderStyle}>Social</div>
+                )}
+                <span style={mediaBadgeStyle}>{item.caption || 'Social'}</span>
+              </div>
+            </a>
+          ) : (
+            <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
+              <div style={videoPreviewWrapperStyle}>
+                {hasPreview ? (
+                  <img src={item.thumbnail_url ?? ''} alt={item.caption || 'Link social'} style={mediaImageStyle} />
+                ) : (
+                  <div style={placeholderStyle}>Social</div>
+                )}
+                <span style={mediaBadgeStyle}>{item.caption || 'Social'}</span>
+                {renderLockedOverlay()}
+              </div>
+            </button>
+          )}
+          {renderDownloadButton(item)}
+        </>
       )
     }
 
     return (
-      <a
-        href={item.image_url}
-        target="_blank"
-        rel="noreferrer"
-        style={mediaButtonStyle}
-      >
-        <div style={filePreviewStyle}>
-          <span style={fileIconStyle}>PDF</span>
-          <span style={fileTextStyle}>Apri documento</span>
-        </div>
-      </a>
+      <>
+        {userCanOpenMedia ? (
+          <a href={item.image_url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
+            <div style={filePreviewStyle}>
+              <span style={fileIconStyle}>PDF</span>
+              <span style={fileTextStyle}>Apri documento</span>
+            </div>
+          </a>
+        ) : (
+          <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
+            <div style={filePreviewStyle}>
+              <span style={fileIconStyle}>PDF</span>
+              <span style={fileTextStyle}>Accesso utenti</span>
+            </div>
+          </button>
+        )}
+        {renderDownloadButton(item)}
+      </>
     )
   }
 
@@ -229,14 +349,7 @@ function GalleriaAlbum() {
       return (
         <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
           <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              style={closeButtonStyle}
-              onClick={() => setSelectedVideo(null)}
-              aria-label="Chiudi video"
-            >
-              ×
-            </button>
+            <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
 
             {embedUrl ? (
               <iframe
@@ -257,14 +370,7 @@ function GalleriaAlbum() {
     return (
       <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
         <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={closeButtonStyle}
-            onClick={() => setSelectedVideo(null)}
-            aria-label="Chiudi video"
-          >
-            ×
-          </button>
+          <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
 
           <video
             src={videoUrl}
@@ -277,9 +383,7 @@ function GalleriaAlbum() {
             onContextMenu={(e) => e.preventDefault()}
           />
 
-          <p style={videoNoticeStyle}>
-            Video visualizzabile direttamente nella pagina.
-          </p>
+          <p style={videoNoticeStyle}>Video visualizzabile direttamente nella pagina.</p>
         </div>
       </div>
     )
@@ -291,15 +395,7 @@ function GalleriaAlbum() {
     return (
       <div style={modalOverlayStyle} onClick={() => setSelectedImage(null)}>
         <div style={imageModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={closeButtonStyle}
-            onClick={() => setSelectedImage(null)}
-            aria-label="Chiudi immagine"
-          >
-            ×
-          </button>
-
+          <button type="button" style={closeButtonStyle} onClick={() => setSelectedImage(null)} aria-label="Chiudi immagine">×</button>
           <img src={selectedImage} alt="Immagine ingrandita" style={modalImageStyle} />
         </div>
       </div>
@@ -309,24 +405,28 @@ function GalleriaAlbum() {
   return (
     <main style={pageStyle}>
       <section style={heroStyle}>
-        <Link to="/galleria" style={backLinkStyle}>
-          ← Torna alla galleria
-        </Link>
+        <Link to="/galleria" style={backLinkStyle}>← Torna alla galleria</Link>
 
         {loading && <p style={messageStyle}>Caricamento album...</p>}
-
         {!loading && message && <p style={messageStyle}>{message}</p>}
 
         {!loading && album && (
           <>
             <p style={labelStyle}>Galleria {album.event_year}</p>
-
             <h1 style={titleStyle}>{album.title}</h1>
-
             {album.description && <p style={introStyle}>{album.description}</p>}
+
+            {!userCanOpenMedia && (
+              <div style={loginNoticeStyle}>
+                <strong>Area media riservata.</strong> Accedi o registrati per ingrandire e scaricare foto, video e documenti.
+                <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
+              </div>
+            )}
           </>
         )}
       </section>
+
+      {accessMessage && <div style={floatingMessageStyle}>{accessMessage}</div>}
 
       {!loading && !message && (
         <section style={gallerySectionStyle}>
@@ -335,9 +435,7 @@ function GalleriaAlbum() {
           ) : (
             <div style={mediaGridStyle}>
               {media.map((item) => (
-                <article key={item.id} style={mediaCardStyle}>
-                  {renderMediaPreview(item)}
-                </article>
+                <article key={item.id} style={mediaCardStyle}>{renderMediaPreview(item)}</article>
               ))}
             </div>
           )}
@@ -372,12 +470,17 @@ const backLinkStyle: CSSProperties = {
 }
 
 const labelStyle: CSSProperties = {
+  width: 'fit-content',
   margin: 0,
-  color: '#d95b64',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
   fontWeight: 900,
-  letterSpacing: '2px',
+  letterSpacing: '1px',
   textTransform: 'uppercase',
-  fontSize: '13px',
+  fontSize: '12px',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
 const titleStyle: CSSProperties = {
@@ -398,6 +501,45 @@ const introStyle: CSSProperties = {
 const messageStyle: CSSProperties = {
   color: '#d8d8d8',
   fontSize: '17px',
+}
+
+const loginNoticeStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  color: '#f3dede',
+}
+
+const loginButtonStyle: CSSProperties = {
+  padding: '8px 13px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 900,
+}
+
+const floatingMessageStyle: CSSProperties = {
+  position: 'fixed',
+  left: '50%',
+  bottom: '24px',
+  transform: 'translateX(-50%)',
+  zIndex: 1001,
+  width: 'min(560px, calc(100% - 32px))',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.95)',
+  color: 'white',
+  fontWeight: 800,
+  boxShadow: '0 18px 40px rgba(0,0,0,0.36)',
 }
 
 const gallerySectionStyle: CSSProperties = {
@@ -428,6 +570,13 @@ const mediaButtonStyle: CSSProperties = {
   cursor: 'pointer',
   textDecoration: 'none',
   color: 'white',
+}
+
+const previewWrapperStyle: CSSProperties = {
+  position: 'relative',
+  width: '100%',
+  height: '150px',
+  overflow: 'hidden',
 }
 
 const mediaImageStyle: CSSProperties = {
@@ -473,7 +622,7 @@ const mediaBadgeStyle: CSSProperties = {
   bottom: '8px',
   padding: '5px 9px',
   borderRadius: '999px',
-  background: 'rgba(0,0,0,0.68)',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
   fontSize: '11px',
   fontWeight: 900,
@@ -481,6 +630,39 @@ const mediaBadgeStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+}
+
+const lockedOverlayStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'flex-end',
+  padding: '8px',
+  background: 'linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.18))',
+  pointerEvents: 'none',
+}
+
+const lockedBadgeStyle: CSSProperties = {
+  padding: '5px 9px',
+  borderRadius: '999px',
+  background: 'rgba(0,0,0,0.72)',
+  color: 'white',
+  fontSize: '10px',
+  fontWeight: 900,
+}
+
+const downloadButtonStyle: CSSProperties = {
+  display: 'block',
+  width: 'fit-content',
+  margin: '10px',
+  padding: '7px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
 }
 
 const placeholderStyle: CSSProperties = {

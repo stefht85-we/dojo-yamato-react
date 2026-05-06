@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import {
+  canDownloadMedia,
+  canOpenMedia,
+  getAccessDeniedMessage,
+} from '../lib/permissions'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 type TheoryResource = {
   id: string
@@ -19,22 +26,31 @@ type TheoryResource = {
 function Teoria() {
   const { section } = useParams()
 
+  const [user, setUser] = useState<User | null>(null)
   const [resources, setResources] = useState<TheoryResource[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<TheoryResource | null>(null)
+  const [accessMessage, setAccessMessage] = useState('')
+
+  const userCanOpenMedia = canOpenMedia(user)
+  const userCanDownloadMedia = canDownloadMedia(user)
 
   useEffect(() => {
+    loadUser()
     loadResources()
   }, [])
+
+  async function loadUser() {
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user)
+  }
 
   async function loadResources() {
     setLoading(true)
 
     const { data, error } = await supabase
       .from('theory_resources')
-      .select(
-        'id, title, description, section, category, resource_type, file_url, external_url, visible, created_at'
-      )
+      .select('id, title, description, section, category, resource_type, file_url, external_url, visible, created_at')
       .eq('visible', true)
       .order('category', { ascending: true })
       .order('created_at', { ascending: false })
@@ -46,7 +62,20 @@ function Teoria() {
       return
     }
 
-    setResources((data ?? []) as TheoryResource[])
+    const resourcesWithSignedUrls = await Promise.all(
+      ((data ?? []) as TheoryResource[]).map(async (item) => {
+        const signedFileUrl = item.file_url
+          ? await getSignedUrlFromPublicUrl(item.file_url)
+          : null
+
+        return {
+          ...item,
+          file_url: signedFileUrl || item.file_url,
+        }
+      })
+    )
+
+    setResources(resourcesWithSignedUrls)
     setLoading(false)
   }
 
@@ -59,23 +88,23 @@ function Teoria() {
   }, [resources])
 
   const groupedResources = useMemo(() => {
-    const orderedCategories = [
-      'KATA',
-      'KUMITE',
-      'ESAMI',
-      'ESERCIZI PREPARAZIONE ATLETICA',
-      'ALTRO',
-    ]
+    const orderedCategories = ['KATA', 'KUMITE', 'ESAMI', 'ESERCIZI PREPARAZIONE ATLETICA', 'ALTRO']
 
     return orderedCategories
       .map((category) => ({
         category,
-        items: risorseDidattiche.filter(
-          (item) => (item.category || 'ALTRO').toUpperCase() === category
-        ),
+        items: risorseDidattiche.filter((item) => (item.category || 'ALTRO').toUpperCase() === category),
       }))
       .filter((group) => group.items.length > 0)
   }, [risorseDidattiche])
+
+  function showAccessDenied() {
+    setAccessMessage(getAccessDeniedMessage('i materiali della sezione Teoria'))
+
+    window.setTimeout(() => {
+      setAccessMessage('')
+    }, 5000)
+  }
 
   function getResourceUrl(item: TheoryResource) {
     return item.file_url || item.external_url || '#'
@@ -105,45 +134,92 @@ function Teoria() {
     return null
   }
 
+  function getDownloadName(item: TheoryResource) {
+    const extension = item.resource_type === 'video' ? 'mp4' : 'pdf'
+    const cleanTitle =
+      item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
+      'dojo-yamato-teoria'
+
+    return `${cleanTitle}.${extension}`
+  }
+
+  function handleVideoOpen(item: TheoryResource) {
+    if (!userCanOpenMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setSelectedVideo(item)
+  }
+
+  function renderAccessNotice() {
+    if (userCanOpenMedia) return null
+
+    return (
+      <div style={loginNoticeStyle}>
+        <strong>Materiali riservati agli utenti registrati.</strong>
+        Puoi vedere l’elenco dei contenuti, ma per aprire video, documenti e link devi accedere.
+        <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
+      </div>
+    )
+  }
+
+  function renderLockedBadge() {
+    if (userCanOpenMedia) return null
+
+    return <span style={lockedBadgeStyle}>Accesso utenti</span>
+  }
+
+  function renderDownloadButton(item: TheoryResource) {
+    if (!userCanDownloadMedia) return null
+
+    const url = getResourceUrl(item)
+
+    if (item.resource_type === 'youtube' || item.resource_type === 'social' || item.resource_type === 'link') {
+      return (
+        <a href={url} target="_blank" rel="noreferrer" style={openButtonStyle}>
+          Apri
+        </a>
+      )
+    }
+
+    return (
+      <a href={url} download={getDownloadName(item)} target="_blank" rel="noreferrer" style={openButtonStyle}>
+        Download
+      </a>
+    )
+  }
+
   function renderVideoPreview(item: TheoryResource) {
     const videoUrl = getResourceUrl(item)
 
     return (
-      <button
-        key={item.id}
-        type="button"
-        style={videoResourceItemStyle}
-        onClick={() => setSelectedVideo(item)}
-        aria-label={`Apri video ${item.title}`}
-      >
-        <div style={videoThumbStyle}>
-          {item.resource_type === 'youtube' ? (
-            <div style={youtubeThumbFallbackStyle}>YT</div>
-          ) : (
-            <video
-              src={videoUrl}
-              style={videoPreviewStyle}
-              muted
-              preload="metadata"
-              playsInline
-              controls={false}
-              onContextMenu={(e) => e.preventDefault()}
-            />
-          )}
+      <article key={item.id} style={resourceCardStyle}>
+        <button type="button" style={videoResourceItemStyle} onClick={() => handleVideoOpen(item)} aria-label={`Apri video ${item.title}`}>
+          <div style={videoThumbStyle}>
+            {item.resource_type === 'youtube' ? (
+              <div style={youtubeThumbFallbackStyle}>YT</div>
+            ) : (
+              <video src={videoUrl} style={videoPreviewStyle} muted preload="metadata" playsInline controls={false} onContextMenu={(e) => e.preventDefault()} />
+            )}
 
-          <span style={playOverlayStyle}>▶</span>
-        </div>
+            <span style={playOverlayStyle}>▶</span>
+          </div>
 
-        <span style={resourceTextWrapperStyle}>
-          <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
+          <span style={resourceTextWrapperStyle}>
+            <span style={resourceTopRowStyle}>
+              <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
+              {renderLockedBadge()}
+            </span>
 
-          <strong style={resourceTitleStyle}>{item.title}</strong>
+            <strong style={resourceTitleStyle}>{item.title}</strong>
 
-          {item.description && (
-            <span style={resourceDescriptionStyle}>{item.description}</span>
-          )}
-        </span>
-      </button>
+            {item.description && <span style={resourceDescriptionStyle}>{item.description}</span>}
+          </span>
+        </button>
+
+        {renderDownloadButton(item)}
+      </article>
     )
   }
 
@@ -152,24 +228,35 @@ function Teoria() {
       return renderVideoPreview(item)
     }
 
+    const url = getResourceUrl(item)
+
     return (
-      <a
-        key={item.id}
-        href={getResourceUrl(item)}
-        target="_blank"
-        rel="noreferrer"
-        style={resourceItemStyle}
-      >
-        <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
+      <article key={item.id} style={resourceCardStyle}>
+        {userCanOpenMedia ? (
+          <a href={url} target="_blank" rel="noreferrer" style={resourceItemStyle}>
+            <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
 
-        <span style={resourceTextWrapperStyle}>
-          <strong style={resourceTitleStyle}>{item.title}</strong>
+            <span style={resourceTextWrapperStyle}>
+              <strong style={resourceTitleStyle}>{item.title}</strong>
+              {item.description && <span style={resourceDescriptionStyle}>{item.description}</span>}
+            </span>
+          </a>
+        ) : (
+          <button type="button" style={lockedResourceItemStyle} onClick={showAccessDenied}>
+            <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
 
-          {item.description && (
-            <span style={resourceDescriptionStyle}>{item.description}</span>
-          )}
-        </span>
-      </a>
+            <span style={resourceTextWrapperStyle}>
+              <span style={resourceTopRowStyle}>
+                <strong style={resourceTitleStyle}>{item.title}</strong>
+                {renderLockedBadge()}
+              </span>
+              {item.description && <span style={resourceDescriptionStyle}>{item.description}</span>}
+            </span>
+          </button>
+        )}
+
+        {renderDownloadButton(item)}
+      </article>
     )
   }
 
@@ -184,23 +271,10 @@ function Teoria() {
       return (
         <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
           <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              style={closeButtonStyle}
-              onClick={() => setSelectedVideo(null)}
-              aria-label="Chiudi video"
-            >
-              ×
-            </button>
+            <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
 
             {embedUrl ? (
-              <iframe
-                src={embedUrl}
-                title={selectedVideo.title}
-                style={youtubeFrameStyle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              <iframe src={embedUrl} title={selectedVideo.title} style={youtubeFrameStyle} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
             ) : (
               <p style={modalTextStyle}>Video YouTube non disponibile.</p>
             )}
@@ -212,29 +286,11 @@ function Teoria() {
     return (
       <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
         <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            style={closeButtonStyle}
-            onClick={() => setSelectedVideo(null)}
-            aria-label="Chiudi video"
-          >
-            ×
-          </button>
+          <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
 
-          <video
-            src={videoUrl}
-            style={modalVideoStyle}
-            controls
-            autoPlay
-            playsInline
-            controlsList="nodownload noplaybackrate"
-            disablePictureInPicture
-            onContextMenu={(e) => e.preventDefault()}
-          />
+          <video src={videoUrl} style={modalVideoStyle} controls autoPlay playsInline controlsList="nodownload noplaybackrate" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} />
 
-          <p style={videoNoticeStyle}>
-            Video visualizzabile direttamente nella pagina.
-          </p>
+          <p style={videoNoticeStyle}>Video visualizzabile direttamente nella pagina.</p>
         </div>
       </div>
     )
@@ -245,22 +301,15 @@ function Teoria() {
       <main style={pageStyle}>
         <section style={heroStyle}>
           <p style={eyebrowStyle}>A.S.D. DOJO YAMATO</p>
-
           <h1 style={titleStyle}>Teoria</h1>
 
           <p style={introStyle}>
-            Una sezione dedicata alla conoscenza del Karate e ai materiali utili per
-            studiare, allenarsi e prepararsi con maggiore consapevolezza.
+            Una sezione dedicata alla conoscenza del Karate e ai materiali utili per studiare, allenarsi e prepararsi con maggiore consapevolezza.
           </p>
 
           <div style={choiceButtonsStyle}>
-            <Link to="/teoria/fondamenti" style={yamatoButtonStyle}>
-              Fondamenti
-            </Link>
-
-            <Link to="/teoria/risorse-didattiche" style={yamatoButtonStyle}>
-              Risorse Didattiche
-            </Link>
+            <Link to="/teoria/fondamenti" style={yamatoButtonStyle}>Fondamenti</Link>
+            <Link to="/teoria/risorse-didattiche" style={yamatoButtonStyle}>Risorse Didattiche</Link>
           </div>
         </section>
       </main>
@@ -271,17 +320,12 @@ function Teoria() {
     return (
       <main style={pageStyle}>
         <section style={heroStyle}>
-          <Link to="/teoria" style={backLinkStyle}>
-            ← Torna a Teoria
-          </Link>
-
+          <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
           <p style={eyebrowStyle}>TEORIA</p>
-
           <h1 style={sectionPageTitleStyle}>Fondamenti</h1>
 
           <p style={introStyle}>
-            Una panoramica semplice per conoscere il Karate, le sue origini e i principi
-            che guidano la pratica nel dojo.
+            Una panoramica semplice per conoscere il Karate, le sue origini e i principi che guidano la pratica nel dojo.
           </p>
         </section>
 
@@ -289,60 +333,44 @@ function Teoria() {
           <article style={textBlockStyle}>
             <h2 style={blockTitleStyle}>Cos’è il Karate</h2>
             <p style={paragraphStyle}>
-              Il Karate è un’arte marziale di origine giapponese basata sul controllo
-              del corpo, della mente e delle emozioni. Non è soltanto tecnica o
-              combattimento, ma un percorso educativo che aiuta a crescere con
-              disciplina, rispetto e consapevolezza.
+              Il Karate è un’arte marziale di origine giapponese basata sul controllo del corpo, della mente e delle emozioni. Non è soltanto tecnica o combattimento, ma un percorso educativo che aiuta a crescere con disciplina, rispetto e consapevolezza.
             </p>
           </article>
 
           <article style={textBlockStyle}>
             <h2 style={blockTitleStyle}>Origini</h2>
             <p style={paragraphStyle}>
-              Il Karate affonda le sue radici nell’isola di Okinawa, dove nel tempo si è
-              sviluppato un sistema di difesa personale poi evoluto in disciplina
-              marziale. Dalla tradizione di Okinawa il Karate si è diffuso in Giappone e
-              nel resto del mondo.
+              Il Karate affonda le sue radici nell’isola di Okinawa, dove nel tempo si è sviluppato un sistema di difesa personale poi evoluto in disciplina marziale. Dalla tradizione di Okinawa il Karate si è diffuso in Giappone e nel resto del mondo.
             </p>
           </article>
 
           <article style={textBlockStyle}>
             <h2 style={blockTitleStyle}>Stile Shotokan</h2>
             <p style={paragraphStyle}>
-              Lo stile Shotokan si caratterizza per tecniche precise, posizioni stabili,
-              lavoro su kihon, kata e kumite e per una continua ricerca di controllo,
-              efficacia e miglioramento personale.
+              Lo stile Shotokan si caratterizza per tecniche precise, posizioni stabili, lavoro su kihon, kata e kumite e per una continua ricerca di controllo, efficacia e miglioramento personale.
             </p>
           </article>
 
           <article style={textBlockStyle}>
             <h2 style={blockTitleStyle}>Principi fondamentali</h2>
             <p style={paragraphStyle}>
-              Il Karate insegna rispetto, autocontrollo, impegno, perseveranza e capacità
-              di affrontare le difficoltà con equilibrio. Nel dojo si impara che la
-              tecnica è importante, ma ancora più importante è la formazione del carattere.
+              Il Karate insegna rispetto, autocontrollo, impegno, perseveranza e capacità di affrontare le difficoltà con equilibrio. Nel dojo si impara che la tecnica è importante, ma ancora più importante è la formazione del carattere.
             </p>
           </article>
         </section>
 
         <section style={materialsStyle}>
           <h2 style={materialsTitleStyle}>Approfondimenti</h2>
+          {renderAccessNotice()}
 
           {loading && <p style={mutedTextStyle}>Caricamento materiali...</p>}
 
-          {!loading && fondamentiResources.length === 0 && (
-            <div style={emptyBoxStyle}>
-              Non sono ancora presenti materiali di approfondimento.
-            </div>
-          )}
+          {!loading && fondamentiResources.length === 0 && <div style={emptyBoxStyle}>Non sono ancora presenti materiali di approfondimento.</div>}
 
-          {!loading && fondamentiResources.length > 0 && (
-            <div style={resourceListStyle}>
-              {fondamentiResources.map(renderResource)}
-            </div>
-          )}
+          {!loading && fondamentiResources.length > 0 && <div style={resourceListStyle}>{fondamentiResources.map(renderResource)}</div>}
         </section>
 
+        {accessMessage && <div style={floatingMessageStyle}>{accessMessage}</div>}
         {renderVideoModal()}
       </main>
     )
@@ -352,28 +380,19 @@ function Teoria() {
     return (
       <main style={pageStyle}>
         <section style={heroStyle}>
-          <Link to="/teoria" style={backLinkStyle}>
-            ← Torna a Teoria
-          </Link>
-
+          <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
           <p style={eyebrowStyle}>TEORIA</p>
-
           <h1 style={sectionPageTitleStyle}>Risorse Didattiche</h1>
 
-          <p style={introStyle}>
-            Documenti, video e collegamenti utili per studiare e allenarsi, organizzati
-            per argomento.
-          </p>
+          <p style={introStyle}>Documenti, video e collegamenti utili per studiare e allenarsi, organizzati per argomento.</p>
         </section>
 
         <section style={materialsStyle}>
+          {renderAccessNotice()}
+
           {loading && <p style={mutedTextStyle}>Caricamento materiali...</p>}
 
-          {!loading && groupedResources.length === 0 && (
-            <div style={emptyBoxStyle}>
-              Non sono ancora presenti materiali didattici pubblicati.
-            </div>
-          )}
+          {!loading && groupedResources.length === 0 && <div style={emptyBoxStyle}>Non sono ancora presenti materiali didattici pubblicati.</div>}
 
           {!loading && groupedResources.length > 0 && (
             <div style={accordionWrapperStyle}>
@@ -384,15 +403,14 @@ function Teoria() {
                     <span style={countBadgeStyle}>{group.items.length}</span>
                   </summary>
 
-                  <div style={detailsContentStyle}>
-                    {group.items.map(renderResource)}
-                  </div>
+                  <div style={detailsContentStyle}>{group.items.map(renderResource)}</div>
                 </details>
               ))}
             </div>
           )}
         </section>
 
+        {accessMessage && <div style={floatingMessageStyle}>{accessMessage}</div>}
         {renderVideoModal()}
       </main>
     )
@@ -401,10 +419,7 @@ function Teoria() {
   return (
     <main style={pageStyle}>
       <section style={heroStyle}>
-        <Link to="/teoria" style={backLinkStyle}>
-          ← Torna a Teoria
-        </Link>
-
+        <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
         <p style={eyebrowStyle}>TEORIA</p>
         <h1 style={sectionPageTitleStyle}>Sezione non trovata</h1>
       </section>
@@ -426,14 +441,20 @@ const heroStyle: CSSProperties = {
   gap: '18px',
 }
 
-const eyebrowStyle: CSSProperties = {
-  margin: 0,
-  color: '#d95b64',
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
   fontWeight: 900,
-  letterSpacing: '2px',
+  letterSpacing: '0.8px',
   textTransform: 'uppercase',
-  fontSize: '13px',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
+
+const eyebrowStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   margin: 0,
@@ -524,9 +545,57 @@ const materialsTitleStyle: CSSProperties = {
   fontWeight: 950,
 }
 
+const loginNoticeStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  color: '#f3dede',
+}
+
+const loginButtonStyle: CSSProperties = {
+  padding: '8px 13px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 900,
+}
+
+const floatingMessageStyle: CSSProperties = {
+  position: 'fixed',
+  left: '50%',
+  bottom: '24px',
+  transform: 'translateX(-50%)',
+  zIndex: 1001,
+  width: 'min(560px, calc(100% - 32px))',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(185,68,79,0.95)',
+  color: 'white',
+  fontWeight: 800,
+  boxShadow: '0 18px 40px rgba(0,0,0,0.36)',
+}
+
 const resourceListStyle: CSSProperties = {
   display: 'grid',
   gap: '10px',
+}
+
+const resourceCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '14px',
+  padding: '10px',
 }
 
 const resourceItemStyle: CSSProperties = {
@@ -535,10 +604,19 @@ const resourceItemStyle: CSSProperties = {
   alignItems: 'center',
   textDecoration: 'none',
   color: 'white',
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
-  padding: '12px 14px',
+}
+
+const lockedResourceItemStyle: CSSProperties = {
+  display: 'flex',
+  gap: '12px',
+  alignItems: 'center',
+  width: '100%',
+  textAlign: 'left',
+  color: 'white',
+  background: 'transparent',
+  border: 'none',
+  padding: 0,
+  cursor: 'pointer',
 }
 
 const videoResourceItemStyle: CSSProperties = {
@@ -548,10 +626,9 @@ const videoResourceItemStyle: CSSProperties = {
   width: '100%',
   textAlign: 'left',
   color: 'white',
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '14px',
-  padding: '10px',
+  background: 'transparent',
+  border: 'none',
+  padding: 0,
   cursor: 'pointer',
 }
 
@@ -596,6 +673,13 @@ const playOverlayStyle: CSSProperties = {
   fontSize: '18px',
 }
 
+const resourceTopRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
 const resourceBadgeStyle: CSSProperties = {
   flexShrink: 0,
   width: 'fit-content',
@@ -604,6 +688,27 @@ const resourceBadgeStyle: CSSProperties = {
   background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
   fontSize: '11px',
+  fontWeight: 900,
+}
+
+const lockedBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '5px 9px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.10)',
+  color: '#d8d8d8',
+  fontSize: '10px',
+  fontWeight: 900,
+}
+
+const openButtonStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '7px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  textDecoration: 'none',
+  fontSize: '12px',
   fontWeight: 900,
 }
 
