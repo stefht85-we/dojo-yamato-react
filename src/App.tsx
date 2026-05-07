@@ -67,8 +67,9 @@ function App() {
             <HeaderLink to="/galleria" label="Galleria" onClick={closeMenu} />
             <HeaderLink to="/teoria" label="Teoria" onClick={closeMenu} />
             <HeaderLink to="/documenti" label="Documenti" onClick={closeMenu} />
+            <HeaderLink to="/difesa-personale" label="Difesa pers." onClick={closeMenu} />
             <HeaderLink to="/contatti" label="Contatti" onClick={closeMenu} />
-            <HeaderLink to="/area-utente" label="Area Utente" onClick={closeMenu} />
+            <HeaderLink to="/area-utente" label="Area utente" onClick={closeMenu} />
           </nav>
         </div>
       </header>
@@ -126,9 +127,11 @@ const responsiveCss = `
 
 .site-nav {
   display: flex !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   .mobile-menu-button {
     display: inline-flex !important;
   }
@@ -147,6 +150,7 @@ const responsiveCss = `
     background: rgba(11, 15, 26, 0.98) !important;
     border: 1px solid rgba(255,255,255,0.10) !important;
     box-shadow: 0 18px 36px rgba(0,0,0,0.35) !important;
+    white-space: normal !important;
   }
 
   .site-nav-open {
@@ -171,28 +175,28 @@ const headerStyle: CSSProperties = {
 }
 
 const headerInnerStyle: CSSProperties = {
-  width: 'min(1380px, calc(100% - 28px))',
+  width: 'min(1480px, calc(100% - 24px))',
   minHeight: '88px',
   margin: '0 auto',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '20px',
+  gap: '14px',
   position: 'relative',
 }
 
 const brandStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '14px',
+  gap: '10px',
   textDecoration: 'none',
   color: 'white',
   flexShrink: 0,
 }
 
 const logoBoxStyle: CSSProperties = {
-  width: '78px',
-  height: '78px',
+  width: '72px',
+  height: '72px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -220,16 +224,16 @@ const brandTextStyle: CSSProperties = {
 }
 
 const brandTitleStyle: CSSProperties = {
-  fontSize: '19px',
+  fontSize: '17px',
   fontWeight: 900,
-  letterSpacing: '2.2px',
+  letterSpacing: '1.8px',
   color: '#ffffff',
 }
 
 const brandSubtitleStyle: CSSProperties = {
-  fontSize: '11px',
+  fontSize: '10px',
   fontWeight: 800,
-  letterSpacing: '2.4px',
+  letterSpacing: '2.2px',
   color: '#e5e7eb',
   marginTop: '2px',
 }
@@ -238,22 +242,24 @@ const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
-  gap: '8px',
-  flexWrap: 'wrap',
+  gap: '5px',
+  flexWrap: 'nowrap',
+  whiteSpace: 'nowrap',
 }
 
 const navLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '40px',
-  padding: '0 14px',
+  minHeight: '38px',
+  padding: '0 10px',
   borderRadius: '999px',
   color: 'white',
   textDecoration: 'none',
-  fontSize: '14px',
+  fontSize: '13px',
   fontWeight: 800,
   transition: 'all 0.2s ease',
+  whiteSpace: 'nowrap',
 }
 
 const activeNavLinkStyle: CSSProperties = {

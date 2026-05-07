@@ -7,6 +7,7 @@ import AdminInsegnanti from '../components/AdminInsegnanti'
 import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
 import AdminIscritti from '../components/AdminIscritti'
+import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
 import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
 import './AreaUtente.css'
 
@@ -78,13 +79,20 @@ function AreaUtente() {
   const [user, setUser] = useState<User | null>(null)
 
   const [email, setEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
   const [nome, setNome] = useState('')
   const [cognome, setCognome] = useState('')
   const [phone, setPhone] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+
   const [privacyAccepted, setPrivacyAccepted] = useState(false)
   const [newsletterOptIn, setNewsletterOptIn] = useState(false)
+  const [showRegisterForm, setShowRegisterForm] = useState(false)
   const [message, setMessage] = useState('')
 
   const [adminTab, setAdminTab] = useState<AdminTab>('news')
@@ -151,7 +159,7 @@ function AreaUtente() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('nome, cognome, phone, birth_date, newsletter_opt_in, privacy_accepted')
+      .select('nome, cognome, phone, birth_date, address, city, newsletter_opt_in, privacy_accepted')
       .eq('id', currentUser.id)
       .single()
 
@@ -160,6 +168,8 @@ function AreaUtente() {
       setCognome(data.cognome ?? '')
       setPhone(data.phone ?? '')
       setBirthDate(data.birth_date ?? '')
+      setAddress(data.address ?? '')
+      setCity(data.city ?? '')
       setNewsletterOptIn(Boolean(data.newsletter_opt_in))
       setPrivacyAccepted(Boolean(data.privacy_accepted))
     }
@@ -283,8 +293,43 @@ function AreaUtente() {
       return
     }
 
-    if (!email.trim() || !password.trim()) {
-      setMessage('Inserisci email e password')
+    if (!phone.trim()) {
+      setMessage('Inserisci il numero di telefono')
+      return
+    }
+
+    if (!address.trim()) {
+      setMessage('Inserisci l’indirizzo')
+      return
+    }
+
+    if (!city.trim()) {
+      setMessage('Inserisci la città')
+      return
+    }
+
+    if (!email.trim() || !confirmEmail.trim()) {
+      setMessage('Inserisci e conferma l’indirizzo email')
+      return
+    }
+
+    if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      setMessage('Gli indirizzi email non coincidono')
+      return
+    }
+
+    if (!password.trim() || !confirmPassword.trim()) {
+      setMessage('Inserisci e conferma la password')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setMessage('Le password non coincidono')
+      return
+    }
+
+    if (password.length < 6) {
+      setMessage('La password deve contenere almeno 6 caratteri')
       return
     }
 
@@ -304,8 +349,10 @@ function AreaUtente() {
         data: {
           nome: nome.trim(),
           cognome: cognome.trim(),
-          phone: phone.trim() || null,
+          phone: phone.trim(),
           birth_date: birthDate,
+          address: address.trim(),
+          city: city.trim(),
           newsletter_opt_in: newsletterOptIn,
           privacy_accepted: privacyAccepted,
           role: 'user',
@@ -324,8 +371,10 @@ function AreaUtente() {
         email: cleanEmail,
         nome: nome.trim(),
         cognome: cognome.trim(),
-        phone: phone.trim() || null,
+        phone: phone.trim(),
         birth_date: birthDate,
+        address: address.trim(),
+        city: city.trim(),
         role: cleanEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user',
         newsletter_opt_in: newsletterOptIn,
         privacy_accepted: privacyAccepted,
@@ -348,6 +397,20 @@ function AreaUtente() {
         )
       }
     }
+
+    setNome('')
+    setCognome('')
+    setPhone('')
+    setBirthDate('')
+    setAddress('')
+    setCity('')
+    setEmail('')
+    setConfirmEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setPrivacyAccepted(false)
+    setNewsletterOptIn(false)
+    setShowRegisterForm(false)
 
     setMessage('Registrazione inviata. Controlla la tua email per confermare l’account.')
   }
@@ -387,6 +450,8 @@ function AreaUtente() {
         cognome: cognome.trim(),
         phone: phone.trim() || null,
         birth_date: birthDate || null,
+        address: address.trim() || null,
+        city: city.trim() || null,
         newsletter_opt_in: newsletterOptIn,
         privacy_accepted: privacyAccepted,
         role: checkIsAdmin(user) ? 'admin' : 'user',
@@ -1091,35 +1156,55 @@ function AreaUtente() {
 
             <div style={authDividerStyle} />
 
-            <h2 style={{ marginBottom: '8px' }}>Registrazione nuovo utente</h2>
-            <p style={mutedText}>Registrandoti potrai accedere ai contenuti riservati, ingrandire e scaricare i media consentiti.</p>
+            <button
+              type="button"
+              onClick={() => setShowRegisterForm((prev) => !prev)}
+              style={registerLinkButtonStyle}
+            >
+              {showRegisterForm ? 'Chiudi registrazione' : 'Non hai un account? Registrati'}
+            </button>
 
-            <form onSubmit={handleSignup} style={authFormStyle}>
-              <div style={twoColumnsStyle}>
-                <input type="text" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-                <input type="text" placeholder="Cognome" value={cognome} onChange={(e) => setCognome(e.target.value)} />
-              </div>
+            {showRegisterForm && (
+              <>
+                <h2 style={{ marginBottom: '8px', marginTop: '22px' }}>Registrazione nuovo utente</h2>
+                <p style={mutedText}>Registrandoti potrai accedere ai contenuti riservati, ingrandire e scaricare i media consentiti.</p>
 
-              <div style={twoColumnsStyle}>
-                <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-                <input type="tel" placeholder="Telefono opzionale" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              </div>
+                <form onSubmit={handleSignup} style={authFormStyle}>
+                  <div style={twoColumnsStyle}>
+                    <input type="text" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+                    <input type="text" placeholder="Cognome" value={cognome} onChange={(e) => setCognome(e.target.value)} />
+                  </div>
 
-              <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <div style={twoColumnsStyle}>
+                    <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                    <input type="tel" placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  </div>
 
-              <label style={checkboxLabelStyle}>
-                <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
-                Accetto la privacy policy e il trattamento dei dati per la registrazione
-              </label>
+                  <div style={twoColumnsStyle}>
+                    <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
+                    <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
+                  </div>
 
-              <label style={checkboxLabelStyle}>
-                <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} />
-                Voglio iscrivermi alla newsletter del Dojo Yamato
-              </label>
+                  <input type="email" placeholder="Indirizzo email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input type="email" placeholder="Conferma indirizzo email" value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} />
 
-              <button className="secondary-auth-button" type="submit">Registrati</button>
-            </form>
+                  <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <input type="password" placeholder="Conferma password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+
+                  <label style={checkboxLabelStyle}>
+                    <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
+                    Autorizzo il trattamento dei dati personali secondo la normativa privacy vigente
+                  </label>
+
+                  <label style={checkboxLabelStyle}>
+                    <input type="checkbox" checked={newsletterOptIn} onChange={(e) => setNewsletterOptIn(e.target.checked)} />
+                    Voglio iscrivermi alla newsletter del Dojo Yamato
+                  </label>
+
+                  <button className="secondary-auth-button" type="submit">Registrati</button>
+                </form>
+              </>
+            )}
 
             {message && <p style={{ marginTop: '16px' }}>{message}</p>}
           </div>
@@ -1147,7 +1232,12 @@ function AreaUtente() {
 
             <div style={twoColumnsStyle}>
               <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-              <input type="tel" placeholder="Telefono opzionale" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" placeholder="Telefono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+
+            <div style={twoColumnsStyle}>
+              <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
+              <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
             <label style={checkboxLabelStyle}>
@@ -1179,7 +1269,7 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'iscritti')} onClick={() => setAdminTab('iscritti')}>Iscritti</button>
               </div>
 
-              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && (
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'difesa' && (
                 <div style={messageBox}>{message}</div>
               )}
 
@@ -1447,13 +1537,7 @@ function AreaUtente() {
               {adminTab === 'insegnanti' && <AdminInsegnanti />}
               {adminTab === 'teoria' && <AdminTeoria />}
               {adminTab === 'iscritti' && <AdminIscritti />}
-
-              {adminTab === 'difesa' && (
-                <div style={adminCardStyle}>
-                  <h3>Gestione Difesa personale</h3>
-                  <p style={mutedText}>Qui potremo caricare contenuti dedicati alla difesa personale: testi, immagini, PDF o comunicazioni specifiche.</p>
-                </div>
-              )}
+              {adminTab === 'difesa' && <AdminDifesaPersonale />}
             </section>
           )}
 
@@ -1507,6 +1591,7 @@ const dojoBadgeStyle: CSSProperties = {
 
 const authFormStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '14px' }
 const authDividerStyle: CSSProperties = { height: '1px', background: 'rgba(255,255,255,0.14)', margin: '24px 0' }
+const registerLinkButtonStyle: CSSProperties = { width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontWeight: 900, cursor: 'pointer', textDecoration: 'underline', fontSize: '15px', padding: '6px 0' }
 const adminSectionStyle: CSSProperties = { marginTop: '42px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.12)' }
 const adminLabelStyle: CSSProperties = dojoBadgeStyle
 const tabsWrapper: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '22px 0' }

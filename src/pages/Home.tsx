@@ -204,6 +204,42 @@ export default function Home() {
         </div>
       </section>
 
+      <section style={styles.defensePromoSection}>
+        <div style={styles.defensePromoCard}>
+          <div>
+            <p style={styles.kicker}>Difesa personale</p>
+
+            <h2 style={styles.defensePromoTitle}>
+              Più sicurezza, più consapevolezza, più fiducia
+            </h2>
+
+            <p style={styles.defensePromoText}>
+              A.S.D. Dojo Yamato organizza percorsi di difesa personale dedicati
+              a ragazze, donne e a chiunque desideri sentirsi più sicuro nella vita
+              quotidiana.
+            </p>
+
+            <p style={styles.defensePromoQuote}>
+              Non si tratta solo di tecniche: si tratta di attenzione, lucidità,
+              prevenzione e controllo delle proprie emozioni.
+            </p>
+
+            <Link to="/difesa-personale" style={styles.primaryButton}>
+              Scopri i corsi di difesa personale
+            </Link>
+          </div>
+
+          <div style={styles.defensePromoImageBox}>
+            <img
+              src="/images/difesa-personale.jpg"
+              alt="Difesa personale Dojo Yamato"
+              loading="lazy"
+              style={styles.defensePromoImage}
+            />
+          </div>
+        </div>
+      </section>
+
       <section style={styles.cta}>
         <h2 style={styles.ctaTitle}>Vuoi provare una lezione?</h2>
         <p style={styles.ctaText}>
@@ -421,6 +457,59 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ffffff',
     fontSize: 22,
     margin: '0 0 12px',
+  },
+  defensePromoSection: {
+    width: '100%',
+    maxWidth: 1180,
+    margin: '0 auto',
+    padding: '40px 24px 90px',
+  },
+  defensePromoCard: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 28,
+    alignItems: 'center',
+    padding: '34px',
+    borderRadius: 30,
+    background:
+      'linear-gradient(135deg, rgba(185,68,79,0.24), rgba(15,23,42,0.94))',
+    border: '1px solid rgba(255,255,255,0.10)',
+    boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+  },
+  defensePromoTitle: {
+    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
+    lineHeight: 1.05,
+    letterSpacing: '-0.04em',
+    margin: '0 0 18px',
+    color: '#ffffff',
+  },
+  defensePromoText: {
+    color: '#dbe4ef',
+    fontSize: 17,
+    lineHeight: 1.75,
+    margin: '0 0 16px',
+  },
+  defensePromoQuote: {
+    color: '#ffffff',
+    lineHeight: 1.7,
+    fontWeight: 800,
+    borderLeft: '4px solid #b9444f',
+    paddingLeft: 16,
+    margin: '0 0 24px',
+  },
+  defensePromoImageBox: {
+    minHeight: 300,
+    borderRadius: 24,
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.10)',
+    background: '#101827',
+  },
+  defensePromoImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 300,
+    objectFit: 'cover',
+    display: 'block',
   },
   cta: {
     textAlign: 'center',
