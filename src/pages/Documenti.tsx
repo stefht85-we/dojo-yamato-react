@@ -28,6 +28,14 @@ function Documenti() {
   useEffect(() => {
     loadUser()
     loadDocuments()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   const categories = useMemo(() => {
@@ -118,11 +126,7 @@ function Documenti() {
 
   function renderDocumentAction(document: DojoDocument) {
     if (!canAccessMedia) {
-      return (
-        <button type="button" style={openButtonStyle} onClick={showAccessDenied}>
-          Accesso utenti
-        </button>
-      )
+      return null
     }
 
     if (!document.file_url) {
@@ -205,7 +209,13 @@ function Documenti() {
         {!loading && !message && filteredDocuments.length > 0 && (
           <div style={documentsGridStyle}>
             {filteredDocuments.map((document) => (
-              <article key={document.id} style={documentCardStyle}>
+              <article
+                key={document.id}
+                style={documentCardStyle}
+                onClick={() => {
+                  if (!canAccessMedia) showAccessDenied()
+                }}
+              >
                 <div style={cardTopStyle}>
                   <div style={documentIconStyle}>{getDocumentIcon(document)}</div>
 

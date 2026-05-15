@@ -1,12 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="it">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dojo-yamato-react</title>
+    <title>Dojo Yamato Arti Marziali</title>
   </head>
   <body>
+    <!--
+      Form nascosto necessario a Netlify Forms per riconoscere il form React durante il build.
+      Non rimuovere se vuoi ricevere le richieste dalla pagina Contatti.
+    -->
+    <form name="contatti-dojo-yamato" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
+      <input name="bot-field" />
+      <input type="text" name="nome" />
+      <input type="text" name="cognome" />
+      <input type="text" name="eta" />
+      <input type="tel" name="telefono" />
+      <input type="email" name="email" />
+      <textarea name="note"></textarea>
+    </form>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

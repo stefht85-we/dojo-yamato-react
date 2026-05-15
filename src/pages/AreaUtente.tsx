@@ -9,6 +9,7 @@ import AdminDocumenti from '../components/AdminDocumenti'
 import AdminIscritti from '../components/AdminIscritti'
 import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
 import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 import './AreaUtente.css'
 
 const GALLERY_BUCKET = 'gallery'
@@ -35,6 +36,7 @@ type GalleryAlbum = {
   cover_image_url: string | null
   visible: boolean
   created_at: string
+  signed_cover_url?: string | null
 }
 
 type GalleryMedia = {
@@ -47,6 +49,9 @@ type GalleryMedia = {
   media_type: 'image' | 'video' | 'youtube' | 'file' | 'social'
   thumbnail_url: string | null
   video_url: string | null
+  signed_image_url?: string | null
+  signed_video_url?: string | null
+  signed_thumbnail_url?: string | null
 }
 
 type EventDocument = {
@@ -73,6 +78,7 @@ type DojoEvent = {
   visible: boolean
   created_at: string
   event_documents?: EventDocument[]
+  signed_image_url?: string | null
 }
 
 function AreaUtente() {
@@ -188,7 +194,14 @@ function AreaUtente() {
       return
     }
 
-    setAlbums(data ?? [])
+    const albumsWithSignedCover = await Promise.all(
+      (data ?? []).map(async (album) => ({
+        ...album,
+        signed_cover_url: await getSignedUrlFromPublicUrl(album.cover_image_url),
+      }))
+    )
+
+    setAlbums(albumsWithSignedCover)
   }
 
   async function loadMedia() {
@@ -203,7 +216,16 @@ function AreaUtente() {
       return
     }
 
-    setMedia((data ?? []) as GalleryMedia[])
+    const mediaWithSignedUrls = await Promise.all(
+      (data ?? []).map(async (item) => ({
+        ...item,
+        signed_image_url: await getSignedUrlFromPublicUrl(item.image_url),
+        signed_video_url: await getSignedUrlFromPublicUrl(item.video_url),
+        signed_thumbnail_url: await getSignedUrlFromPublicUrl(item.thumbnail_url),
+      }))
+    )
+
+    setMedia(mediaWithSignedUrls as GalleryMedia[])
   }
 
   async function loadEvents() {
@@ -241,7 +263,14 @@ function AreaUtente() {
       return
     }
 
-    setEvents((data ?? []) as DojoEvent[])
+    const eventsWithSignedImages = await Promise.all(
+      (data ?? []).map(async (event) => ({
+        ...event,
+        signed_image_url: await getSignedUrlFromPublicUrl(event.image_url),
+      }))
+    )
+
+    setEvents(eventsWithSignedImages as DojoEvent[])
   }
 
   useEffect(() => {
@@ -1089,11 +1118,22 @@ function AreaUtente() {
     return 'Data da definire'
   }
 
+  function getAdminAlbumCoverUrl(album: GalleryAlbum) {
+    return album.signed_cover_url || album.cover_image_url || ''
+  }
+
+  function getAdminMediaPreviewUrl(item: GalleryMedia) {
+    if (item.media_type === 'youtube') return item.thumbnail_url || item.image_url
+    if (item.media_type === 'video') return item.signed_thumbnail_url || item.thumbnail_url || item.signed_video_url || item.video_url || item.signed_image_url || item.image_url
+    if (item.media_type === 'social') return item.signed_thumbnail_url || item.thumbnail_url || item.signed_image_url || item.image_url
+    return item.signed_image_url || item.image_url
+  }
+
   function renderTinyMediaPreview(item: GalleryMedia) {
     if (item.media_type === 'youtube') {
       return (
         <div style={tinyMediaPreviewWrapper}>
-          <img src={item.thumbnail_url ?? ''} alt="Anteprima YouTube" style={tinyPhotoImage} />
+          <img src={getAdminMediaPreviewUrl(item)} alt="Anteprima YouTube" style={tinyPhotoImage} />
           <span style={videoBadge}>YT</span>
         </div>
       )
@@ -1102,7 +1142,7 @@ function AreaUtente() {
     if (item.media_type === 'video') {
       return (
         <div style={tinyMediaPreviewWrapper}>
-          <video src={item.video_url ?? item.image_url} style={tinyPhotoImage} muted />
+          <video src={getAdminMediaPreviewUrl(item)} style={tinyPhotoImage} muted />
           <span style={videoBadge}>▶</span>
         </div>
       )
@@ -1118,10 +1158,10 @@ function AreaUtente() {
     }
 
     if (item.media_type === 'social') {
-      if (item.thumbnail_url) {
+      if (item.signed_thumbnail_url || item.thumbnail_url) {
         return (
           <div style={tinyMediaPreviewWrapper}>
-            <img src={item.thumbnail_url} alt={item.caption || 'Anteprima social'} style={tinyPhotoImage} />
+            <img src={getAdminMediaPreviewUrl(item)} alt={item.caption || 'Anteprima social'} style={tinyPhotoImage} />
             <span style={socialPreviewBadgeStyle}>{item.caption || 'Social'}</span>
           </div>
         )
@@ -1135,7 +1175,7 @@ function AreaUtente() {
       )
     }
 
-    return <img src={item.image_url} alt={item.caption || selectedAlbum?.title || 'Media galleria'} style={tinyPhotoImage} />
+    return <img src={getAdminMediaPreviewUrl(item)} alt={item.caption || selectedAlbum?.title || 'Media galleria'} style={tinyPhotoImage} />
   }
 
   if (!user) {
@@ -1368,7 +1408,7 @@ function AreaUtente() {
                           <div key={album.id} style={{ display: 'grid', gap: '8px' }}>
                             <article style={{ ...compactAlbumCard, border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)' }}>
                               <div style={compactAlbumMain}>
-                                {album.cover_image_url ? <img src={album.cover_image_url} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
+                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <h4 style={compactAlbumTitle}>{album.title}</h4>
                                   <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` · ${album.category}` : ''}{' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti</p>
@@ -1503,7 +1543,7 @@ function AreaUtente() {
                       {events.map((event) => (
                         <article key={event.id} style={compactAlbumCard}>
                           <div style={compactAlbumMain}>
-                            {event.image_url ? <img src={event.image_url} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📅</div>}
+                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📅</div>}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h4 style={compactAlbumTitle}>{event.title}</h4>
                               <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` · ${event.location}` : ''}{' · '}{event.visible ? 'Visibile' : 'Nascosto'}{' · '}{event.event_documents?.length ?? 0} documenti</p>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import type { CSSProperties } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 
+import './App.css'
+import Header from './components/Header'
+import Footer from './components/Footer'
 import Home from './pages/Home'
 import ChiSiamo from './pages/ChiSiamo'
 import Insegnanti from './pages/Insegnanti'
@@ -20,265 +21,33 @@ import Documenti from './pages/Documenti'
 import DifesaPersonale from './pages/DifesaPersonale'
 
 function App() {
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  function closeMenu() {
-    setMenuOpen(false)
-  }
-
   return (
     <>
-      <style>{responsiveCss}</style>
-
-      <header style={headerStyle}>
-        <div style={headerInnerStyle}>
-          <NavLink to="/" onClick={closeMenu} style={brandStyle}>
-            <div style={logoBoxStyle}>
-              <img
-                src="/images/logo-dojo-yamato.png"
-                alt="Logo A.S.D. Dojo Yamato"
-                style={logoImageStyle}
-              />
-            </div>
-
-            <div style={brandTextStyle}>
-              <div style={brandTitleStyle}>A.S.D. DOJO YAMATO</div>
-              <div style={brandSubtitleStyle}>ARTI MARZIALI</div>
-            </div>
-          </NavLink>
-
-          <button
-            type="button"
-            className="mobile-menu-button"
-            style={mobileMenuButtonStyle}
-            onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label="Apri menu"
-          >
-            ☰
-          </button>
-
-          <nav className={`site-nav ${menuOpen ? 'site-nav-open' : ''}`} style={navStyle}>
-            <HeaderLink to="/" label="Home" onClick={closeMenu} end />
-            <HeaderLink to="/news" label="News" onClick={closeMenu} />
-            <HeaderLink to="/chi-siamo" label="Chi siamo" onClick={closeMenu} />
-            <HeaderLink to="/insegnanti" label="Insegnanti" onClick={closeMenu} />
-            <HeaderLink to="/corsi" label="Corsi" onClick={closeMenu} />
-            <HeaderLink to="/calendario-eventi" label="Eventi" onClick={closeMenu} />
-            <HeaderLink to="/galleria" label="Galleria" onClick={closeMenu} />
-            <HeaderLink to="/teoria" label="Teoria" onClick={closeMenu} />
-            <HeaderLink to="/documenti" label="Documenti" onClick={closeMenu} />
-            <HeaderLink to="/difesa-personale" label="Difesa pers." onClick={closeMenu} />
-            <HeaderLink to="/contatti" label="Contatti" onClick={closeMenu} />
-            <HeaderLink to="/area-utente" label="Area utente" onClick={closeMenu} />
-          </nav>
-        </div>
-      </header>
-
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/chi-siamo" element={<ChiSiamo />} />
-        <Route path="/insegnanti" element={<Insegnanti />} />
-        <Route path="/corsi" element={<Corsi />} />
-        <Route path="/galleria" element={<Galleria />} />
-        <Route path="/galleria/:albumId" element={<GalleriaAlbum />} />
-        <Route path="/teoria" element={<Teoria />} />
-        <Route path="/teoria/:section" element={<Teoria />} />
-        <Route path="/news" element={<News />} />
-        <Route path="/news/:newsId" element={<NewsDetail />} />
-        <Route path="/contatti" element={<Contatti />} />
-        <Route path="/area-utente" element={<AreaUtente />} />
-        <Route path="/bacheca" element={<Bacheca />} />
-        <Route path="/calendario-eventi" element={<CalendarioEventi />} />
-        <Route path="/eventi/:eventoId" element={<EventoDettaglio />} />
-        <Route path="/documenti" element={<Documenti />} />
-        <Route path="/difesa-personale" element={<DifesaPersonale />} />
-      </Routes>
+      <Header />
+      <main className="site-main">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/chi-siamo" element={<ChiSiamo />} />
+          <Route path="/insegnanti" element={<Insegnanti />} />
+          <Route path="/corsi" element={<Corsi />} />
+          <Route path="/galleria" element={<Galleria />} />
+          <Route path="/galleria/:albumId" element={<GalleriaAlbum />} />
+          <Route path="/teoria" element={<Teoria />} />
+          <Route path="/teoria/:section" element={<Teoria />} />
+          <Route path="/news" element={<News />} />
+          <Route path="/news/:newsId" element={<NewsDetail />} />
+          <Route path="/contatti" element={<Contatti />} />
+          <Route path="/area-utente" element={<AreaUtente />} />
+          <Route path="/bacheca" element={<Bacheca />} />
+          <Route path="/calendario-eventi" element={<CalendarioEventi />} />
+          <Route path="/eventi/:eventoId" element={<EventoDettaglio />} />
+          <Route path="/documenti" element={<Documenti />} />
+          <Route path="/difesa-personale" element={<DifesaPersonale />} />
+        </Routes>
+      </main>
+      <Footer />
     </>
   )
-}
-
-type HeaderLinkProps = {
-  to: string
-  label: string
-  onClick: () => void
-  end?: boolean
-}
-
-function HeaderLink({ to, label, onClick, end = false }: HeaderLinkProps) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onClick}
-      style={({ isActive }) => ({
-        ...navLinkStyle,
-        ...(isActive ? activeNavLinkStyle : {}),
-      })}
-    >
-      {label}
-    </NavLink>
-  )
-}
-
-const responsiveCss = `
-.mobile-menu-button {
-  display: none !important;
-}
-
-.site-nav {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  white-space: nowrap !important;
-}
-
-@media (max-width: 1240px) {
-  .mobile-menu-button {
-    display: inline-flex !important;
-  }
-
-  .site-nav {
-    position: absolute !important;
-    top: 88px !important;
-    left: 16px !important;
-    right: 16px !important;
-    display: none !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    padding: 14px !important;
-    border-radius: 18px !important;
-    background: rgba(11, 15, 26, 0.98) !important;
-    border: 1px solid rgba(255,255,255,0.10) !important;
-    box-shadow: 0 18px 36px rgba(0,0,0,0.35) !important;
-    white-space: normal !important;
-  }
-
-  .site-nav-open {
-    display: flex !important;
-  }
-}
-
-@media (max-width: 700px) {
-  .brand-title-responsive {
-    font-size: 15px !important;
-  }
-}
-`
-
-const headerStyle: CSSProperties = {
-  position: 'sticky',
-  top: 0,
-  zIndex: 1000,
-  background: 'rgba(11, 15, 26, 0.97)',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  backdropFilter: 'blur(14px)',
-}
-
-const headerInnerStyle: CSSProperties = {
-  width: 'min(1480px, calc(100% - 24px))',
-  minHeight: '88px',
-  margin: '0 auto',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '14px',
-  position: 'relative',
-}
-
-const brandStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  textDecoration: 'none',
-  color: 'white',
-  flexShrink: 0,
-}
-
-const logoBoxStyle: CSSProperties = {
-  width: '72px',
-  height: '72px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  overflow: 'hidden',
-  flexShrink: 0,
-  background: 'transparent',
-}
-
-const logoImageStyle: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'contain',
-  transform: 'scale(1.18)',
-  display: 'block',
-  background: 'transparent',
-}
-
-const brandTextStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  lineHeight: 1.05,
-  textAlign: 'center',
-}
-
-const brandTitleStyle: CSSProperties = {
-  fontSize: '17px',
-  fontWeight: 900,
-  letterSpacing: '1.8px',
-  color: '#ffffff',
-}
-
-const brandSubtitleStyle: CSSProperties = {
-  fontSize: '10px',
-  fontWeight: 800,
-  letterSpacing: '2.2px',
-  color: '#e5e7eb',
-  marginTop: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  gap: '5px',
-  flexWrap: 'nowrap',
-  whiteSpace: 'nowrap',
-}
-
-const navLinkStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 10px',
-  borderRadius: '999px',
-  color: 'white',
-  textDecoration: 'none',
-  fontSize: '13px',
-  fontWeight: 800,
-  transition: 'all 0.2s ease',
-  whiteSpace: 'nowrap',
-}
-
-const activeNavLinkStyle: CSSProperties = {
-  background: 'linear-gradient(180deg, #d94a57 0%, #8f2430 100%)',
-  boxShadow: '0 8px 20px rgba(143, 36, 48, 0.35)',
-}
-
-const mobileMenuButtonStyle: CSSProperties = {
-  width: '46px',
-  height: '46px',
-  borderRadius: '12px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.08)',
-  color: 'white',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '24px',
-  cursor: 'pointer',
-  flexShrink: 0,
 }
 
 export default App

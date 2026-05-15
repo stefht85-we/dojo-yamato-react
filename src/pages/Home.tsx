@@ -60,7 +60,7 @@ export default function Home() {
           <p style={styles.kicker}>A.S.D. Dojo Yamato Arti Marziali</p>
 
           <h1 style={styles.heroTitle}>
-            Karate tradizionale per bambini, ragazzi e adulti
+            Karate per bambini, ragazzi e adulti
           </h1>
 
           <p style={styles.heroSubtitle}>
@@ -145,19 +145,30 @@ export default function Home() {
 
       <section style={styles.aboutSection}>
         <div style={styles.aboutCard}>
-          <p style={styles.kicker}>Chi siamo</p>
+          <div style={styles.aboutTextBox}>
+            <p style={styles.kicker}>Chi siamo</p>
 
-          <h2 style={styles.sectionTitle}>Una scuola di Karate, prima di tutto educativa</h2>
+            <h2 style={styles.sectionTitle}>Una scuola di Karate, prima di tutto educativa</h2>
 
-          <p style={styles.text}>
-            Il Dojo Yamato nasce con l’obiettivo di trasmettere il Karate Shotokan
-            come disciplina marziale, sportiva ed educativa. Ogni allenamento è un
-            percorso fatto di rispetto, impegno, autocontrollo e crescita personale.
-          </p>
+            <p style={styles.text}>
+              Il Dojo Yamato nasce con l’obiettivo di trasmettere il Karate Shotokan
+              come disciplina marziale, sportiva ed educativa. Ogni allenamento è un
+              percorso fatto di rispetto, impegno, autocontrollo e crescita personale.
+            </p>
 
-          <Link to="/chi-siamo" style={styles.primaryButton}>
-            Scopri il dojo
-          </Link>
+            <Link to="/chi-siamo" style={styles.primaryButton}>
+              Scopri il dojo
+            </Link>
+          </div>
+
+          <div style={styles.aboutImageBox}>
+            <img
+              src="/images/allenamenti.png"
+              alt="Allenamenti Dojo Yamato"
+              loading="lazy"
+              style={styles.aboutImage}
+            />
+          </div>
         </div>
       </section>
 
@@ -171,36 +182,89 @@ export default function Home() {
           </p>
         </div>
 
-        <div style={styles.courseGrid}>
-          <div style={styles.infoCard}>
-            <h3 style={styles.infoTitle}>Bambini e ragazzi</h3>
-            <p style={styles.text}>
-              Un percorso educativo per migliorare coordinazione, concentrazione,
-              rispetto delle regole e fiducia in sé stessi.
-            </p>
+        <div style={styles.coursesFeatureCard}>
+          <div style={styles.coursesImageBox}>
+            <img
+              src="/images/name.png"
+              alt="Corsi Karate Dojo Yamato"
+              loading="lazy"
+              style={styles.coursesImage}
+            />
           </div>
 
-          <div style={styles.infoCard}>
-            <h3 style={styles.infoTitle}>Adulti</h3>
-            <p style={styles.text}>
-              Allenamenti tecnici e fisici per sviluppare controllo, postura,
-              resistenza e consapevolezza del corpo.
-            </p>
-          </div>
+          <div style={styles.coursesContentBox}>
+            <div style={styles.courseGrid}>
+              <div style={styles.infoCard}>
+                <h3 style={styles.infoTitle}>Bambini e ragazzi</h3>
+                <p style={styles.compactText}>
+                  Coordinazione, concentrazione, regole e fiducia in sé stessi.
+                </p>
+              </div>
 
-          <div style={styles.infoCard}>
-            <h3 style={styles.infoTitle}>Competizioni</h3>
-            <p style={styles.text}>
-              La competizione è proposta come strumento educativo, mai come obbligo,
-              per imparare a gestire emozioni, confronto e rispetto.
-            </p>
+              <div style={styles.infoCard}>
+                <h3 style={styles.infoTitle}>Adulti</h3>
+                <p style={styles.compactText}>
+                  Tecnica, postura, resistenza e consapevolezza del corpo.
+                </p>
+              </div>
+
+
+            </div>
+
+            <div style={styles.coursesButtonWrap}>
+              <Link to="/corsi" style={styles.primaryButton}>
+                Scopri tutti i corsi
+              </Link>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div style={styles.centerButtonWrap}>
-          <Link to="/corsi" style={styles.primaryButton}>
-            Scopri tutti i corsi
-          </Link>
+      <section style={styles.competitionSection}>
+        <div style={styles.competitionCard}>
+          <div style={styles.competitionTextBox}>
+            <p style={styles.kicker}>Competizioni</p>
+
+            <h2 style={styles.competitionTitle}>
+              Confronto, emozioni e rispetto
+            </h2>
+
+            <p style={styles.competitionText}>
+              La competizione è proposta come esperienza educativa, sempre senza obbligo.
+              Aiuta gli allievi a gestire emozioni, concentrazione, confronto e rispetto
+              dell’avversario.
+            </p>
+
+            <p style={styles.competitionText}>
+              Il Dojo Yamato partecipa a competizioni provinciali, regionali e nazionali
+              nei circuiti CSI e FIJLKAM, accompagnando ogni atleta nel proprio percorso
+              con gradualità e attenzione.
+            </p>
+
+            <Link to="/competizioni" style={styles.primaryButton}>
+              Scopri le competizioni
+            </Link>
+          </div>
+
+          <div style={styles.competitionImagesGrid}>
+            <div style={styles.competitionImageBox}>
+              <img
+                src="/images/competizioni-1.png"
+                alt="Competizioni Karate Dojo Yamato"
+                loading="lazy"
+                style={styles.competitionImage}
+              />
+            </div>
+
+            <div style={styles.competitionImageBox}>
+              <img
+                src="/images/competizioni-2.png"
+                alt="Gare Karate Dojo Yamato"
+                loading="lazy"
+                style={styles.competitionImage}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -427,13 +491,36 @@ const styles: Record<string, React.CSSProperties> = {
       'radial-gradient(circle at top left, rgba(185,68,79,0.22), transparent 34%), #050b1a',
   },
   aboutCard: {
-    maxWidth: 980,
+    maxWidth: 1180,
     margin: '0 auto',
-    padding: '42px',
+    padding: '34px',
     borderRadius: 28,
     background: 'rgba(15,23,42,0.88)',
     border: '1px solid rgba(255,255,255,0.08)',
     boxShadow: '0 18px 45px rgba(0,0,0,0.28)',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 30,
+    alignItems: 'center',
+  },
+  aboutTextBox: {
+    display: 'grid',
+    gap: 0,
+  },
+  aboutImageBox: {
+    minHeight: 300,
+    borderRadius: 24,
+    overflow: 'hidden',
+    background: '#101827',
+    border: '1px solid rgba(255,255,255,0.10)',
+    boxShadow: '0 16px 38px rgba(0,0,0,0.28)',
+  },
+  aboutImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 300,
+    objectFit: 'cover',
+    display: 'block',
   },
   text: {
     color: '#cbd5e1',
@@ -441,22 +528,118 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 16,
     margin: '0 0 24px',
   },
-  courseGrid: {
+  coursesFeatureCard: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: 22,
-  },
-  infoCard: {
+    gridTemplateColumns: 'minmax(260px, 0.85fr) minmax(320px, 1.15fr)',
+    gap: 24,
+    alignItems: 'stretch',
+    padding: 28,
+    borderRadius: 28,
     background: 'rgba(15, 23, 42, 0.88)',
     border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 22,
-    padding: 24,
     boxShadow: '0 18px 45px rgba(0,0,0,0.28)',
+  },
+  coursesImageBox: {
+    minHeight: 330,
+    borderRadius: 24,
+    overflow: 'hidden',
+    background: '#101827',
+    border: '1px solid rgba(255,255,255,0.10)',
+  },
+  coursesImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 330,
+    objectFit: 'cover',
+    display: 'block',
+  },
+  coursesContentBox: {
+    display: 'grid',
+    alignContent: 'center',
+    gap: 18,
+  },
+  courseGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: 12,
+  },
+  infoCard: {
+    background: 'rgba(255,255,255,0.055)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 18,
+    padding: 18,
+    boxShadow: '0 12px 28px rgba(0,0,0,0.20)',
   },
   infoTitle: {
     color: '#ffffff',
-    fontSize: 22,
-    margin: '0 0 12px',
+    fontSize: 20,
+    margin: '0 0 8px',
+  },
+  compactText: {
+    color: '#cbd5e1',
+    lineHeight: 1.55,
+    fontSize: 15,
+    margin: 0,
+  },
+  coursesButtonWrap: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    marginTop: 4,
+  },
+  competitionSection: {
+    width: '100%',
+    maxWidth: 1180,
+    margin: '0 auto',
+    padding: '20px 24px 70px',
+  },
+  competitionCard: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(280px, 1.05fr) minmax(280px, 0.95fr)',
+    gap: 28,
+    alignItems: 'center',
+    padding: 34,
+    borderRadius: 30,
+    background:
+      'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(15,23,42,0.94))',
+    border: '1px solid rgba(255,255,255,0.10)',
+    boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+  },
+  competitionTextBox: {
+    display: 'grid',
+    gap: 0,
+  },
+  competitionTitle: {
+    fontSize: 'clamp(2rem, 4vw, 3.3rem)',
+    lineHeight: 1.05,
+    letterSpacing: '-0.04em',
+    margin: '0 0 18px',
+    color: '#ffffff',
+  },
+  competitionText: {
+    color: '#dbe4ef',
+    fontSize: 17,
+    lineHeight: 1.75,
+    margin: '0 0 16px',
+  },
+  competitionImagesGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 14,
+  },
+  competitionImageBox: {
+    minHeight: 260,
+    borderRadius: 22,
+    overflow: 'hidden',
+    background: '#101827',
+    border: '1px solid rgba(255,255,255,0.10)',
+    boxShadow: '0 16px 38px rgba(0,0,0,0.28)',
+  },
+  competitionImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 260,
+    objectFit: 'cover',
+    display: 'block',
   },
   defensePromoSection: {
     width: '100%',
@@ -498,7 +681,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 0 24px',
   },
   defensePromoImageBox: {
-    minHeight: 300,
+    minHeight: 220,
+    maxHeight: 260,
     borderRadius: 24,
     overflow: 'hidden',
     border: '1px solid rgba(255,255,255,0.10)',
@@ -507,7 +691,8 @@ const styles: Record<string, React.CSSProperties> = {
   defensePromoImage: {
     width: '100%',
     height: '100%',
-    minHeight: 300,
+    minHeight: 220,
+    maxHeight: 260,
     objectFit: 'cover',
     display: 'block',
   },

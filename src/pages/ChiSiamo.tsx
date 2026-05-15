@@ -11,23 +11,23 @@ const visualBlocks: VisualBlock[] = [
   {
     title: 'La persona prima dell’atleta',
     text: 'Siamo una scuola di Karate che pone al centro la persona, prima ancora dell’atleta.',
-    image: '/images/chi-siamo-bambini.jpg',
+    image: '/images/chi_siamo_foto_1.jpg',
   },
   {
     title: 'Shotokan, rispetto e disciplina',
     text: 'Il nostro insegnamento si basa sullo stile Shotokan e su valori come rispetto, disciplina, impegno e crescita personale.',
-    image: '/images/chi-siamo-kumite.jpg',
+    image: '/images/chi_siamo_foto_2.jpg',
     reverse: true,
   },
   {
     title: 'Un percorso per bambini, ragazzi e adulti',
     text: 'Nel nostro dojo il Karate non è solo tecnica o competizione, ma un percorso educativo che accompagna ogni allievo nella crescita del corpo, della mente e del carattere.',
-    image: '/images/chi-siamo-gruppo.jpg',
+    image: '/images/chi_siamo_foto_3.jpg',
   },
   {
     title: 'Per chi vuole crescere anche nelle gare',
     text: 'Per gli allievi che desiderano mettersi alla prova, il Dojo Yamato accompagna con serietà anche il percorso competitivo. Le gare di kata e kumite diventano occasioni per sviluppare concentrazione, coraggio, rispetto dell’avversario e capacità di gestire le emozioni.',
-    image: '/images/chi-siamo-gare.jpg',
+    image: '/images/chi_siamo_foto_4.jpg',
     reverse: true,
   },
 ]
@@ -95,7 +95,7 @@ function ChiSiamo() {
                 </div>
 
                 <div className="chi-image-wrap">
-                  <img src={block.image} alt={block.title} />
+                  <img src={block.image} alt={block.title} loading="lazy" />
                 </div>
               </article>
             ))}

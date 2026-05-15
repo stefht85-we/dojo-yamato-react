@@ -1,13 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
-import {
-  canDownloadMedia,
-  canOpenMedia,
-  getAccessDeniedMessage,
-} from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 type GalleryAlbum = {
@@ -32,6 +27,9 @@ type GalleryMedia = {
   media_type: 'image' | 'video' | 'youtube' | 'file' | 'social'
   thumbnail_url: string | null
   video_url: string | null
+  signed_image_url?: string | null
+  signed_video_url?: string | null
+  signed_thumbnail_url?: string | null
 }
 
 function GalleriaAlbum() {
@@ -43,17 +41,27 @@ function GalleriaAlbum() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [accessMessage, setAccessMessage] = useState('')
+  const [activeMedia, setActiveMedia] = useState<GalleryMedia | null>(null)
 
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [selectedVideo, setSelectedVideo] = useState<GalleryMedia | null>(null)
-
-  const userCanOpenMedia = canOpenMedia(user)
-  const userCanDownloadMedia = canDownloadMedia(user)
+  const canAccessMedia = Boolean(user)
 
   useEffect(() => {
     loadUser()
     loadAlbum()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
   }, [albumId])
+
+  const mediaCountLabel = useMemo(() => {
+    if (media.length === 1) return '1 contenuto'
+    return `${media.length} contenuti`
+  }, [media.length])
 
   async function loadUser() {
     const { data } = await supabase.auth.getUser()
@@ -61,11 +69,7 @@ function GalleriaAlbum() {
   }
 
   async function loadAlbum() {
-    if (!albumId) {
-      setMessage('Album non trovato.')
-      setLoading(false)
-      return
-    }
+    if (!albumId) return
 
     setLoading(true)
     setMessage('')
@@ -78,8 +82,10 @@ function GalleriaAlbum() {
       .single()
 
     if (albumError) {
-      console.error('Errore caricamento album:', albumError)
-      setMessage('Errore durante il caricamento dell’album oppure album non disponibile.')
+      console.error('Errore caricamento album:', albumError.message)
+      setMessage(`Errore caricamento album: ${albumError.message}`)
+      setAlbum(null)
+      setMedia([])
       setLoading(false)
       return
     }
@@ -92,57 +98,84 @@ function GalleriaAlbum() {
       .order('created_at', { ascending: true })
 
     if (mediaError) {
-      console.error('Errore caricamento contenuti album:', mediaError)
-      setMessage('Errore durante il caricamento dei contenuti.')
+      console.error('Errore caricamento media album:', mediaError.message)
+      setMessage(`Errore caricamento media album: ${mediaError.message}`)
+      setAlbum(albumData)
+      setMedia([])
       setLoading(false)
       return
     }
 
-    const signedCoverUrl = albumData.cover_image_url
-      ? await getSignedUrlFromPublicUrl(albumData.cover_image_url)
-      : null
-
     const signedMedia = await Promise.all(
-      ((mediaData ?? []) as GalleryMedia[]).map(async (item) => {
-        const signedImageUrl = item.image_url
-          ? await getSignedUrlFromPublicUrl(item.image_url)
-          : ''
-
-        const signedVideoUrl = item.video_url
-          ? await getSignedUrlFromPublicUrl(item.video_url)
-          : null
-
-        const signedThumbnailUrl = item.thumbnail_url
-          ? await getSignedUrlFromPublicUrl(item.thumbnail_url)
-          : null
-
-        return {
-          ...item,
-          image_url: signedImageUrl || item.image_url,
-          video_url: signedVideoUrl || item.video_url,
-          thumbnail_url: signedThumbnailUrl || item.thumbnail_url,
-        }
-      })
+      (mediaData ?? []).map(async (item) => ({
+        ...item,
+        signed_image_url: await getSignedUrlFromPublicUrl(item.image_url),
+        signed_video_url: await getSignedUrlFromPublicUrl(item.video_url),
+        signed_thumbnail_url: await getSignedUrlFromPublicUrl(item.thumbnail_url),
+      }))
     )
 
-    setAlbum({
-      ...(albumData as GalleryAlbum),
-      cover_image_url: signedCoverUrl || albumData.cover_image_url,
-    })
-
-    setMedia(signedMedia)
+    setAlbum(albumData)
+    setMedia(signedMedia as GalleryMedia[])
     setLoading(false)
   }
 
   function showAccessDenied() {
-    setAccessMessage(getAccessDeniedMessage('i contenuti della galleria'))
+    setAccessMessage('Accedi o registrati all’Area Utente per aprire immagini, video e contenuti della galleria.')
 
     window.setTimeout(() => {
       setAccessMessage('')
     }, 5000)
   }
 
+  function handleOpenMedia(item: GalleryMedia) {
+    if (!canAccessMedia) {
+      showAccessDenied()
+      return
+    }
+
+    setActiveMedia(item)
+  }
+
+  function closeLightbox() {
+    setActiveMedia(null)
+  }
+
+  function getPreviewUrl(item: GalleryMedia) {
+    if (item.media_type === 'youtube') return item.thumbnail_url || item.image_url
+
+    if (item.media_type === 'video') {
+      return (
+        item.signed_thumbnail_url ||
+        item.thumbnail_url ||
+        item.signed_video_url ||
+        item.video_url ||
+        item.signed_image_url ||
+        item.image_url
+      )
+    }
+
+    if (item.media_type === 'social') {
+      return item.signed_thumbnail_url || item.thumbnail_url || item.image_url
+    }
+
+    return item.signed_image_url || item.image_url
+  }
+
+  function getFullMediaUrl(item: GalleryMedia) {
+    if (item.media_type === 'video') {
+      return item.signed_video_url || item.video_url || item.signed_image_url || item.image_url
+    }
+
+    return item.signed_image_url || item.image_url
+  }
+
   function getYoutubeEmbedUrl(url: string) {
+    const id = getYoutubeId(url)
+    return id ? `https://www.youtube.com/embed/${id}` : null
+  }
+
+  function getYoutubeId(url: string) {
     const patterns = [
       /youtube\.com\/watch\?v=([^&]+)/,
       /youtu\.be\/([^?&]+)/,
@@ -152,300 +185,269 @@ function GalleriaAlbum() {
 
     for (const pattern of patterns) {
       const match = url.match(pattern)
-      if (match?.[1]) return `https://www.youtube.com/embed/${match[1]}`
+      if (match?.[1]) return match[1]
     }
 
     return null
   }
 
-  function getMediaUrl(item: GalleryMedia) {
-    return item.video_url ?? item.image_url
-  }
-
-  function handleImageClick(item: GalleryMedia) {
-    if (!userCanOpenMedia) {
-      showAccessDenied()
-      return
+  function formatAlbumDate(date: string | null, year: number | null) {
+    if (date) {
+      return new Date(date).toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
     }
 
-    setSelectedImage(item.image_url)
+    return year ? String(year) : ''
   }
 
-  function handleVideoClick(item: GalleryMedia) {
-    if (!userCanOpenMedia) {
-      showAccessDenied()
-      return
-    }
-
-    setSelectedVideo(item)
-  }
-
-  function getDownloadName(item: GalleryMedia) {
-    const extension = item.media_type === 'file' ? 'pdf' : item.media_type === 'video' ? 'mp4' : 'jpg'
-    const cleanTitle =
-      album?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
-      'dojo-yamato'
-
-    return `${cleanTitle}-${item.id}.${extension}`
-  }
-
-  function renderDownloadButton(item: GalleryMedia) {
-    if (!userCanDownloadMedia) return null
-
-    if (item.media_type === 'youtube' || item.media_type === 'social') {
-      return (
-        <a href={getMediaUrl(item)} target="_blank" rel="noreferrer" style={downloadButtonStyle}>
-          Apri
-        </a>
-      )
-    }
-
+  if (loading) {
     return (
-      <a
-        href={getMediaUrl(item)}
-        download={getDownloadName(item)}
-        target="_blank"
-        rel="noreferrer"
-        style={downloadButtonStyle}
-      >
-        Download
-      </a>
+      <main style={pageStyle}>
+        <p style={mutedText}>Caricamento album...</p>
+      </main>
     )
   }
 
-  function renderLockedOverlay() {
-    if (userCanOpenMedia) return null
-
+  if (!album || message) {
     return (
-      <div style={lockedOverlayStyle}>
-        <span style={lockedBadgeStyle}>Accesso utenti</span>
-      </div>
-    )
-  }
-
-  function renderMediaPreview(item: GalleryMedia) {
-    if (item.media_type === 'image') {
-      return (
-        <>
-          <button type="button" style={mediaButtonStyle} onClick={() => handleImageClick(item)} aria-label="Apri immagine">
-            <div style={previewWrapperStyle}>
-              <img src={item.image_url} alt={item.caption || album?.title || 'Immagine galleria'} style={mediaImageStyle} />
-              {renderLockedOverlay()}
-            </div>
-          </button>
-          {renderDownloadButton(item)}
-        </>
-      )
-    }
-
-    if (item.media_type === 'video') {
-      return (
-        <>
-          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)} aria-label="Apri video">
-            <div style={videoPreviewWrapperStyle}>
-              <video
-                src={item.video_url ?? item.image_url}
-                style={mediaImageStyle}
-                muted
-                preload="metadata"
-                playsInline
-                controls={false}
-                onContextMenu={(e) => e.preventDefault()}
-              />
-              <div style={playOverlayStyle}><span style={playCircleStyle}>▶</span></div>
-              <span style={mediaBadgeStyle}>Video</span>
-              {renderLockedOverlay()}
-            </div>
-          </button>
-          {renderDownloadButton(item)}
-        </>
-      )
-    }
-
-    if (item.media_type === 'youtube') {
-      return (
-        <>
-          <button type="button" style={mediaButtonStyle} onClick={() => handleVideoClick(item)} aria-label="Apri video YouTube">
-            <div style={videoPreviewWrapperStyle}>
-              {item.thumbnail_url ? (
-                <img src={item.thumbnail_url} alt="Anteprima YouTube" style={mediaImageStyle} />
-              ) : (
-                <div style={placeholderStyle}>YouTube</div>
-              )}
-              <div style={playOverlayStyle}><span style={playCircleStyle}>▶</span></div>
-              <span style={mediaBadgeStyle}>YouTube</span>
-              {renderLockedOverlay()}
-            </div>
-          </button>
-          {renderDownloadButton(item)}
-        </>
-      )
-    }
-
-    if (item.media_type === 'social') {
-      const hasPreview = Boolean(item.thumbnail_url)
-
-      return (
-        <>
-          {userCanOpenMedia ? (
-            <a href={item.video_url ?? item.image_url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
-              <div style={videoPreviewWrapperStyle}>
-                {hasPreview ? (
-                  <img src={item.thumbnail_url ?? ''} alt={item.caption || 'Link social'} style={mediaImageStyle} />
-                ) : (
-                  <div style={placeholderStyle}>Social</div>
-                )}
-                <span style={mediaBadgeStyle}>{item.caption || 'Social'}</span>
-              </div>
-            </a>
-          ) : (
-            <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
-              <div style={videoPreviewWrapperStyle}>
-                {hasPreview ? (
-                  <img src={item.thumbnail_url ?? ''} alt={item.caption || 'Link social'} style={mediaImageStyle} />
-                ) : (
-                  <div style={placeholderStyle}>Social</div>
-                )}
-                <span style={mediaBadgeStyle}>{item.caption || 'Social'}</span>
-                {renderLockedOverlay()}
-              </div>
-            </button>
-          )}
-          {renderDownloadButton(item)}
-        </>
-      )
-    }
-
-    return (
-      <>
-        {userCanOpenMedia ? (
-          <a href={item.image_url} target="_blank" rel="noreferrer" style={mediaButtonStyle}>
-            <div style={filePreviewStyle}>
-              <span style={fileIconStyle}>PDF</span>
-              <span style={fileTextStyle}>Apri documento</span>
-            </div>
-          </a>
-        ) : (
-          <button type="button" style={mediaButtonStyle} onClick={showAccessDenied}>
-            <div style={filePreviewStyle}>
-              <span style={fileIconStyle}>PDF</span>
-              <span style={fileTextStyle}>Accesso utenti</span>
-            </div>
-          </button>
-        )}
-        {renderDownloadButton(item)}
-      </>
-    )
-  }
-
-  function renderVideoModal() {
-    if (!selectedVideo) return null
-
-    const videoUrl = selectedVideo.video_url ?? selectedVideo.image_url
-
-    if (selectedVideo.media_type === 'youtube') {
-      const embedUrl = getYoutubeEmbedUrl(videoUrl)
-
-      return (
-        <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
-          <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-            <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
-
-            {embedUrl ? (
-              <iframe
-                src={embedUrl}
-                title="Video YouTube"
-                style={youtubeFrameStyle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <p style={modalTextStyle}>Video YouTube non disponibile.</p>
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
-        <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
-
-          <video
-            src={videoUrl}
-            style={modalVideoStyle}
-            controls
-            autoPlay
-            playsInline
-            controlsList="nodownload noplaybackrate"
-            disablePictureInPicture
-            onContextMenu={(e) => e.preventDefault()}
-          />
-
-          <p style={videoNoticeStyle}>Video visualizzabile direttamente nella pagina.</p>
-        </div>
-      </div>
-    )
-  }
-
-  function renderImageModal() {
-    if (!selectedImage) return null
-
-    return (
-      <div style={modalOverlayStyle} onClick={() => setSelectedImage(null)}>
-        <div style={imageModalStyle} onClick={(e) => e.stopPropagation()}>
-          <button type="button" style={closeButtonStyle} onClick={() => setSelectedImage(null)} aria-label="Chiudi immagine">×</button>
-          <img src={selectedImage} alt="Immagine ingrandita" style={modalImageStyle} />
-        </div>
-      </div>
+      <main style={pageStyle}>
+        <section style={heroStyle}>
+          <p style={pageBadgeStyle}>Galleria</p>
+          <h1 style={titleStyle}>Album non trovato</h1>
+          {message && <div style={messageBoxStyle}>{message}</div>}
+          <Link to="/galleria" style={loginButtonStyle}>
+            Torna alla galleria
+          </Link>
+        </section>
+      </main>
     )
   }
 
   return (
     <main style={pageStyle}>
       <section style={heroStyle}>
-        <Link to="/galleria" style={backLinkStyle}>← Torna alla galleria</Link>
+        <Link to="/galleria" style={backLinkStyle}>
+          ← Torna alla galleria
+        </Link>
 
-        {loading && <p style={messageStyle}>Caricamento album...</p>}
-        {!loading && message && <p style={messageStyle}>{message}</p>}
+        <p style={pageBadgeStyle}>{album.category || 'Galleria'}</p>
 
-        {!loading && album && (
-          <>
-            <p style={labelStyle}>Galleria {album.event_year}</p>
-            <h1 style={titleStyle}>{album.title}</h1>
-            {album.description && <p style={introStyle}>{album.description}</p>}
+        <h1 style={titleStyle}>{album.title}</h1>
 
-            {!userCanOpenMedia && (
-              <div style={loginNoticeStyle}>
-                <strong>Area media riservata.</strong> Accedi o registrati per ingrandire e scaricare foto, video e documenti.
-                <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
-              </div>
-            )}
-          </>
+        <p style={introStyle}>
+          {formatAlbumDate(album.event_date, album.event_year)} · {mediaCountLabel}
+        </p>
+
+        {album.description && <p style={descriptionStyle}>{album.description}</p>}
+
+        {!canAccessMedia && (
+          <div style={loginNoticeStyle}>
+            <strong>Contenuti riservati agli utenti registrati.</strong>
+            Puoi vedere le anteprime, ma per aprire immagini, video e contenuti completi devi accedere.
+            <Link to="/area-utente" style={loginButtonStyle}>
+              Accedi / Registrati
+            </Link>
+          </div>
         )}
       </section>
 
       {accessMessage && <div style={floatingMessageStyle}>{accessMessage}</div>}
 
-      {!loading && !message && (
-        <section style={gallerySectionStyle}>
-          {media.length === 0 ? (
-            <div style={emptyBoxStyle}>Questo album non contiene ancora materiali.</div>
-          ) : (
-            <div style={mediaGridStyle}>
-              {media.map((item) => (
-                <article key={item.id} style={mediaCardStyle}>{renderMediaPreview(item)}</article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      <section style={contentStyle}>
+        <div style={toolbarStyle}>
+          <div>
+            <p style={sectionBadgeStyle}>Album</p>
+            <h2 style={sectionTitleStyle}>Contenuti disponibili</h2>
+          </div>
 
-      {renderVideoModal()}
-      {renderImageModal()}
+          <div style={filterBoxStyle}>
+            <span style={filterLabelStyle}>Accesso</span>
+            <span style={accessStatusStyle}>
+              {canAccessMedia ? 'Utente autorizzato' : 'Login richiesto'}
+            </span>
+          </div>
+        </div>
+
+        {media.length === 0 && (
+          <div style={emptyBoxStyle}>Questo album non contiene ancora media.</div>
+        )}
+
+        {media.length > 0 && (
+          <div style={mediaGridStyle}>
+            {media.map((item) => (
+              <article key={item.id} style={mediaCardStyle}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMedia(item)}
+                  style={previewButtonStyle}
+                  aria-label={item.caption || 'Apri contenuto galleria'}
+                >
+                  <div style={previewWrapStyle}>
+                    {item.media_type === 'video' ? (
+                      <>
+                        <video
+                          src={getPreviewUrl(item)}
+                          muted
+                          preload="metadata"
+                          style={previewImageStyle}
+                        />
+                        <span style={playBadgeStyle}>▶</span>
+                      </>
+                    ) : item.media_type === 'youtube' ? (
+                      <>
+                        <img
+                          src={getPreviewUrl(item)}
+                          alt={item.caption || album.title}
+                          loading="lazy"
+                          style={previewImageStyle}
+                        />
+                        <span style={playBadgeStyle}>YT</span>
+                      </>
+                    ) : item.media_type === 'file' ? (
+                      <div style={filePreviewStyle}>
+                        <span style={{ fontSize: '24px', fontWeight: 950 }}>PDF</span>
+                        {item.caption && (
+                          <span style={{ fontSize: '12px', fontWeight: 800 }}>
+                            {item.caption}
+                          </span>
+                        )}
+                      </div>
+                    ) : item.media_type === 'social' ? (
+                      item.thumbnail_url || item.signed_thumbnail_url ? (
+                        <img
+                          src={getPreviewUrl(item)}
+                          alt={item.caption || 'Social'}
+                          loading="lazy"
+                          style={previewImageStyle}
+                        />
+                      ) : (
+                        <div style={filePreviewStyle}>
+                          <span style={{ fontSize: '24px' }}>🔗</span>
+                          {item.caption && (
+                            <span style={{ fontSize: '12px', fontWeight: 800 }}>
+                              {item.caption}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    ) : (
+                      <img
+                        src={getPreviewUrl(item)}
+                        alt={item.caption || album.title}
+                        loading="lazy"
+                        style={previewImageStyle}
+                      />
+                    )}
+                  </div>
+                </button>
+
+                {item.caption && (
+                  <div style={mediaCardBodyStyle}>
+                    <h3 style={mediaTitleStyle}>{item.caption}</h3>
+
+                    {!canAccessMedia && (
+                      <p style={lockedTextStyle}>
+                        Accesso richiesto per aprire questo contenuto.
+                      </p>
+                    )}
+
+                    {canAccessMedia && (
+                      <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
+                        Apri contenuto
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {!item.caption && !canAccessMedia && (
+                  <div style={mediaCardBodyStyle}>
+                    <p style={lockedTextStyle}>
+                      Accesso richiesto per aprire questo contenuto.
+                    </p>
+                  </div>
+                )}
+
+                {!item.caption && canAccessMedia && (
+                  <div style={mediaCardBodyStyle}>
+                    <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
+                      Apri contenuto
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {activeMedia && canAccessMedia && (
+        <div style={lightboxStyle} onClick={closeLightbox}>
+          <button type="button" style={closeButtonStyle} onClick={closeLightbox}>
+            ×
+          </button>
+
+          <div style={lightboxInnerStyle} onClick={(event) => event.stopPropagation()}>
+            {activeMedia.media_type === 'youtube' ? (
+              (() => {
+                const embedUrl = getYoutubeEmbedUrl(activeMedia.video_url || activeMedia.image_url)
+
+                return embedUrl ? (
+                  <iframe
+                    src={embedUrl}
+                    title={activeMedia.caption || 'Video YouTube'}
+                    style={iframeStyle}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <a href={activeMedia.image_url} target="_blank" rel="noreferrer" style={loginButtonStyle}>
+                    Apri contenuto
+                  </a>
+                )
+              })()
+            ) : activeMedia.media_type === 'video' ? (
+              <video
+                src={getFullMediaUrl(activeMedia)}
+                style={lightboxMediaStyle}
+                controls
+                autoPlay
+              />
+            ) : activeMedia.media_type === 'file' || activeMedia.media_type === 'social' ? (
+              <a href={activeMedia.image_url} target="_blank" rel="noreferrer" style={loginButtonStyle}>
+                Apri contenuto
+              </a>
+            ) : (
+              <img
+                src={getFullMediaUrl(activeMedia)}
+                alt={activeMedia.caption || album.title}
+                style={lightboxMediaStyle}
+              />
+            )}
+
+            {activeMedia.caption && (
+              <p style={lightboxCaptionStyle}>{activeMedia.caption}</p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   )
+}
+
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
 const pageStyle: CSSProperties = {
@@ -463,44 +465,35 @@ const heroStyle: CSSProperties = {
 }
 
 const backLinkStyle: CSSProperties = {
-  width: 'fit-content',
-  color: '#d95b64',
+  color: '#d8d8d8',
   textDecoration: 'none',
   fontWeight: 900,
+  width: 'fit-content',
 }
 
-const labelStyle: CSSProperties = {
-  width: 'fit-content',
-  margin: 0,
-  padding: '6px 12px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontWeight: 900,
-  letterSpacing: '1px',
-  textTransform: 'uppercase',
-  fontSize: '12px',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
-}
+const pageBadgeStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   margin: 0,
-  fontSize: 'clamp(42px, 7vw, 76px)',
-  lineHeight: 1,
+  fontSize: 'clamp(48px, 8vw, 82px)',
+  lineHeight: 0.98,
   fontWeight: 950,
 }
 
 const introStyle: CSSProperties = {
   margin: 0,
-  maxWidth: '820px',
+  maxWidth: '850px',
   color: '#d8d8d8',
-  fontSize: '17px',
+  fontSize: '18px',
   lineHeight: 1.7,
 }
 
-const messageStyle: CSSProperties = {
+const descriptionStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: '850px',
   color: '#d8d8d8',
-  fontSize: '17px',
+  fontSize: '16px',
+  lineHeight: 1.7,
 }
 
 const loginNoticeStyle: CSSProperties = {
@@ -525,6 +518,8 @@ const loginButtonStyle: CSSProperties = {
   color: 'white',
   textDecoration: 'none',
   fontWeight: 900,
+  border: 'none',
+  cursor: 'pointer',
 }
 
 const floatingMessageStyle: CSSProperties = {
@@ -542,255 +537,228 @@ const floatingMessageStyle: CSSProperties = {
   boxShadow: '0 18px 40px rgba(0,0,0,0.36)',
 }
 
-const gallerySectionStyle: CSSProperties = {
+const contentStyle: CSSProperties = {
   width: 'min(1180px, calc(100% - 8px))',
   margin: '0 auto',
-}
-
-const mediaGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-  gap: '14px',
+  gap: '22px',
 }
 
-const mediaCardStyle: CSSProperties = {
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '16px',
-  overflow: 'hidden',
-}
-
-const mediaButtonStyle: CSSProperties = {
-  display: 'block',
-  width: '100%',
-  height: '150px',
-  padding: 0,
-  border: 'none',
-  background: 'transparent',
-  cursor: 'pointer',
-  textDecoration: 'none',
-  color: 'white',
-}
-
-const previewWrapperStyle: CSSProperties = {
-  position: 'relative',
-  width: '100%',
-  height: '150px',
-  overflow: 'hidden',
-}
-
-const mediaImageStyle: CSSProperties = {
-  width: '100%',
-  height: '150px',
-  objectFit: 'cover',
-  display: 'block',
-  background: '#111827',
-}
-
-const videoPreviewWrapperStyle: CSSProperties = {
-  position: 'relative',
-  width: '100%',
-  height: '150px',
-  overflow: 'hidden',
-}
-
-const playOverlayStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
+const toolbarStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(0,0,0,0.18)',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end',
+  gap: '18px',
+  flexWrap: 'wrap',
+  padding: '20px',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.04))',
+  border: '1px solid rgba(255,255,255,0.10)',
 }
 
-const playCircleStyle: CSSProperties = {
-  width: '44px',
-  height: '44px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.28)',
-  fontSize: '18px',
-  paddingLeft: '3px',
+const sectionBadgeStyle: CSSProperties = {
+  ...dojoBadgeStyle,
+  margin: '0 0 10px',
 }
 
-const mediaBadgeStyle: CSSProperties = {
-  position: 'absolute',
-  left: '8px',
-  bottom: '8px',
-  padding: '5px 9px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: '11px',
-  fontWeight: 900,
-  maxWidth: 'calc(100% - 16px)',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-}
-
-const lockedOverlayStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'flex-end',
-  padding: '8px',
-  background: 'linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.18))',
-  pointerEvents: 'none',
-}
-
-const lockedBadgeStyle: CSSProperties = {
-  padding: '5px 9px',
-  borderRadius: '999px',
-  background: 'rgba(0,0,0,0.72)',
-  color: 'white',
-  fontSize: '10px',
-  fontWeight: 900,
-}
-
-const downloadButtonStyle: CSSProperties = {
-  display: 'block',
-  width: 'fit-content',
-  margin: '10px',
-  padding: '7px 12px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  textDecoration: 'none',
-  fontSize: '12px',
-  fontWeight: 900,
-}
-
-const placeholderStyle: CSSProperties = {
-  width: '100%',
-  height: '150px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#d8d8d8',
-  fontWeight: 900,
-}
-
-const filePreviewStyle: CSSProperties = {
-  width: '100%',
-  height: '150px',
-  display: 'grid',
-  placeItems: 'center',
-  alignContent: 'center',
-  gap: '8px',
-  background: 'rgba(255,255,255,0.06)',
-}
-
-const fileIconStyle: CSSProperties = {
-  width: '58px',
-  height: '58px',
-  borderRadius: '16px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+const sectionTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: '30px',
   fontWeight: 950,
 }
 
-const fileTextStyle: CSSProperties = {
+const filterBoxStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: '200px',
+}
+
+const filterLabelStyle: CSSProperties = {
   color: '#d8d8d8',
   fontSize: '13px',
   fontWeight: 800,
 }
 
-const emptyBoxStyle: CSSProperties = {
-  padding: '20px',
-  borderRadius: '16px',
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#d8d8d8',
+const accessStatusStyle: CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.08)',
+  color: 'white',
+  fontWeight: 900,
+  border: '1px solid rgba(255,255,255,0.12)',
 }
 
-const modalOverlayStyle: CSSProperties = {
-  position: 'fixed',
+const mediaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '18px',
+}
+
+const mediaCardStyle: CSSProperties = {
+  display: 'grid',
+  overflow: 'hidden',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045))',
+  border: '1px solid rgba(255,255,255,0.12)',
+  boxShadow: '0 16px 36px rgba(0,0,0,0.32)',
+}
+
+const previewButtonStyle: CSSProperties = {
+  border: 'none',
+  padding: 0,
+  background: 'transparent',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const previewWrapStyle: CSSProperties = {
+  position: 'relative',
+  width: '100%',
+  aspectRatio: '16 / 10',
+  overflow: 'hidden',
+  background: '#101827',
+}
+
+const previewImageStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+}
+
+const playBadgeStyle: CSSProperties = {
+  position: 'absolute',
   inset: 0,
-  zIndex: 1000,
-  background: 'rgba(0,0,0,0.76)',
+  margin: 'auto',
+  width: '54px',
+  height: '54px',
+  borderRadius: '999px',
+  background: 'rgba(2,8,23,0.74)',
+  border: '1px solid rgba(255,255,255,0.20)',
+  color: 'white',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '20px',
+  fontWeight: 950,
 }
 
-const videoModalStyle: CSSProperties = {
-  position: 'relative',
-  width: 'min(760px, 96vw)',
-  background: '#020817',
-  borderRadius: '20px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  padding: '16px',
-  boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+const filePreviewStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'grid',
+  placeItems: 'center',
+  gap: '8px',
+  padding: '18px',
+  textAlign: 'center',
+  color: 'white',
+  background: 'linear-gradient(135deg, rgba(185,68,79,0.26), rgba(255,255,255,0.10))',
 }
 
-const imageModalStyle: CSSProperties = {
-  position: 'relative',
-  width: 'min(900px, 96vw)',
-  background: '#020817',
-  borderRadius: '20px',
-  border: '1px solid rgba(255,255,255,0.12)',
+const mediaCardBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
   padding: '16px',
+}
+
+const mediaTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'white',
+  fontSize: '18px',
+  fontWeight: 950,
+  lineHeight: 1.25,
+}
+
+const lockedTextStyle: CSSProperties = {
+  margin: 0,
+  color: '#f3dede',
+  fontSize: '13px',
+  lineHeight: 1.45,
+}
+
+const openButtonStyle: CSSProperties = {
+  ...dojoBadgeStyle,
+  textDecoration: 'none',
+  justifySelf: 'start',
+  border: 'none',
+  cursor: 'pointer',
+}
+
+const mutedText: CSSProperties = {
+  color: '#d8d8d8',
+  lineHeight: 1.6,
+}
+
+const emptyBoxStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '18px',
+  padding: '22px',
+  color: '#d8d8d8',
+}
+
+const messageBoxStyle: CSSProperties = {
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  padding: '14px 16px',
+  borderRadius: '14px',
+  color: '#f3dede',
+}
+
+const lightboxStyle: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 9999,
+  background: 'rgba(0,0,0,0.88)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '24px',
 }
 
 const closeButtonStyle: CSSProperties = {
-  position: 'absolute',
-  top: '-14px',
-  right: '-14px',
-  width: '36px',
-  height: '36px',
-  borderRadius: '999px',
-  border: 'none',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: '24px',
-  fontWeight: 900,
+  position: 'fixed',
+  top: 20,
+  right: 20,
+  width: 46,
+  height: 46,
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.18)',
+  background: 'rgba(15,23,42,0.9)',
+  color: '#ffffff',
+  fontSize: 30,
   cursor: 'pointer',
-  lineHeight: 1,
-  zIndex: 2,
+  zIndex: 10000,
 }
 
-const modalVideoStyle: CSSProperties = {
-  width: '100%',
-  maxHeight: '70vh',
-  borderRadius: '14px',
-  background: '#111827',
-  display: 'block',
+const lightboxInnerStyle: CSSProperties = {
+  maxWidth: 'min(1100px, 96vw)',
+  maxHeight: '90vh',
+  display: 'grid',
+  gap: 14,
+  justifyItems: 'center',
 }
 
-const youtubeFrameStyle: CSSProperties = {
-  width: '100%',
-  aspectRatio: '16 / 9',
-  border: 0,
-  borderRadius: '14px',
-  display: 'block',
-}
-
-const modalImageStyle: CSSProperties = {
-  width: '100%',
-  maxHeight: '80vh',
+const lightboxMediaStyle: CSSProperties = {
+  maxWidth: '100%',
+  maxHeight: '82vh',
   objectFit: 'contain',
-  borderRadius: '14px',
-  display: 'block',
+  borderRadius: 18,
+  background: '#020817',
 }
 
-const modalTextStyle: CSSProperties = {
-  color: '#d8d8d8',
+const iframeStyle: CSSProperties = {
+  width: 'min(1000px, 92vw)',
+  aspectRatio: '16 / 9',
+  border: 'none',
+  borderRadius: 18,
+  background: '#020817',
+}
+
+const lightboxCaptionStyle: CSSProperties = {
+  color: '#ffffff',
   margin: 0,
-}
-
-const videoNoticeStyle: CSSProperties = {
-  margin: '10px 2px 0',
-  color: '#aeb6c4',
-  fontSize: '12px',
+  textAlign: 'center',
+  lineHeight: 1.6,
 }
 
 export default GalleriaAlbum

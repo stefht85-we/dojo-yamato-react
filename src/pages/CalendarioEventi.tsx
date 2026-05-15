@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
 import type { CSSProperties } from 'react'
-
-type EventDocument = {
-  id: string
-  event_id: string
-  title: string
-  file_url: string
-  file_type: string | null
-  created_at: string
-}
+import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabaseClient'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 type DojoEvent = {
   id: string
@@ -26,18 +18,53 @@ type DojoEvent = {
   external_url_label: string | null
   visible: boolean
   created_at: string
-  event_documents?: EventDocument[]
+  signed_image_url?: string | null
 }
 
 function CalendarioEventi() {
   const [events, setEvents] = useState<DojoEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
-  const navigate = useNavigate()
+  const [pastOpen, setPastOpen] = useState(false)
 
   useEffect(() => {
     loadEvents()
   }, [])
+
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const upcoming: DojoEvent[] = []
+    const past: DojoEvent[] = []
+
+    events.forEach((event) => {
+      const comparableDate = getComparableEventDate(event)
+
+      if (!comparableDate || comparableDate >= today) {
+        upcoming.push(event)
+      } else {
+        past.push(event)
+      }
+    })
+
+    // Prossimi eventi: dal più vicino al più lontano.
+    upcoming.sort((a, b) => {
+      const dateA = getComparableEventDate(a)?.getTime() ?? Number.MAX_SAFE_INTEGER
+      const dateB = getComparableEventDate(b)?.getTime() ?? Number.MAX_SAFE_INTEGER
+      return dateA - dateB
+    })
+
+    // Eventi passati: ordine inverso rispetto alla logica precedente.
+    // Dal più vecchio al più recente.
+    past.sort((a, b) => {
+      const dateA = getComparableEventDate(a)?.getTime() ?? 0
+      const dateB = getComparableEventDate(b)?.getTime() ?? 0
+      return dateA - dateB
+    })
+
+    return { upcomingEvents: upcoming, pastEvents: past }
+  }, [events])
 
   async function loadEvents() {
     setLoading(true)
@@ -58,61 +85,59 @@ function CalendarioEventi() {
         external_url,
         external_url_label,
         visible,
-        created_at,
-        event_documents (
-          id,
-          event_id,
-          title,
-          file_url,
-          file_type,
-          created_at
-        )
+        created_at
       `)
       .eq('visible', true)
-      .order('event_date', { ascending: true, nullsFirst: false })
-      .order('provisional_year', { ascending: true, nullsFirst: false })
-      .order('provisional_month', { ascending: true, nullsFirst: false })
 
     if (error) {
-      console.error('Errore caricamento eventi:', error)
-      setMessage('Errore durante il caricamento degli eventi.')
+      console.error('Errore caricamento eventi:', error.message)
+      setMessage(`Errore caricamento eventi: ${error.message}`)
+      setEvents([])
       setLoading(false)
       return
     }
 
-    setEvents((data ?? []) as DojoEvent[])
+    const eventsWithSignedImages = await Promise.all(
+      (data ?? []).map(async (event) => {
+        const signedImageUrl = await getSignedUrlFromPublicUrl(event.image_url)
+
+        return {
+          ...event,
+          signed_image_url: signedImageUrl || event.image_url,
+        }
+      })
+    )
+
+    setEvents(eventsWithSignedImages as DojoEvent[])
     setLoading(false)
   }
 
-  function normalizeDate(date: Date) {
-    const normalized = new Date(date)
-    normalized.setHours(0, 0, 0, 0)
-    return normalized
-  }
-
-  function addMonths(date: Date, months: number) {
-    const result = new Date(date)
-    result.setMonth(result.getMonth() + months)
-    return result
-  }
-
-  function getEventComparableDate(event: DojoEvent) {
+  function getComparableEventDate(event: DojoEvent) {
     if (event.event_date && !event.is_date_provisional) {
-      return normalizeDate(new Date(event.event_date))
+      const date = new Date(event.event_date)
+      date.setHours(0, 0, 0, 0)
+      return date
     }
 
     if (event.provisional_year && event.provisional_month) {
-      return normalizeDate(
-        new Date(event.provisional_year, event.provisional_month - 1, 1)
-      )
+      const date = new Date(event.provisional_year, event.provisional_month - 1, 1)
+      date.setHours(0, 0, 0, 0)
+      return date
     }
 
-    return normalizeDate(new Date(event.created_at))
+    if (event.provisional_year) {
+      const date = new Date(event.provisional_year, 0, 1)
+      date.setHours(0, 0, 0, 0)
+      return date
+    }
+
+    return null
   }
 
   function formatEventDate(event: DojoEvent) {
     if (event.event_date && !event.is_date_provisional) {
       return new Date(event.event_date).toLocaleDateString('it-IT', {
+        weekday: 'long',
         day: '2-digit',
         month: 'long',
         year: 'numeric',
@@ -120,132 +145,55 @@ function CalendarioEventi() {
     }
 
     if (event.provisional_year && event.provisional_month) {
-      const provisionalDate = new Date(
-        event.provisional_year,
-        event.provisional_month - 1,
-        1
-      )
+      const date = new Date(event.provisional_year, event.provisional_month - 1, 1)
 
-      return `${provisionalDate.toLocaleDateString('it-IT', {
+      return `${date.toLocaleDateString('it-IT', {
         month: 'long',
         year: 'numeric',
       })} · data provvisoria`
     }
 
+    if (event.provisional_year) {
+      return `${event.provisional_year} · data da definire`
+    }
+
     return 'Data da definire'
   }
 
-  function shortDescription(text: string | null) {
-    if (!text) return ''
-
-    if (text.length <= 150) return text
-
-    return `${text.substring(0, 150)}...`
+  function getShortDescription(description: string | null) {
+    if (!description) return 'Clicca per visualizzare i dettagli dell’evento.'
+    return description.length > 120 ? `${description.slice(0, 120)}...` : description
   }
 
-  const today = useMemo(() => normalizeDate(new Date()), [])
-  const threeMonthsLimit = useMemo(() => normalizeDate(addMonths(today, 3)), [today])
-
-  const groupedEvents = useMemo(() => {
-    const sorted = [...events].sort(
-      (a, b) =>
-        getEventComparableDate(a).getTime() - getEventComparableDate(b).getTime()
-    )
-
-    const past = sorted
-      .filter((event) => getEventComparableDate(event) < today)
-      .sort(
-        (a, b) =>
-          getEventComparableDate(a).getTime() -
-          getEventComparableDate(b).getTime()
-      )
-
-    const nextThreeMonths = sorted.filter((event) => {
-      const eventDate = getEventComparableDate(event)
-      return eventDate >= today && eventDate <= threeMonthsLimit
-    })
-
-    const later = sorted.filter((event) => {
-      const eventDate = getEventComparableDate(event)
-      return eventDate > threeMonthsLimit
-    })
-
-    return {
-      past,
-      nextThreeMonths,
-      later,
-    }
-  }, [events, today, threeMonthsLimit])
-
-  function openEvent(eventId: string) {
-    navigate(`/calendario-eventi/${eventId}`)
-  }
-
-  function renderEventCard(event: DojoEvent, compact = false) {
+  function renderEventRow(event: DojoEvent, compact = false) {
     return (
-      <article
-        key={event.id}
-        style={compact ? compactEventCardStyle : eventCardStyle}
-        onClick={() => openEvent(event.id)}
-      >
-        <div style={eventLeftStyle}>
-          <h3 style={eventTitleBadgeStyle}>{event.title}</h3>
-
-          <p style={eventDateStyle}>{formatEventDate(event)}</p>
-
-          {event.location && <p style={eventLocationStyle}>📍 {event.location}</p>}
-
-          {event.description && (
-            <p style={eventDescriptionStyle}>
-              {compact ? shortDescription(event.description) : event.description}
-            </p>
-          )}
-        </div>
-
-        <div style={eventImageAreaStyle}>
-          {event.image_url ? (
-            <img src={event.image_url} alt={event.title} style={eventImageStyle} />
+      <article key={event.id} style={compact ? pastEventRowStyle : eventRowStyle}>
+        <Link to={`/eventi/${event.id}`} style={eventImageBoxStyle}>
+          {event.signed_image_url ? (
+            <img src={event.signed_image_url} alt={event.title} loading="lazy" style={eventImageStyle} />
           ) : (
-            <div style={eventImagePlaceholderStyle}>Evento</div>
+            <div style={imagePlaceholderStyle}>📅</div>
           )}
-        </div>
+        </Link>
 
-        <div style={eventRightStyle}>
-          {event.external_url && (
-            <a
-              href={event.external_url}
-              target="_blank"
-              rel="noreferrer"
-              style={eventExternalLinkStyle}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {event.external_url_label || 'Link evento'}
-            </a>
-          )}
-
-          {event.event_documents && event.event_documents.length > 0 && (
-            <div style={documentsBoxStyle}>
-              <p style={documentsTitleStyle}>Allegati</p>
-
-              {event.event_documents.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={doc.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={documentLinkStyle}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  📄 {doc.title}
-                </a>
-              ))}
+        <div style={eventRowContentStyle}>
+          <div style={eventRowTopStyle}>
+            <div>
+              <p style={dateBadgeStyle}>{formatEventDate(event)}</p>
+              <h3 style={compact ? pastEventTitleStyle : eventTitleStyle}>{event.title}</h3>
             </div>
-          )}
 
-          {!event.external_url &&
-            (!event.event_documents || event.event_documents.length === 0) && (
-              <p style={noDocsStyle}>Clicca per aprire il dettaglio</p>
-            )}
+            <Link to={`/eventi/${event.id}`} style={openButtonStyle}>
+              Apri evento
+            </Link>
+          </div>
+
+          {!compact && (
+            <>
+              {event.location && <p style={eventMetaStyle}>📍 {event.location}</p>}
+              <p style={eventDescriptionStyle}>{getShortDescription(event.description)}</p>
+            </>
+          )}
         </div>
       </article>
     )
@@ -254,392 +202,353 @@ function CalendarioEventi() {
   return (
     <main style={pageStyle}>
       <section style={heroStyle}>
-        <div style={containerStyle}>
-          <p style={labelStyle}>Calendario eventi</p>
-
-          <h1 style={titleStyle}>Eventi e appuntamenti</h1>
-
-          <p style={introTextStyle}>
-            In questa pagina trovi gli eventi del Dojo Yamato: gare, incontri,
-            appuntamenti e attività programmate. Gli eventi passati restano
-            archiviati e consultabili.
-          </p>
-        </div>
+        <p style={pageBadgeStyle}>Eventi</p>
+        <h1 style={titleStyle}>Calendario eventi</h1>
+        <p style={introStyle}>
+          Gare, esami, stage, appuntamenti e attività del Dojo Yamato.
+        </p>
       </section>
 
       <section style={contentStyle}>
-        <div style={containerStyle}>
-          {loading && <p style={mutedTextStyle}>Caricamento eventi...</p>}
+        {loading && <p style={mutedText}>Caricamento eventi...</p>}
 
-          {!loading && message && <div style={messageBoxStyle}>{message}</div>}
+        {!loading && message && <div style={messageBoxStyle}>{message}</div>}
 
-          {!loading && !message && events.length === 0 && (
-            <div style={emptyBoxStyle}>
-              Non ci sono ancora eventi pubblicati.
-            </div>
-          )}
-
-          {!loading && !message && events.length > 0 && (
-            <>
-              <details style={pastDetailsStyle}>
-                <summary style={pastSummaryStyle}>
-                  <span>Eventi passati</span>
-                  <strong>{groupedEvents.past.length}</strong>
-                </summary>
-
-                <div style={compactListStyle}>
-                  {groupedEvents.past.length === 0 && (
-                    <p style={mutedTextStyle}>Non ci sono eventi passati.</p>
-                  )}
-
-                  {groupedEvents.past.map((event) => renderEventCard(event, true))}
+        {!loading && !message && (
+          <>
+            <section style={pastSectionStyle}>
+              <button
+                type="button"
+                onClick={() => setPastOpen((current) => !current)}
+                style={pastHeaderStyle}
+              >
+                <div>
+                  <p style={sectionBadgeStyle}>Archivio</p>
+                  <h2 style={pastHeaderTitleStyle}>Eventi passati</h2>
                 </div>
-              </details>
 
-              <section style={mainEventsSectionStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div>
-                    <p style={labelStyle}>Prossimi 3 mesi</p>
-                    <h2 style={sectionTitleStyle}>Prossimi eventi</h2>
-                  </div>
-
-                  <span style={countBadgeStyle}>
-                    {groupedEvents.nextThreeMonths.length}
+                <div style={pastHeaderRightStyle}>
+                  <span style={counterPillStyle}>
+                    {pastEvents.length} {pastEvents.length === 1 ? 'evento' : 'eventi'}
                   </span>
+                  <span style={expandIconStyle}>{pastOpen ? '−' : '+'}</span>
+                </div>
+              </button>
+
+              {pastOpen && (
+                <div style={pastListStyle}>
+                  {pastEvents.length === 0 ? (
+                    <div style={emptyBoxStyle}>Non ci sono eventi passati.</div>
+                  ) : (
+                    pastEvents.map((event) => renderEventRow(event, true))
+                  )}
+                </div>
+              )}
+            </section>
+
+            <section style={upcomingSectionStyle}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionBadgeStyle}>Prossimi appuntamenti</p>
+                  <h2 style={sectionTitleStyle}>Eventi in programma</h2>
                 </div>
 
-                {groupedEvents.nextThreeMonths.length === 0 && (
-                  <div style={emptyBoxStyle}>
-                    Non ci sono eventi in programma nei prossimi 3 mesi.
-                  </div>
-                )}
+                <span style={counterPillStyle}>
+                  {upcomingEvents.length} {upcomingEvents.length === 1 ? 'evento' : 'eventi'}
+                </span>
+              </div>
 
+              {upcomingEvents.length === 0 ? (
+                <div style={emptyBoxStyle}>Non ci sono eventi futuri disponibili.</div>
+              ) : (
                 <div style={eventsListStyle}>
-                  {groupedEvents.nextThreeMonths.map((event) =>
-                    renderEventCard(event)
-                  )}
+                  {upcomingEvents.map((event) => renderEventRow(event))}
                 </div>
-              </section>
-
-              <details style={futureDetailsStyle}>
-                <summary style={futureSummaryStyle}>
-                  <span>Eventi futuri da 4 mesi in poi</span>
-                  <strong>{groupedEvents.later.length}</strong>
-                </summary>
-
-                <div style={compactListStyle}>
-                  {groupedEvents.later.length === 0 && (
-                    <p style={mutedTextStyle}>
-                      Non ci sono eventi futuri oltre i prossimi 3 mesi.
-                    </p>
-                  )}
-
-                  {groupedEvents.later.map((event) => renderEventCard(event, true))}
-                </div>
-              </details>
-            </>
-          )}
-        </div>
+              )}
+            </section>
+          </>
+        )}
       </section>
     </main>
   )
 }
 
-const pageStyle: CSSProperties = {
-  minHeight: '90vh',
-  background:
-    'radial-gradient(circle at top, rgba(130,35,43,0.12), transparent 32%), #0b0f1a',
+const dojoBadgeStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '6px 12px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
   color: 'white',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.8px',
+  textTransform: 'uppercase',
+  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
 }
 
-const containerStyle: CSSProperties = {
-  width: 'min(1120px, calc(100% - 32px))',
-  margin: '0 auto',
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  background: '#020817',
+  color: 'white',
+  padding: '58px 24px 90px',
 }
 
 const heroStyle: CSSProperties = {
-  padding: '54px 0 24px',
+  width: 'min(1180px, calc(100% - 8px))',
+  margin: '0 auto 34px',
+  display: 'grid',
+  gap: '16px',
 }
 
-const labelStyle: CSSProperties = {
-  color: '#d95b64',
-  fontWeight: 900,
-  letterSpacing: '2px',
-  textTransform: 'uppercase',
-  fontSize: '12px',
-  marginBottom: '8px',
-}
+const pageBadgeStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
-  fontSize: 'clamp(2.2rem, 6vw, 4.4rem)',
-  lineHeight: 1.02,
   margin: 0,
-  letterSpacing: '-0.7px',
+  fontSize: 'clamp(48px, 8vw, 82px)',
+  lineHeight: 0.98,
+  fontWeight: 950,
 }
 
-const introTextStyle: CSSProperties = {
-  maxWidth: '860px',
-  color: '#d7dbe3',
-  fontSize: '16px',
+const introStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: '850px',
+  color: '#d8d8d8',
+  fontSize: '18px',
   lineHeight: 1.7,
-  marginTop: '16px',
 }
 
 const contentStyle: CSSProperties = {
-  padding: '18px 0 72px',
+  width: 'min(1180px, calc(100% - 8px))',
+  margin: '0 auto',
+  display: 'grid',
+  gap: '22px',
 }
 
-const mutedTextStyle: CSSProperties = {
-  color: '#d7dbe3',
-  lineHeight: 1.6,
-}
-
-const messageBoxStyle: CSSProperties = {
-  background: 'rgba(185,68,79,0.18)',
-  border: '1px solid rgba(185,68,79,0.28)',
-  color: '#f3dede',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const emptyBoxStyle: CSSProperties = {
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  borderRadius: '18px',
-  padding: '20px',
-  color: '#d7dbe3',
-}
-
-const pastDetailsStyle: CSSProperties = {
-  marginBottom: '22px',
-  background: 'rgba(255,255,255,0.035)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '18px',
+const pastSectionStyle: CSSProperties = {
+  borderRadius: '22px',
   overflow: 'hidden',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.04))',
+  border: '1px solid rgba(255,255,255,0.10)',
 }
 
-const pastSummaryStyle: CSSProperties = {
-  cursor: 'pointer',
-  listStyle: 'none',
-  padding: '16px 18px',
+const pastHeaderStyle: CSSProperties = {
+  width: '100%',
+  border: 'none',
+  background: 'transparent',
+  color: 'white',
+  padding: '18px 20px',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  color: '#b9bec9',
-  fontWeight: 800,
-  fontSize: '15px',
+  gap: '18px',
+  cursor: 'pointer',
+  textAlign: 'left',
 }
 
-const mainEventsSectionStyle: CSSProperties = {
-  marginBottom: '22px',
+const pastHeaderTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: '24px',
+  fontWeight: 950,
+}
+
+const pastHeaderRightStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+}
+
+const expandIconStyle: CSSProperties = {
+  width: '38px',
+  height: '38px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  color: 'white',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '26px',
+  fontWeight: 950,
+  flexShrink: 0,
+}
+
+const pastListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '0 16px 16px',
+}
+
+const upcomingSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
 }
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '16px',
-  marginBottom: '16px',
+  alignItems: 'flex-end',
+  gap: '18px',
+  flexWrap: 'wrap',
+  padding: '20px',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.04))',
+  border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const sectionBadgeStyle: CSSProperties = {
+  ...dojoBadgeStyle,
+  margin: '0 0 10px',
 }
 
 const sectionTitleStyle: CSSProperties = {
-  fontSize: 'clamp(2rem, 4.5vw, 3.3rem)',
-  lineHeight: 1.05,
   margin: 0,
+  fontSize: '30px',
+  fontWeight: 950,
 }
 
-const countBadgeStyle: CSSProperties = {
-  minWidth: '34px',
-  height: '34px',
+const counterPillStyle: CSSProperties = {
+  padding: '8px 14px',
   borderRadius: '999px',
-  background: 'rgba(185,68,79,0.20)',
-  color: '#f3dede',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
+  background: 'rgba(255,255,255,0.10)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  color: 'white',
+  fontSize: '13px',
   fontWeight: 900,
+  whiteSpace: 'nowrap',
 }
 
 const eventsListStyle: CSSProperties = {
   display: 'grid',
+  gap: '14px',
+}
+
+const eventRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '170px 1fr',
   gap: '16px',
+  overflow: 'hidden',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.045))',
+  border: '1px solid rgba(255,255,255,0.12)',
+  boxShadow: '0 16px 36px rgba(0,0,0,0.26)',
 }
 
-const compactListStyle: CSSProperties = {
+const pastEventRowStyle: CSSProperties = {
   display: 'grid',
+  gridTemplateColumns: '110px 1fr',
   gap: '12px',
-  padding: '0 14px 14px',
-}
-
-const eventCardStyle: CSSProperties = {
-  cursor: 'pointer',
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, 260px) minmax(190px, 260px)',
-  gap: '18px',
-  alignItems: 'center',
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  borderRadius: '20px',
-  padding: '18px',
-  transition: 'transform 0.2s ease, border-color 0.2s ease',
-}
-
-const compactEventCardStyle: CSSProperties = {
-  ...eventCardStyle,
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(150px, 220px) minmax(170px, 230px)',
-  padding: '14px',
+  overflow: 'hidden',
   borderRadius: '16px',
-  background: 'rgba(255,255,255,0.035)',
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.08)',
 }
 
-const eventLeftStyle: CSSProperties = {
-  minWidth: 0,
+const eventImageBoxStyle: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  minHeight: '110px',
+  overflow: 'hidden',
+  background: '#101827',
+  textDecoration: 'none',
 }
 
-const eventTitleBadgeStyle: CSSProperties = {
-  display: 'inline-flex',
+const eventImageStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  minHeight: '110px',
+  objectFit: 'cover',
+  display: 'block',
+}
+
+const imagePlaceholderStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  minHeight: '110px',
+  display: 'flex',
   alignItems: 'center',
-  width: 'fit-content',
-  maxWidth: '100%',
-  margin: '0 0 9px',
-  padding: '7px 14px',
-  borderRadius: '999px',
-  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
-  color: 'white',
-  fontSize: 'clamp(14px, 1.7vw, 17px)',
-  lineHeight: 1.18,
-  fontWeight: 800,
-  letterSpacing: '-0.15px',
-  boxShadow: '0 8px 18px rgba(80,10,18,0.24)',
+  justifyContent: 'center',
+  fontSize: '34px',
+  background: 'linear-gradient(135deg, rgba(185,68,79,0.22), rgba(255,255,255,0.08))',
 }
 
-const eventDateStyle: CSSProperties = {
+const eventRowContentStyle: CSSProperties = {
+  padding: '14px 16px',
+  display: 'grid',
+  gap: '9px',
+  alignContent: 'center',
+}
+
+const eventRowTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
+}
+
+const dateBadgeStyle: CSSProperties = {
+  ...dojoBadgeStyle,
   margin: '0 0 7px',
-  color: '#f2f2f2',
-  fontSize: '14px',
-  fontWeight: 800,
-  lineHeight: 1.4,
+  padding: '5px 10px',
+  fontSize: '11px',
 }
 
-const eventLocationStyle: CSSProperties = {
-  margin: '0 0 9px',
-  color: '#d7dbe3',
+const eventTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'white',
+  fontSize: '23px',
+  fontWeight: 950,
+  lineHeight: 1.18,
+}
+
+const pastEventTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'white',
+  fontSize: '17px',
+  fontWeight: 950,
+  lineHeight: 1.18,
+}
+
+const eventMetaStyle: CSSProperties = {
+  margin: 0,
+  color: '#f3dede',
   fontSize: '14px',
   lineHeight: 1.45,
 }
 
 const eventDescriptionStyle: CSSProperties = {
   margin: 0,
-  color: '#cfd3dc',
+  color: '#d8d8d8',
   fontSize: '14px',
   lineHeight: 1.6,
-  whiteSpace: 'pre-line',
 }
 
-const eventImageAreaStyle: CSSProperties = {
-  width: '100%',
-}
-
-const eventImageStyle: CSSProperties = {
-  width: '100%',
-  height: '135px',
-  objectFit: 'cover',
-  borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  display: 'block',
-}
-
-const eventImagePlaceholderStyle: CSSProperties = {
-  width: '100%',
-  height: '135px',
-  borderRadius: '14px',
-  background:
-    'linear-gradient(135deg, rgba(185,68,79,0.22), rgba(255,255,255,0.05))',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: '#f3dede',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '1px',
-  fontSize: '12px',
-}
-
-const eventRightStyle: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-  alignContent: 'center',
-}
-
-const eventExternalLinkStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 'fit-content',
-  maxWidth: '100%',
-  background: 'rgba(255,255,255,0.92)',
-  color: '#111',
+const openButtonStyle: CSSProperties = {
+  ...dojoBadgeStyle,
   textDecoration: 'none',
-  borderRadius: '999px',
-  padding: '9px 13px',
-  fontSize: '13px',
-  fontWeight: 900,
-}
-
-const documentsBoxStyle: CSSProperties = {
-  display: 'grid',
-  gap: '7px',
-}
-
-const documentsTitleStyle: CSSProperties = {
-  margin: 0,
-  color: '#d95b64',
-  fontSize: '12px',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '1px',
-}
-
-const documentLinkStyle: CSSProperties = {
-  color: '#f2f2f2',
-  textDecoration: 'none',
-  background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '12px',
-  padding: '8px 10px',
-  fontSize: '12px',
-  fontWeight: 800,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  justifySelf: 'start',
+  border: 'none',
+  cursor: 'pointer',
   whiteSpace: 'nowrap',
 }
 
-const noDocsStyle: CSSProperties = {
-  margin: 0,
-  color: '#b9bec9',
-  fontSize: '13px',
-  lineHeight: 1.5,
+const mutedText: CSSProperties = {
+  color: '#d8d8d8',
+  lineHeight: 1.6,
 }
 
-const futureDetailsStyle: CSSProperties = {
-  marginTop: '22px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.085)',
+const emptyBoxStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.08)',
   borderRadius: '18px',
-  overflow: 'hidden',
+  padding: '22px',
+  color: '#d8d8d8',
 }
 
-const futureSummaryStyle: CSSProperties = {
-  cursor: 'pointer',
-  listStyle: 'none',
-  padding: '16px 18px',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  color: '#f2f2f2',
-  fontWeight: 850,
-  fontSize: '15px',
+const messageBoxStyle: CSSProperties = {
+  background: 'rgba(185,68,79,0.18)',
+  border: '1px solid rgba(185,68,79,0.28)',
+  padding: '14px 16px',
+  borderRadius: '14px',
+  color: '#f3dede',
 }
 
 export default CalendarioEventi

@@ -1,0 +1,39 @@
+DOJO YAMATO - VERSIONE PULITA PER DEPLOY
+
+DOVE POSIZIONARE I FILE
+1) Scompatta lo ZIP.
+2) Copia tutto il contenuto della cartella dojo-yamato-production dentro la cartella principale del progetto React/Vite.
+3) Sovrascrivi i file esistenti quando Windows lo chiede.
+4) Non copiare node_modules, dist o .git da vecchie versioni.
+
+FILE IMPORTANTI AGGIUNTI / RISCRITTI
+- src/App.tsx
+- src/App.css
+- src/components/Header.tsx
+- src/components/Footer.tsx
+- src/lib/supabaseClient.ts
+- netlify.toml
+- .env.example
+- README.md
+
+PULIZIA EFFETTUATA
+- Rimossi da src i file backup/doppi che appesantivano il progetto.
+- Spostati i backup in _removed-backups.
+- Spostate immagini non referenziate in _removed-backups/assets-unused.
+- Ottimizzate immagini principali mantenendo i nomi attuali.
+- Separato Header e Footer da App.tsx per struttura piu scalabile.
+- Aggiunto netlify.toml per deploy SPA su Netlify.
+- Aggiunto controllo esplicito variabili Supabase.
+
+COMANDI
+npm install
+npm run dev
+npm run build
+
+NETLIFY
+Imposta in Netlify:
+- Build command: npm run build
+- Publish directory: dist
+- Variabili ambiente:
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY

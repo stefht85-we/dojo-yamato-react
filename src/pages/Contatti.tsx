@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 
-const CONTACT_EMAIL = ''
-
 function Contatti() {
   const [nome, setNome] = useState('')
   const [cognome, setCognome] = useState('')
@@ -11,8 +9,9 @@ function Contatti() {
   const [email, setEmail] = useState('')
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
+  const [isSending, setIsSending] = useState(false)
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
     if (!nome.trim() || !cognome.trim() || !telefono.trim() || !email.trim()) {
@@ -20,29 +19,36 @@ function Contatti() {
       return
     }
 
-    if (!CONTACT_EMAIL) {
+    setIsSending(true)
+    setMessage('')
+
+    try {
+      const formData = new FormData(e.currentTarget)
+
+      const response = await fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(formData as unknown as Record<string, string>).toString(),
+      })
+
+      if (!response.ok) {
+        throw new Error('Invio non riuscito')
+      }
+
+      setMessage('Richiesta inviata correttamente. Ti ricontatteremo presto.')
+      setNome('')
+      setCognome('')
+      setEta('')
+      setTelefono('')
+      setEmail('')
+      setNote('')
+    } catch (error) {
       setMessage(
-        'Richiesta preparata correttamente. L’indirizzo email di destinazione non è ancora configurato nel sito.'
+        'Errore durante l’invio. Se stai provando in locale, il form funzionerà dopo il deploy su Netlify.'
       )
-      return
+    } finally {
+      setIsSending(false)
     }
-
-    const subject = encodeURIComponent(
-      `Richiesta informazioni corso Karate - ${nome} ${cognome}`
-    )
-
-    const body = encodeURIComponent(
-      `Richiesta informazioni dal sito A.S.D. Dojo Yamato\n\n` +
-        `Nome: ${nome}\n` +
-        `Cognome: ${cognome}\n` +
-        `Età atleta / bambino: ${eta || 'Non indicata'}\n` +
-        `Telefono: ${telefono}\n` +
-        `Email: ${email}\n\n` +
-        `Note / informazioni aggiuntive:\n${note || 'Nessuna nota'}`
-    )
-
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`
-    setMessage('Si sta aprendo il programma email per inviare la richiesta.')
   }
 
   return (
@@ -116,10 +122,24 @@ function Contatti() {
                   Verrai ricontattato appena possibile.
                 </p>
 
-                <form onSubmit={handleSubmit} style={formStyle}>
+                <form
+                  name="contatti-dojo-yamato"
+                  method="POST"
+                  data-netlify="true"
+                  netlify-honeypot="bot-field"
+                  onSubmit={handleSubmit}
+                  style={formStyle}
+                >
+                  <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
+                  <p style={hiddenFieldStyle}>
+                    <label>
+                      Non compilare questo campo: <input name="bot-field" />
+                    </label>
+                  </p>
                   <div style={twoColumnsStyle}>
                     <input
                       type="text"
+                      name="nome"
                       placeholder="Nome"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
@@ -128,6 +148,7 @@ function Contatti() {
 
                     <input
                       type="text"
+                      name="cognome"
                       placeholder="Cognome"
                       value={cognome}
                       onChange={(e) => setCognome(e.target.value)}
@@ -138,6 +159,7 @@ function Contatti() {
                   <div style={twoColumnsStyle}>
                     <input
                       type="text"
+                      name="eta"
                       placeholder="Età atleta / bambino"
                       value={eta}
                       onChange={(e) => setEta(e.target.value)}
@@ -146,6 +168,7 @@ function Contatti() {
 
                     <input
                       type="tel"
+                      name="telefono"
                       placeholder="Numero di telefono"
                       value={telefono}
                       onChange={(e) => setTelefono(e.target.value)}
@@ -155,6 +178,7 @@ function Contatti() {
 
                   <input
                     type="email"
+                    name="email"
                     placeholder="Email per essere ricontattati"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -162,6 +186,7 @@ function Contatti() {
                   />
 
                   <textarea
+                    name="note"
                     placeholder="Note o informazioni aggiuntive"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
@@ -169,8 +194,8 @@ function Contatti() {
                     style={textareaStyle}
                   />
 
-                  <button type="submit" style={submitButtonStyle}>
-                    Invia richiesta
+                  <button type="submit" style={submitButtonStyle} disabled={isSending}>
+                    {isSending ? 'Invio in corso...' : 'Invia richiesta'}
                   </button>
 
                   {message && <p style={messageStyle}>{message}</p>}
