@@ -131,6 +131,10 @@ function Contatti() {
                   style={formStyle}
                 >
                   <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
+
+                  <p style={{ display: 'none' }}>
+                    <label>Non compilare: <input name="bot-field" /></label>
+                  </p>
                   <p style={hiddenFieldStyle}>
                     <label>
                       Non compilare questo campo: <input name="bot-field" />
