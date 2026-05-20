@@ -1,0 +1,29 @@
+
+NUOVA VERSIONE v5 - MIGLIORAMENTI UI
+
+Aggiunto:
+- Area consigli compressione immagini
+- Area consigli compressione video
+- Barra avanzamento con percentuale
+- Miglioramenti interfaccia
+
+TESTI DA INSERIRE NEL PROGRAMMA:
+
+IMMAGINI:
+WEBP consigliato
+1600-1920 px
+Qualità 75-80
+200-300 KB
+DPI 96
+
+VIDEO:
+720p o 1080p
+CRF 28-30
+Bitrate 1200k-2500k
+30 FPS
+AAC 96k/128k
+
+NOTE:
+- HEIC iPhone è già molto compresso
+- PNG non è ideale per fotografie
+- 4K 60fps produce file molto pesanti

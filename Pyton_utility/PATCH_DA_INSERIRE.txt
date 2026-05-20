@@ -1,0 +1,96 @@
+
+# PATCH DA INSERIRE NEL FILE PRINCIPALE
+
+# =========================
+# AREA CONSIGLI IMMAGINI
+# =========================
+
+tips_images = tk.LabelFrame(
+    image_frame,
+    text="Consigli compressione immagini",
+    padx=8,
+    pady=8
+)
+tips_images.pack(fill="both", expand=True, pady=(10, 0))
+
+tips_img_text = """
+WEBP consigliato
+1600-1920 px
+Qualità 75-80
+200-300 KB
+DPI 96
+
+PNG solo per loghi
+HEIC iPhone è già compresso
+"""
+
+tk.Label(
+    tips_images,
+    text=tips_img_text,
+    justify="left",
+    anchor="w",
+    fg="#444"
+).pack(fill="both", expand=True)
+
+# =========================
+# AREA CONSIGLI VIDEO
+# =========================
+
+tips_videos = tk.LabelFrame(
+    video_frame,
+    text="Consigli compressione video",
+    padx=8,
+    pady=8
+)
+tips_videos.pack(fill="both", expand=True, pady=(10, 0))
+
+tips_video_text = """
+720p o 1080p
+CRF 28-30
+Bitrate 1200k-2500k
+30 FPS
+AAC 96k/128k
+
+4K pesa molto
+H264 = compatibilità browser
+"""
+
+tk.Label(
+    tips_videos,
+    text=tips_video_text,
+    justify="left",
+    anchor="w",
+    fg="#444"
+).pack(fill="both", expand=True)
+
+# =========================
+# BARRA AVANZAMENTO
+# =========================
+
+progress_container = tk.Frame(main)
+progress_container.pack(fill="x", pady=(8, 4))
+
+self.progress = ttk.Progressbar(
+    progress_container,
+    orient="horizontal",
+    mode="determinate",
+    length=500
+)
+self.progress.pack(side="left", fill="x", expand=True)
+
+self.progress_percent = tk.StringVar(value="0%")
+
+tk.Label(
+    progress_container,
+    textvariable=self.progress_percent,
+    font=("Segoe UI", 10, "bold")
+).pack(side="left", padx=(10, 0))
+
+# =========================
+# UPDATE PROGRESS
+# =========================
+
+def update_progress(self, current, total, filename):
+    self.progress["value"] = current
+    percent = round((current / total) * 100)
+    self.progress_percent.set(f"{percent}%")
