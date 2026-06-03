@@ -135,11 +135,6 @@ function Contatti() {
                   <p style={{ display: 'none' }}>
                     <label>Non compilare: <input name="bot-field" /></label>
                   </p>
-                  <p style={hiddenFieldStyle}>
-                    <label>
-                      Non compilare questo campo: <input name="bot-field" />
-                    </label>
-                  </p>
                   <div style={twoColumnsStyle}>
                     <input
                       type="text"
@@ -458,14 +453,6 @@ const formIntroStyle: CSSProperties = {
   margin: '0 0 18px',
 }
 
-
-const hiddenFieldStyle: CSSProperties = {
-  position: 'absolute',
-  left: '-9999px',
-  width: '1px',
-  height: '1px',
-  overflow: 'hidden',
-}
 
 const formStyle: CSSProperties = {
   display: 'grid',

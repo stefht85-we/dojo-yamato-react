@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { uploadFileToR2 } from '../lib/r2UploadClient'
 
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const NEWS_MEDIA_BUCKET = 'news-media'
@@ -18,16 +19,10 @@ const VIDEO_EXTENSIONS = [
   '.mpg', '.mpe', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.ogv', '.ogg', '.asf'
 ]
 
-const DOCUMENT_EXTENSIONS = [
-  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv'
-]
-
 const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
 const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
 const PDF_ACCEPT = '.pdf,application/pdf'
 const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
-const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
-
 function hasExtension(fileName: string, extensions: string[]) {
   const cleanName = fileName.toLowerCase().trim()
   return extensions.some((ext) => cleanName.endsWith(ext))
@@ -43,14 +38,6 @@ function isVideoFile(file: File) {
 
 function isPdfFile(file: File) {
   return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
-}
-
-function isDocumentFile(file: File) {
-  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
-}
-
-function isAllowedMediaFile(file: File) {
-  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
 }
 
 type MediaType = 'image' | 'video' | 'pdf' | 'youtube' | 'social'
@@ -241,19 +228,10 @@ function AdminNews() {
   }
 
   async function uploadFileToBucket(file: File, bucket: string, folder: string) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `${folder}/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
-
-    return data.publicUrl
+    // Compatibilità con il codice esistente: il parametro bucket resta presente,
+    // ma il file viene caricato su Cloudflare R2 e non più su Supabase Storage.
+    void bucket
+    return uploadFileToR2(file, folder)
   }
 
 
@@ -287,7 +265,7 @@ function AdminNews() {
       const coverUrl = await uploadFileToBucket(
         newsCoverFile,
         NEWS_MEDIA_BUCKET,
-        `news/${selectedNewsId}/cover`
+        `news/cover/${selectedNewsId}`
       )
 
       const { error } = await supabase
@@ -476,7 +454,7 @@ function AdminNews() {
         }
 
         const mediaType: MediaType = isImage ? 'image' : isVideo ? 'video' : 'pdf'
-        const fileUrl = await uploadFileToBucket(file, NEWS_MEDIA_BUCKET, `news/${selectedNewsId}`)
+        const fileUrl = await uploadFileToBucket(file, NEWS_MEDIA_BUCKET, `news/media/${selectedNewsId}`)
 
         uploadedMedia.push({
           news_id: selectedNewsId,
@@ -624,7 +602,7 @@ function AdminNews() {
         previewUrl = await uploadFileToBucket(
           newsSocialPreviewFile,
           NEWS_MEDIA_BUCKET,
-          `news/${selectedNewsId}/social-previews`
+          `news/media/${selectedNewsId}/social-previews`
         )
       }
 
@@ -1284,8 +1262,6 @@ const sectionHintStyle: CSSProperties = {
   textAlign: 'right',
 }
 
-const galleryAdminLayout: CSSProperties = newsAdminTopLayout
-
 const formStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -1416,26 +1392,6 @@ const compactAlbumMain: CSSProperties = {
   display: 'flex',
   gap: '10px',
   alignItems: 'center',
-}
-
-const compactCoverStyle: CSSProperties = {
-  width: '56px',
-  height: '56px',
-  objectFit: 'cover',
-  borderRadius: '10px',
-  flexShrink: 0,
-}
-
-const compactCoverPlaceholder: CSSProperties = {
-  width: '56px',
-  height: '56px',
-  borderRadius: '10px',
-  flexShrink: 0,
-  background: 'rgba(185,68,79,0.18)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '22px',
 }
 
 const compactAlbumTitle: CSSProperties = {

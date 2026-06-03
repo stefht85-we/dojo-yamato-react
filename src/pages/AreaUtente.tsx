@@ -55,14 +55,6 @@ function isPdfFile(file: File) {
   return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
 }
 
-function isDocumentFile(file: File) {
-  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
-}
-
-function isAllowedMediaFile(file: File) {
-  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
-}
-
 type AdminTab =
   | 'news'
   | 'galleria'

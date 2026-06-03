@@ -653,14 +653,6 @@ const lockedTextStyle: CSSProperties = {
   lineHeight: 1.45,
 }
 
-const openButtonStyle: CSSProperties = {
-  ...dojoBadgeStyle,
-  textDecoration: 'none',
-  justifySelf: 'start',
-  border: 'none',
-  cursor: 'pointer',
-}
-
 const mutedText: CSSProperties = {
   color: '#d8d8d8',
   lineHeight: 1.6,

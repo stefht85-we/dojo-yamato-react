@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# Local Netlify folder
+.netlify
+# Local credentials / temporary files
+R2_CREDENTIAL.txt
+*.zip
+.env
+.env.local
+.env.*.local

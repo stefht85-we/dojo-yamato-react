@@ -23,33 +23,7 @@ const DOCUMENT_EXTENSIONS = [
 const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
 const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
 const PDF_ACCEPT = '.pdf,application/pdf'
-const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
 const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
-
-function hasExtension(fileName: string, extensions: string[]) {
-  const cleanName = fileName.toLowerCase().trim()
-  return extensions.some((ext) => cleanName.endsWith(ext))
-}
-
-function isImageFile(file: File) {
-  return file.type.startsWith('image/') || hasExtension(file.name, IMAGE_EXTENSIONS)
-}
-
-function isVideoFile(file: File) {
-  return file.type.startsWith('video/') || hasExtension(file.name, VIDEO_EXTENSIONS)
-}
-
-function isPdfFile(file: File) {
-  return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
-}
-
-function isDocumentFile(file: File) {
-  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
-}
-
-function isAllowedMediaFile(file: File) {
-  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
-}
 
 type TheorySection = 'fondamenti' | 'risorse'
 type TheoryResourceType = 'file' | 'video' | 'youtube' | 'social' | 'link'
