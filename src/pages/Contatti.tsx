@@ -131,10 +131,9 @@ function Contatti() {
                   style={formStyle}
                 >
                   <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
-                  <p style={hiddenFieldStyle}>
-                    <label>
-                      Non compilare questo campo: <input name="bot-field" />
-                    </label>
+
+                  <p style={{ display: 'none' }}>
+                    <label>Non compilare: <input name="bot-field" /></label>
                   </p>
                   <div style={twoColumnsStyle}>
                     <input
@@ -453,6 +452,7 @@ const formIntroStyle: CSSProperties = {
   lineHeight: 1.7,
   margin: '0 0 18px',
 }
+
 
 const formStyle: CSSProperties = {
   display: 'grid',
