@@ -110,7 +110,7 @@ export default function PublicNews({
             )}
 
             <div style={styles.cardBody}>
-              <p style={styles.date}>{formatDate(item.news_date || item.created_at)}</p>
+              <p style={styles.date}>Pubblicazione: {formatDate(item.news_date || item.created_at)}</p>
 
               <h3 style={styles.cardTitle}>{item.title}</h3>
 

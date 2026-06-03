@@ -96,18 +96,6 @@ function Insegnanti() {
               <div style={teachersGridStyle}>
                 {teachers.map((teacher) => (
                   <article key={teacher.id} className="teacher-card" style={teacherCardStyle}>
-                    <div style={portraitBoxStyle}>
-                      {teacher.foto_primo_piano_url ? (
-                        <img
-                          src={teacher.foto_primo_piano_url}
-                          alt={`${teacher.nome} ${teacher.cognome}`}
-                          style={portraitImageStyle}
-                        />
-                      ) : (
-                        <div style={photoPlaceholderStyle}>Primo piano</div>
-                      )}
-                    </div>
-
                     <div style={teacherContentStyle}>
                       <h2 style={teacherNameStyle}>
                         {teacher.nome} {teacher.cognome}
@@ -135,16 +123,32 @@ function Insegnanti() {
                       )}
                     </div>
 
-                    <div style={karateBoxStyle}>
-                      {teacher.foto_karate_url ? (
-                        <img
-                          src={teacher.foto_karate_url}
-                          alt={`${teacher.nome} ${teacher.cognome} in posizione di Karate`}
-                          style={karateImageStyle}
-                        />
-                      ) : (
-                        <div style={photoPlaceholderStyle}>Karate</div>
-                      )}
+                    <div className="teacher-photos" style={teacherPhotosStyle}>
+                      <div style={portraitBoxStyle}>
+                        {teacher.foto_primo_piano_url ? (
+                          <img
+                            src={teacher.foto_primo_piano_url}
+                            alt={`${teacher.nome} ${teacher.cognome}`}
+                            style={portraitImageStyle}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div style={photoPlaceholderStyle}>Primo piano</div>
+                        )}
+                      </div>
+
+                      <div style={karateBoxStyle}>
+                        {teacher.foto_karate_url ? (
+                          <img
+                            src={teacher.foto_karate_url}
+                            alt={`${teacher.nome} ${teacher.cognome} in posizione di Karate`}
+                            style={karateImageStyle}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div style={photoPlaceholderStyle}>Karate</div>
+                        )}
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -158,8 +162,29 @@ function Insegnanti() {
 }
 
 const responsiveCss = `
-@media (max-width: 920px) {
+.teacher-card,
+.teacher-photos {
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.teacher-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.28) !important;
+}
+
+@media (max-width: 980px) {
   .teacher-card {
+    grid-template-columns: 1fr !important;
+  }
+
+  .teacher-photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .teacher-photos {
     grid-template-columns: 1fr !important;
   }
 }
@@ -179,7 +204,7 @@ const containerStyle: React.CSSProperties = {
 }
 
 const heroStyle: React.CSSProperties = {
-  padding: '64px 0 28px',
+  padding: 'clamp(42px, 6vw, 64px) 0 24px',
 }
 
 const labelStyle: React.CSSProperties = {
@@ -201,29 +226,29 @@ const titleStyle: React.CSSProperties = {
 const introStyle: React.CSSProperties = {
   maxWidth: '920px',
   color: '#d9dde7',
-  fontSize: '18px',
-  lineHeight: 1.75,
+  fontSize: 'clamp(16px, 2vw, 18px)',
+  lineHeight: 1.7,
   margin: 0,
 }
 
 const contentStyle: React.CSSProperties = {
-  padding: '22px 0 86px',
+  padding: '18px 0 clamp(54px, 8vw, 86px)',
 }
 
 const teachersGridStyle: React.CSSProperties = {
   display: 'grid',
-  gap: '24px',
+  gap: 'clamp(18px, 3vw, 26px)',
 }
 
 const teacherCardStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '210px 1fr 280px',
-  gap: '24px',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 42%)',
+  gap: 'clamp(18px, 3vw, 30px)',
   alignItems: 'stretch',
   background: 'rgba(255,255,255,0.055)',
   border: '1px solid rgba(255,255,255,0.09)',
   borderRadius: '24px',
-  padding: '18px',
+  padding: 'clamp(16px, 2.4vw, 24px)',
   boxShadow: '0 18px 42px rgba(0,0,0,0.18)',
 }
 
@@ -235,24 +260,33 @@ const karateBoxStyle: React.CSSProperties = {
   minWidth: 0,
 }
 
+const teacherPhotosStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.92fr) minmax(0, 1.08fr)',
+  gap: 'clamp(12px, 2vw, 18px)',
+  alignItems: 'stretch',
+}
+
 const portraitImageStyle: React.CSSProperties = {
   width: '100%',
-  height: '300px',
+  height: 'clamp(260px, 34vw, 360px)',
   objectFit: 'cover',
   borderRadius: '18px',
   background: '#111827',
+  display: 'block',
 }
 
 const karateImageStyle: React.CSSProperties = {
   width: '100%',
-  height: '300px',
+  height: 'clamp(260px, 34vw, 360px)',
   objectFit: 'cover',
   borderRadius: '18px',
   background: '#111827',
+  display: 'block',
 }
 
 const photoPlaceholderStyle: React.CSSProperties = {
-  height: '300px',
+  minHeight: 'clamp(260px, 34vw, 360px)',
   borderRadius: '18px',
   background: 'rgba(255,255,255,0.08)',
   display: 'flex',
@@ -266,16 +300,18 @@ const photoPlaceholderStyle: React.CSSProperties = {
 const teacherContentStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  justifyContent: 'flex-start',
-  padding: '4px 4px 4px',
+  justifyContent: 'center',
+  minWidth: 0,
+  padding: 'clamp(4px, 1vw, 10px)',
 }
 
 const teacherNameStyle: React.CSSProperties = {
   margin: '0 0 14px',
-  fontSize: 'clamp(32px, 4vw, 48px)',
+  fontSize: 'clamp(30px, 4vw, 48px)',
   lineHeight: 1.02,
   fontWeight: 950,
   letterSpacing: '-0.8px',
+  overflowWrap: 'anywhere',
 }
 
 const badgesRowStyle: React.CSSProperties = {
@@ -317,9 +353,10 @@ const metaStyle: React.CSSProperties = {
 
 const descriptionStyle: React.CSSProperties = {
   color: '#e5e7eb',
-  fontSize: '16px',
-  lineHeight: 1.75,
+  fontSize: 'clamp(15px, 1.8vw, 16px)',
+  lineHeight: 1.7,
   margin: 0,
+  overflowWrap: 'anywhere',
 }
 
 const messageBoxStyle: React.CSSProperties = {

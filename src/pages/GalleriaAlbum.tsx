@@ -344,37 +344,15 @@ function GalleriaAlbum() {
                   </div>
                 </button>
 
-                {item.caption && (
+                {(item.caption || !canAccessMedia) && (
                   <div style={mediaCardBodyStyle}>
-                    <h3 style={mediaTitleStyle}>{item.caption}</h3>
+                    {item.caption && <h3 style={mediaTitleStyle}>{item.caption}</h3>}
 
                     {!canAccessMedia && (
                       <p style={lockedTextStyle}>
                         Accesso richiesto per aprire questo contenuto.
                       </p>
                     )}
-
-                    {canAccessMedia && (
-                      <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
-                        Apri contenuto
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {!item.caption && !canAccessMedia && (
-                  <div style={mediaCardBodyStyle}>
-                    <p style={lockedTextStyle}>
-                      Accesso richiesto per aprire questo contenuto.
-                    </p>
-                  </div>
-                )}
-
-                {!item.caption && canAccessMedia && (
-                  <div style={mediaCardBodyStyle}>
-                    <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
-                      Apri contenuto
-                    </button>
                   </div>
                 )}
               </article>

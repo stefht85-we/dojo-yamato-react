@@ -19,6 +19,7 @@ import CalendarioEventi from './pages/CalendarioEventi'
 import EventoDettaglio from './pages/EventoDettaglio'
 import Documenti from './pages/Documenti'
 import DifesaPersonale from './pages/DifesaPersonale'
+import Competizioni from './pages/Competizioni'
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
           <Route path="/eventi/:eventoId" element={<EventoDettaglio />} />
           <Route path="/documenti" element={<Documenti />} />
           <Route path="/difesa-personale" element={<DifesaPersonale />} />
+          <Route path="/competizioni" element={<Competizioni />} />
         </Routes>
       </main>
       <Footer />

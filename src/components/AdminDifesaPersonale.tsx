@@ -1,8 +1,55 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
 const BUCKET = 'self-defense'
+
+
+const IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.jpe', '.jfif', '.pjpeg', '.pjp', '.png', '.webp', '.web', '.gif',
+  '.bmp', '.dib', '.svg', '.avif', '.heic', '.heif', '.tif', '.tiff', '.ico', '.raw',
+  '.dng', '.cr2', '.cr3', '.nef', '.arw', '.orf', '.rw2'
+]
+
+const VIDEO_EXTENSIONS = [
+  '.mp4', '.m4v', '.mov', '.qt', '.webm', '.avi', '.mkv', '.wmv', '.flv', '.mpeg',
+  '.mpg', '.mpe', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.ogv', '.ogg', '.asf'
+]
+
+const DOCUMENT_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv'
+]
+
+const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
+const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
+const PDF_ACCEPT = '.pdf,application/pdf'
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
+const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
+
+function hasExtension(fileName: string, extensions: string[]) {
+  const cleanName = fileName.toLowerCase().trim()
+  return extensions.some((ext) => cleanName.endsWith(ext))
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || hasExtension(file.name, IMAGE_EXTENSIONS)
+}
+
+function isVideoFile(file: File) {
+  return file.type.startsWith('video/') || hasExtension(file.name, VIDEO_EXTENSIONS)
+}
+
+function isPdfFile(file: File) {
+  return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
+}
+
+function isDocumentFile(file: File) {
+  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
+}
+
+function isAllowedMediaFile(file: File) {
+  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
+}
 
 type DefenseMedia = {
   id: string
@@ -17,18 +64,34 @@ type DefenseMedia = {
 }
 
 export default function AdminDifesaPersonale() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const [items, setItems] = useState<DefenseMedia[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [visible, setVisible] = useState(true)
   const [sortOrder, setSortOrder] = useState('0')
   const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [inputKey, setInputKey] = useState(0)
   const [message, setMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     loadItems()
   }, [])
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    setPreviewUrl(objectUrl)
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [file])
 
   async function loadItems() {
     const { data, error } = await supabase
@@ -45,14 +108,40 @@ export default function AdminDifesaPersonale() {
     setItems((data ?? []) as DefenseMedia[])
   }
 
+  function openFilePicker() {
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(selectedFile: File | null) {
+    setFile(selectedFile)
+
+    if (!selectedFile) return
+
+    const isImage = isImageFile(selectedFile)
+    const isVideo = isVideoFile(selectedFile)
+
+    if (!isImage && !isVideo) {
+      setMessage('Puoi selezionare solo immagini o video.')
+      setFile(null)
+      setInputKey((prev) => prev + 1)
+      return
+    }
+
+    setMessage('')
+  }
+
   async function uploadFile(selectedFile: File) {
-    const fileExt = selectedFile.name.split('.').pop()
+    const fileExt = selectedFile.name.split('.').pop()?.toLowerCase() || 'file'
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
     const filePath = `media/${fileName}`
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(filePath, selectedFile)
+      .upload(filePath, selectedFile, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: selectedFile.type || undefined,
+      })
 
     if (uploadError) throw uploadError
 
@@ -65,18 +154,19 @@ export default function AdminDifesaPersonale() {
     e.preventDefault()
 
     if (!file) {
-      setMessage('Seleziona un file immagine o video')
+      setMessage('Prima clicca su “Scegli media” e seleziona un file immagine o video.')
       return
     }
 
-    const isImage = file.type.startsWith('image/')
-    const isVideo = file.type.startsWith('video/')
+    const isImage = isImageFile(file)
+    const isVideo = isVideoFile(file)
 
     if (!isImage && !isVideo) {
-      setMessage('Puoi caricare solo immagini o video')
+      setMessage('Puoi caricare solo immagini o video.')
       return
     }
 
+    setIsSaving(true)
     setMessage('Caricamento in corso...')
 
     try {
@@ -102,12 +192,15 @@ export default function AdminDifesaPersonale() {
       setVisible(true)
       setSortOrder('0')
       setFile(null)
+      setPreviewUrl(null)
       setInputKey((prev) => prev + 1)
-      setMessage('Media caricato correttamente')
-      loadItems()
+      setMessage('Media caricato e salvato correttamente.')
+      await loadItems()
     } catch (error) {
       console.error(error)
-      setMessage(error instanceof Error ? error.message : 'Errore durante il caricamento')
+      setMessage(error instanceof Error ? error.message : 'Errore durante il caricamento.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -122,12 +215,12 @@ export default function AdminDifesaPersonale() {
       return
     }
 
-    setMessage('Visibilità aggiornata')
-    loadItems()
+    setMessage('Visibilità aggiornata.')
+    await loadItems()
   }
 
   async function handleDelete(id: string) {
-    const confirmDelete = window.confirm('Vuoi eliminare questo media?')
+    const confirmDelete = window.confirm('Vuoi eliminare questo media dalla pagina Difesa personale?')
     if (!confirmDelete) return
 
     const { error } = await supabase
@@ -140,8 +233,8 @@ export default function AdminDifesaPersonale() {
       return
     }
 
-    setMessage('Media eliminato')
-    loadItems()
+    setMessage('Media eliminato.')
+    await loadItems()
   }
 
   async function handleUpdateSort(item: DefenseMedia, newSort: string) {
@@ -157,7 +250,7 @@ export default function AdminDifesaPersonale() {
       return
     }
 
-    loadItems()
+    await loadItems()
   }
 
   return (
@@ -188,12 +281,40 @@ export default function AdminDifesaPersonale() {
 
           <input
             key={inputKey}
+            ref={fileInputRef}
             type="file"
-            accept="image/*,video/mp4,video/webm,video/quicktime"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            accept={`${IMAGE_ACCEPT},${VIDEO_ACCEPT}`}
+            onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+            style={hiddenFileInputStyle}
           />
 
-          {file && <small style={mutedText}>File selezionato: {file.name}</small>}
+          <div style={uploadBoxStyle}>
+            <button
+              type="button"
+              className="secondary-auth-button"
+              onClick={openFilePicker}
+              style={chooseFileButtonStyle}
+            >
+              Scegli media
+            </button>
+
+            <div style={selectedFileInfoStyle}>
+              <strong>{file ? file.name : 'Nessun file selezionato'}</strong>
+              <span>
+                Formati consigliati: JPG, PNG, WebP oppure video MP4/WebM/Mov.
+              </span>
+            </div>
+          </div>
+
+          {previewUrl && (
+            <div style={previewBoxStyle}>
+              {file && isVideoFile(file) ? (
+                <video src={previewUrl} controls muted style={previewStyle} />
+              ) : (
+                <img src={previewUrl} alt="Anteprima media selezionato" style={previewStyle} />
+              )}
+            </div>
+          )}
 
           <input
             type="number"
@@ -211,8 +332,8 @@ export default function AdminDifesaPersonale() {
             Visibile nella pagina pubblica
           </label>
 
-          <button className="primary-auth-button" type="submit">
-            Carica media
+          <button className="primary-auth-button" type="submit" disabled={isSaving}>
+            {isSaving ? 'Salvataggio...' : 'Salva media nella pagina'}
           </button>
         </form>
 
@@ -250,6 +371,7 @@ export default function AdminDifesaPersonale() {
                     defaultValue={item.sort_order}
                     onBlur={(e) => handleUpdateSort(item, e.target.value)}
                     style={sortInputStyle}
+                    aria-label="Ordine media"
                   />
 
                   <div style={actionsStyle}>
@@ -310,6 +432,42 @@ const textareaStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.16)',
   resize: 'vertical',
   fontFamily: 'inherit',
+}
+
+const hiddenFileInputStyle: CSSProperties = {
+  display: 'none',
+}
+
+const uploadBoxStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  flexWrap: 'wrap',
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px dashed rgba(255,255,255,0.22)',
+  background: 'rgba(0,0,0,0.16)',
+}
+
+const chooseFileButtonStyle: CSSProperties = {
+  padding: '11px 16px',
+  flexShrink: 0,
+}
+
+const selectedFileInfoStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  color: '#d8d8d8',
+  fontSize: '13px',
+  lineHeight: 1.4,
+  minWidth: 0,
+}
+
+const previewBoxStyle: CSSProperties = {
+  overflow: 'hidden',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: '#111827',
 }
 
 const mutedText: CSSProperties = {

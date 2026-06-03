@@ -1,9 +1,57 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const NEWS_MEDIA_BUCKET = 'news-media'
+
+
+const IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.jpe', '.jfif', '.pjpeg', '.pjp', '.png', '.webp', '.web', '.gif',
+  '.bmp', '.dib', '.svg', '.avif', '.heic', '.heif', '.tif', '.tiff', '.ico', '.raw',
+  '.dng', '.cr2', '.cr3', '.nef', '.arw', '.orf', '.rw2'
+]
+
+const VIDEO_EXTENSIONS = [
+  '.mp4', '.m4v', '.mov', '.qt', '.webm', '.avi', '.mkv', '.wmv', '.flv', '.mpeg',
+  '.mpg', '.mpe', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.ogv', '.ogg', '.asf'
+]
+
+const DOCUMENT_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv'
+]
+
+const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
+const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
+const PDF_ACCEPT = '.pdf,application/pdf'
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
+const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
+
+function hasExtension(fileName: string, extensions: string[]) {
+  const cleanName = fileName.toLowerCase().trim()
+  return extensions.some((ext) => cleanName.endsWith(ext))
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || hasExtension(file.name, IMAGE_EXTENSIONS)
+}
+
+function isVideoFile(file: File) {
+  return file.type.startsWith('video/') || hasExtension(file.name, VIDEO_EXTENSIONS)
+}
+
+function isPdfFile(file: File) {
+  return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
+}
+
+function isDocumentFile(file: File) {
+  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
+}
+
+function isAllowedMediaFile(file: File) {
+  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
+}
 
 type MediaType = 'image' | 'video' | 'pdf' | 'youtube' | 'social'
 
@@ -12,6 +60,7 @@ type NewsItem = {
   title: string
   content: string
   image_url: string | null
+  cover_image_url: string | null
   published: boolean
   news_date: string | null
   created_at: string
@@ -28,6 +77,88 @@ type NewsMedia = {
   created_at: string
 }
 
+
+function SignedImage({
+  src,
+  alt,
+  style,
+  className,
+}: {
+  src: string | null | undefined
+  alt: string
+  style?: CSSProperties
+  className?: string
+}) {
+  const [displaySrc, setDisplaySrc] = useState<string | null>(src || null)
+
+  useEffect(() => {
+    let active = true
+
+    async function resolve() {
+      if (!src) {
+        if (active) setDisplaySrc(null)
+        return
+      }
+
+      const signedUrl = await getSignedUrlFromPublicUrl(src)
+      if (active) setDisplaySrc(signedUrl || src)
+    }
+
+    resolve()
+
+    return () => {
+      active = false
+    }
+  }, [src])
+
+  if (!displaySrc) return null
+
+  return (
+    <img
+      src={displaySrc}
+      alt={alt}
+      style={style}
+      className={className}
+      loading="lazy"
+      onError={() => setDisplaySrc(null)}
+    />
+  )
+}
+
+function SignedVideo({
+  src,
+  style,
+}: {
+  src: string | null | undefined
+  style?: CSSProperties
+}) {
+  const [displaySrc, setDisplaySrc] = useState<string | null>(src || null)
+
+  useEffect(() => {
+    let active = true
+
+    async function resolve() {
+      if (!src) {
+        if (active) setDisplaySrc(null)
+        return
+      }
+
+      const signedUrl = await getSignedUrlFromPublicUrl(src)
+      if (active) setDisplaySrc(signedUrl || src)
+    }
+
+    resolve()
+
+    return () => {
+      active = false
+    }
+  }, [src])
+
+  if (!displaySrc) return null
+
+  return <video src={displaySrc} style={style} muted playsInline />
+}
+
 function AdminNews() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [message, setMessage] = useState('')
@@ -42,6 +173,9 @@ function AdminNews() {
   const [newsContent, setNewsContent] = useState('')
   const [newsDate, setNewsDate] = useState(new Date().toISOString().slice(0, 10))
   const [newsPublished, setNewsPublished] = useState(true)
+
+  const [newsCoverFile, setNewsCoverFile] = useState<File | null>(null)
+  const [newsCoverInputKey, setNewsCoverInputKey] = useState(0)
 
   const [newsMediaFiles, setNewsMediaFiles] = useState<FileList | null>(null)
   const [newsMediaInputKey, setNewsMediaInputKey] = useState(0)
@@ -79,7 +213,7 @@ function AdminNews() {
   async function loadNews() {
     const { data, error } = await supabase
       .from('news')
-      .select('id, title, content, image_url, published, news_date, created_at')
+      .select('id, title, content, image_url, cover_image_url, published, news_date, created_at')
       .order('news_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
@@ -122,12 +256,73 @@ function AdminNews() {
     return data.publicUrl
   }
 
+
+
+  async function handleUploadNewsCover(e: FormEvent) {
+    e.preventDefault()
+
+    if (!isAdmin) {
+      setMessage('Non hai i permessi per gestire le news')
+      return
+    }
+
+    if (!selectedNewsId) {
+      setMessage('Seleziona una news prima di caricare la copertina')
+      return
+    }
+
+    if (!newsCoverFile) {
+      setMessage('Seleziona un’immagine di copertina')
+      return
+    }
+
+    if (!isImageFile(newsCoverFile)) {
+      setMessage('La copertina deve essere un’immagine JPG, PNG o WebP')
+      return
+    }
+
+    try {
+      setMessage('Caricamento copertina news...')
+
+      const coverUrl = await uploadFileToBucket(
+        newsCoverFile,
+        NEWS_MEDIA_BUCKET,
+        `news/${selectedNewsId}/cover`
+      )
+
+      const { error } = await supabase
+        .from('news')
+        .update({ image_url: coverUrl, cover_image_url: coverUrl })
+        .eq('id', selectedNewsId)
+
+      if (error) {
+        setMessage(`Errore salvataggio copertina: ${error.message}`)
+        return
+      }
+
+      setNewsCoverFile(null)
+      setNewsCoverInputKey((prev) => prev + 1)
+      setMessage('Copertina news aggiornata correttamente')
+      loadNews()
+    } catch (error) {
+      console.error(error)
+
+      if (error instanceof Error) {
+        setMessage(`Errore upload copertina: ${error.message}`)
+      } else {
+        setMessage('Errore upload copertina')
+      }
+    }
+  }
+
   function resetNewsForm() {
     setEditingNewsId(null)
     setNewsTitle('')
     setNewsContent('')
     setNewsDate(new Date().toISOString().slice(0, 10))
     setNewsPublished(true)
+    setNewsCoverFile(null)
+    setNewsCoverInputKey((prev) => prev + 1)
   }
 
   async function handleSaveNews(e: FormEvent) {
@@ -271,10 +466,9 @@ function AdminNews() {
 
       for (let index = 0; index < filesArray.length; index++) {
         const file = filesArray[index]
-        const fileName = file.name.toLowerCase()
-        const isImage = file.type.startsWith('image/')
-        const isVideo = file.type.startsWith('video/')
-        const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf')
+        const isImage = isImageFile(file)
+        const isVideo = isVideoFile(file)
+        const isPdf = isPdfFile(file)
 
         if (!isImage && !isVideo && !isPdf) {
           setMessage(`File non consentito: ${file.name}. Puoi caricare solo immagini, video o PDF.`)
@@ -301,14 +495,16 @@ function AdminNews() {
         return
       }
 
-      const selectedItem = newsList.find((item) => item.id === selectedNewsId)
       const firstImage = uploadedMedia.find((item) => item.media_type === 'image')
 
-      if (selectedItem && !selectedItem.image_url && firstImage) {
-        await supabase
-          .from('news')
-          .update({ image_url: firstImage.url })
-          .eq('id', selectedNewsId)
+      if (firstImage) {
+        const selectedItem = newsList.find((item) => item.id === selectedNewsId)
+        if (selectedItem && !selectedItem.image_url && !selectedItem.cover_image_url) {
+          await supabase
+            .from('news')
+            .update({ image_url: firstImage.url, cover_image_url: firstImage.url })
+            .eq('id', selectedNewsId)
+        }
       }
 
       setNewsMediaFiles(null)
@@ -377,8 +573,11 @@ function AdminNews() {
 
     const selectedItem = newsList.find((item) => item.id === selectedNewsId)
 
-    if (selectedItem && !selectedItem.image_url) {
-      await supabase.from('news').update({ image_url: thumbnailUrl }).eq('id', selectedNewsId)
+    if (selectedItem && !selectedItem.image_url && !selectedItem.cover_image_url) {
+      await supabase
+        .from('news')
+        .update({ image_url: thumbnailUrl, cover_image_url: thumbnailUrl })
+        .eq('id', selectedNewsId)
     }
 
     setNewsYoutubeUrl('')
@@ -417,7 +616,7 @@ function AdminNews() {
       let previewUrl: string | null = null
 
       if (newsSocialPreviewFile) {
-        if (!newsSocialPreviewFile.type.startsWith('image/')) {
+        if (!isImageFile(newsSocialPreviewFile)) {
           setMessage('L’anteprima social deve essere un’immagine')
           return
         }
@@ -447,8 +646,11 @@ function AdminNews() {
 
       const selectedItem = newsList.find((item) => item.id === selectedNewsId)
 
-      if (selectedItem && !selectedItem.image_url && previewUrl) {
-        await supabase.from('news').update({ image_url: previewUrl }).eq('id', selectedNewsId)
+      if (selectedItem && !selectedItem.image_url && !selectedItem.cover_image_url && previewUrl) {
+        await supabase
+          .from('news')
+          .update({ image_url: previewUrl, cover_image_url: previewUrl })
+          .eq('id', selectedNewsId)
       }
 
       setNewsSocialUrl('')
@@ -500,7 +702,7 @@ function AdminNews() {
 
     const { error } = await supabase
       .from('news')
-      .update({ image_url: coverUrl })
+      .update({ image_url: coverUrl, cover_image_url: coverUrl })
       .eq('id', item.news_id)
 
     if (error) {
@@ -516,7 +718,7 @@ function AdminNews() {
     if (item.media_type === 'youtube') {
       return (
         <div style={tinyMediaPreviewWrapper}>
-          <img src={item.thumbnail_url ?? ''} alt="Anteprima YouTube" style={tinyPhotoImage} />
+          <SignedImage src={item.thumbnail_url} alt="Anteprima YouTube" style={tinyPhotoImage} />
           <span style={videoBadge}>YT</span>
         </div>
       )
@@ -525,7 +727,7 @@ function AdminNews() {
     if (item.media_type === 'video') {
       return (
         <div style={tinyMediaPreviewWrapper}>
-          <video src={item.url} style={tinyPhotoImage} muted />
+          <SignedVideo src={item.url} style={tinyPhotoImage} />
           <span style={videoBadge}>▶</span>
         </div>
       )
@@ -544,7 +746,7 @@ function AdminNews() {
       if (item.thumbnail_url) {
         return (
           <div style={tinyMediaPreviewWrapper}>
-            <img src={item.thumbnail_url} alt={item.title || 'Anteprima social'} style={tinyPhotoImage} />
+            <SignedImage src={item.thumbnail_url} alt={item.title || 'Anteprima social'} style={tinyPhotoImage} />
             <span style={socialPreviewBadgeStyle}>{item.title || 'Social'}</span>
           </div>
         )
@@ -558,7 +760,27 @@ function AdminNews() {
       )
     }
 
-    return <img src={item.url} alt={item.title || selectedNews?.title || 'Media news'} style={tinyPhotoImage} />
+    return <SignedImage src={item.url} alt={item.title || selectedNews?.title || 'Media news'} style={tinyPhotoImage} />
+  }
+
+  function getNewsCover(item: NewsItem, itemMedia: NewsMedia[]) {
+    const directCover = item.cover_image_url || item.image_url
+    if (directCover) return directCover
+
+    const firstImage = itemMedia.find((mediaItem) => mediaItem.media_type === 'image' && mediaItem.url)
+    if (firstImage?.url) return firstImage.url
+
+    const firstSocialPreview = itemMedia.find(
+      (mediaItem) => mediaItem.media_type === 'social' && mediaItem.thumbnail_url,
+    )
+    if (firstSocialPreview?.thumbnail_url) return firstSocialPreview.thumbnail_url
+
+    const firstYoutubePreview = itemMedia.find(
+      (mediaItem) => mediaItem.media_type === 'youtube' && mediaItem.thumbnail_url,
+    )
+    if (firstYoutubePreview?.thumbnail_url) return firstYoutubePreview.thumbnail_url
+
+    return null
   }
 
   if (!isAdmin) {
@@ -572,11 +794,16 @@ function AdminNews() {
 
   return (
     <div>
+      <style>{adminNewsResponsiveCss}</style>
       {message && <div style={messageBox}>{message}</div>}
 
-      <div style={galleryAdminLayout}>
-        <div style={adminCardStyle}>
-          <h3>{editingNewsId ? 'Modifica news' : 'Crea nuova news'}</h3>
+      <div className="admin-news-top-layout" style={newsAdminTopLayout}>
+        <div style={newsAdminLeftColumn}>
+          <div style={compactAdminCardStyle}>
+            <div style={sectionHeaderCompactStyle}>
+              <h3>{editingNewsId ? 'Modifica news' : 'Crea nuova news'}</h3>
+              <span style={sectionHintStyle}>Titolo, testo e data</span>
+            </div>
 
           <form onSubmit={handleSaveNews} style={formStyle}>
             <input
@@ -620,10 +847,77 @@ function AdminNews() {
               )}
             </div>
           </form>
+          </div>
+
+          <div style={compactAdminCardStyle}>
+            <div style={sectionHeaderCompactStyle}>
+              <h3>Copertina news</h3>
+              <span style={sectionHintStyle}>1200 × 630 px · JPG/WebP</span>
+            </div>
+            <p style={compactHelpTextStyle}>
+              Usata in Home, pagina News e anteprima admin. I media interni restano separati.
+            </p>
+
+          <form onSubmit={handleUploadNewsCover} style={formStyle}>
+            <select value={selectedNewsId} onChange={(e) => setSelectedNewsId(e.target.value)}>
+              <option value="">Seleziona news</option>
+              {newsList.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.news_date ? new Date(item.news_date).toLocaleDateString('it-IT') : ''} - {item.title}
+                </option>
+              ))}
+            </select>
+
+            {selectedNews && (
+              <div style={coverPreviewBoxStyle}>
+                <span style={coverPreviewLabelStyle}>Copertina attuale</span>
+                {getNewsCover(selectedNews, selectedNewsMedia) ? (
+                  <SignedImage
+                    src={getNewsCover(selectedNews, selectedNewsMedia)}
+                    alt={selectedNews.title}
+                    style={coverPreviewImageStyle}
+                  />
+                ) : (
+                  <div style={coverPreviewEmptyStyle}>Nessuna copertina impostata</div>
+                )}
+              </div>
+            )}
+
+            <input
+              key={newsCoverInputKey}
+              type="file"
+              accept={IMAGE_ACCEPT}
+              onChange={(e) => setNewsCoverFile(e.target.files?.[0] ?? null)}
+            />
+
+            {newsCoverFile && (
+              <div style={coverPreviewBoxStyle}>
+                <span style={coverPreviewLabelStyle}>Nuova copertina selezionata</span>
+                <img
+                  src={URL.createObjectURL(newsCoverFile)}
+                  alt={newsCoverFile.name}
+                  style={coverPreviewImageStyle}
+                />
+                <small style={mutedText}>{newsCoverFile.name}</small>
+              </div>
+            )}
+
+            <button className="primary-auth-button" type="submit">
+              Salva copertina news
+            </button>
+          </form>
+          </div>
         </div>
 
-        <div style={adminCardStyle}>
-          <h3>Carica foto, video o PDF</h3>
+        <div style={newsAdminRightColumn}>
+          <div style={compactAdminCardStyle}>
+            <div style={sectionHeaderCompactStyle}>
+              <h3>Aggiungi media alla news</h3>
+              <span style={sectionHintStyle}>Foto · Video · PDF · YouTube · Social</span>
+            </div>
+            <p style={compactHelpTextStyle}>
+              Allega foto, video, PDF, YouTube e social alla news selezionata. La copertina resta separata.
+            </p>
 
           <form onSubmit={handleUploadNewsMedia} style={formStyle}>
             <select value={selectedNewsId} onChange={(e) => setSelectedNewsId(e.target.value)}>
@@ -638,13 +932,29 @@ function AdminNews() {
             <input
               key={newsMediaInputKey}
               type="file"
-              accept="image/*,video/mp4,video/webm,video/quicktime,.pdf"
+              accept={MEDIA_ACCEPT}
               multiple
               onChange={(e) => setNewsMediaFiles(e.target.files)}
             />
 
             {newsMediaFiles && newsMediaFiles.length > 0 && (
-              <small style={mutedText}>File selezionati: {newsMediaFiles.length}</small>
+              <div style={selectedFilesPreviewStyle}>
+                <small style={mutedText}>File selezionati: {newsMediaFiles.length}</small>
+                <div style={selectedFilesGridStyle}>
+                  {Array.from(newsMediaFiles).map((file) => (
+                    <div key={`${file.name}-${file.size}`} style={selectedFileCardStyle}>
+                      {isImageFile(file) ? (
+                        <img src={URL.createObjectURL(file)} alt={file.name} style={selectedFileThumbStyle} />
+                      ) : isVideoFile(file) ? (
+                        <div style={selectedFileIconStyle}>VIDEO</div>
+                      ) : (
+                        <div style={selectedFileIconStyle}>PDF</div>
+                      )}
+                      <span style={selectedFileNameStyle}>{file.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             <button className="primary-auth-button" type="submit">
@@ -693,7 +1003,7 @@ function AdminNews() {
               <input
                 key={newsSocialPreviewInputKey}
                 type="file"
-                accept="image/*"
+                accept={IMAGE_ACCEPT}
                 onChange={(e) => setNewsSocialPreviewFile(e.target.files?.[0] ?? null)}
               />
 
@@ -704,10 +1014,11 @@ function AdminNews() {
 
             <button className="primary-auth-button" type="submit">Aggiungi Social</button>
           </form>
+          </div>
         </div>
       </div>
 
-      <div style={{ marginTop: '30px' }}>
+      <div style={{ marginTop: '24px' }}>
         <h3>News inserite</h3>
 
         {newsList.length === 0 && <p style={mutedText}>Non ci sono ancora news inserite.</p>}
@@ -715,6 +1026,8 @@ function AdminNews() {
         <div style={compactAlbumList}>
           {newsList.map((item) => {
             const itemMedia = newsMedia.filter((mediaItem) => mediaItem.news_id === item.id)
+
+            const newsCover = getNewsCover(item, itemMedia)
 
             return (
               <div key={item.id} style={{ display: 'grid', gap: '8px' }}>
@@ -727,33 +1040,37 @@ function AdminNews() {
                         : '1px solid rgba(255,255,255,0.10)',
                   }}
                 >
-                  <div style={compactAlbumMain}>
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.title} style={compactCoverStyle} />
-                    ) : (
-                      <div style={compactCoverPlaceholder}>📰</div>
-                    )}
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={compactAlbumTitle}>{item.title}</h4>
-
-                      <p style={compactAlbumMeta}>
-                        {item.news_date
-                          ? new Date(item.news_date).toLocaleDateString('it-IT')
-                          : new Date(item.created_at).toLocaleDateString('it-IT')}
-                        {' · '}
-                        {item.published ? 'Visibile' : 'Bozza'}
-                        {' · '}
-                        {itemMedia.length} contenuti
-                      </p>
+                  <div style={newsListRowStyle}>
+                    <div style={newsListCoverBoxStyle}>
+                      {newsCover ? (
+                        <SignedImage src={newsCover} alt={item.title} style={newsListCoverImageStyle} />
+                      ) : (
+                        <div style={newsListCoverPlaceholderStyle}>📰</div>
+                      )}
                     </div>
-                  </div>
 
-                  <p style={mutedText}>
-                    {item.content.length > 160 ? item.content.substring(0, 160) + '...' : item.content}
-                  </p>
+                    <div style={newsListTextBoxStyle}>
+                      <div style={compactAlbumMain}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h4 style={compactAlbumTitle}>{item.title}</h4>
 
-                  <div style={compactActionsRow}>
+                          <p style={compactAlbumMeta}>
+                            {item.news_date
+                              ? new Date(item.news_date).toLocaleDateString('it-IT')
+                              : new Date(item.created_at).toLocaleDateString('it-IT')}
+                            {' · '}
+                            {item.published ? 'Visibile' : 'Bozza'}
+                            {' · '}
+                            {itemMedia.length} contenuti
+                          </p>
+                        </div>
+                      </div>
+
+                      <p style={newsListExcerptStyle}>
+                        {item.content.length > 160 ? item.content.substring(0, 160) + '...' : item.content}
+                      </p>
+
+                      <div style={compactActionsRow}>
                     <button
                       type="button"
                       className="secondary-auth-button"
@@ -792,6 +1109,8 @@ function AdminNews() {
                     >
                       Elimina
                     </button>
+                      </div>
+                    </div>
                   </div>
                 </article>
 
@@ -835,7 +1154,7 @@ function AdminNews() {
                                   ? mediaItem.thumbnail_url
                                   : null
 
-                          const isCover = coverUrl && item.image_url === coverUrl
+                          const isCover = coverUrl && (item.cover_image_url === coverUrl || item.image_url === coverUrl)
 
                           return (
                             <div key={mediaItem.id} style={tinyPhotoCard}>
@@ -866,6 +1185,48 @@ function AdminNews() {
   )
 }
 
+const adminNewsResponsiveCss = `
+  .admin-news-top-layout,
+  .admin-news-top-layout * {
+    box-sizing: border-box;
+  }
+
+  .admin-news-top-layout > div,
+  .admin-news-top-layout form,
+  .admin-news-top-layout input,
+  .admin-news-top-layout select,
+  .admin-news-top-layout textarea,
+  .admin-news-top-layout button {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-news-top-layout input:not([type="checkbox"]),
+  .admin-news-top-layout select,
+  .admin-news-top-layout textarea {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .admin-news-top-layout .primary-auth-button,
+  .admin-news-top-layout .secondary-auth-button {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  @media (max-width: 1120px) {
+    .admin-news-top-layout {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .admin-news-top-layout h3 {
+      font-size: 17px;
+    }
+  }
+`
+
 const adminCardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
@@ -873,30 +1234,87 @@ const adminCardStyle: CSSProperties = {
   padding: '22px',
 }
 
-const galleryAdminLayout: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: '20px',
+const compactAdminCardStyle: CSSProperties = {
+  ...adminCardStyle,
+  padding: '16px',
+  minWidth: 0,
+  overflow: 'hidden',
 }
+
+const newsAdminTopLayout: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+  gap: '16px',
+  alignItems: 'start',
+  width: '100%',
+  maxWidth: '100%',
+  overflow: 'hidden',
+}
+
+const newsAdminLeftColumn: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  minWidth: 0,
+}
+
+const newsAdminRightColumn: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  minWidth: 0,
+}
+
+const sectionHeaderCompactStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '10px',
+  marginBottom: '10px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const sectionHintStyle: CSSProperties = {
+  color: '#f0c7cb',
+  fontSize: '10px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.35px',
+  whiteSpace: 'normal',
+  lineHeight: 1.25,
+  textAlign: 'right',
+}
+
+const galleryAdminLayout: CSSProperties = newsAdminTopLayout
 
 const formStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '14px',
-  marginTop: '18px',
+  gap: '10px',
+  marginTop: '10px',
+  minWidth: 0,
 }
 
 const textareaStyle: CSSProperties = {
   borderRadius: '12px',
-  padding: '14px',
+  padding: '12px',
   border: '1px solid rgba(255,255,255,0.16)',
   resize: 'vertical',
   fontFamily: 'inherit',
+  width: '100%',
+  maxWidth: '100%',
+  minWidth: 0,
 }
 
 const mutedText: CSSProperties = {
   color: '#d8d8d8',
   lineHeight: 1.6,
+}
+
+const compactHelpTextStyle: CSSProperties = {
+  ...mutedText,
+  margin: '0 0 10px',
+  fontSize: '12.5px',
+  lineHeight: 1.38,
 }
 
 const checkboxLabelStyle: CSSProperties = {
@@ -947,6 +1365,51 @@ const compactAlbumCard: CSSProperties = {
   borderRadius: '14px',
   padding: '10px',
   border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const newsListRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'stretch',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const newsListCoverBoxStyle: CSSProperties = {
+  width: '112px',
+  minWidth: '112px',
+  height: '96px',
+  borderRadius: '14px',
+  overflow: 'hidden',
+  background: 'rgba(185,68,79,0.16)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  flexShrink: 0,
+}
+
+const newsListCoverImageStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+}
+
+const newsListCoverPlaceholderStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '30px',
+  background: 'linear-gradient(135deg, rgba(185,68,79,0.22), rgba(255,255,255,0.08))',
+}
+
+const newsListTextBoxStyle: CSSProperties = {
+  flex: '1 1 260px',
+  minWidth: 0,
+}
+
+const newsListExcerptStyle: CSSProperties = {
+  ...mutedText,
+  margin: '8px 0 0',
 }
 
 const compactAlbumMain: CSSProperties = {
@@ -1149,4 +1612,96 @@ const tinyDeleteButton: CSSProperties = {
   color: 'white',
 }
 
+
+const coverPreviewBoxStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '12px',
+  borderRadius: '14px',
+  background: 'rgba(0,0,0,0.18)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const coverPreviewLabelStyle: CSSProperties = {
+  color: '#f3dede',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const coverPreviewImageStyle: CSSProperties = {
+  width: '100%',
+  aspectRatio: '40 / 21',
+  objectFit: 'cover',
+  objectPosition: 'center',
+  borderRadius: '12px',
+  display: 'block',
+  background: '#111827',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const coverPreviewEmptyStyle: CSSProperties = {
+  width: '100%',
+  aspectRatio: '40 / 21',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '12px',
+  background: 'linear-gradient(135deg, rgba(185,68,79,0.20), rgba(255,255,255,0.07))',
+  color: '#d8d8d8',
+  fontWeight: 800,
+  textAlign: 'center',
+}
+
 export default AdminNews
+
+
+const selectedFilesPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '12px',
+  borderRadius: '14px',
+  background: 'rgba(0,0,0,0.18)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const selectedFilesGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
+  gap: '10px',
+}
+
+const selectedFileCardStyle: CSSProperties = {
+  minWidth: 0,
+  display: 'grid',
+  gap: '6px',
+}
+
+const selectedFileThumbStyle: CSSProperties = {
+  width: '100%',
+  aspectRatio: '1 / 1',
+  objectFit: 'cover',
+  borderRadius: '10px',
+  background: '#111827',
+}
+
+const selectedFileIconStyle: CSSProperties = {
+  width: '100%',
+  aspectRatio: '1 / 1',
+  borderRadius: '10px',
+  background: 'rgba(185,68,79,0.25)',
+  color: '#fff',
+  display: 'grid',
+  placeItems: 'center',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
+const selectedFileNameStyle: CSSProperties = {
+  color: '#d8d8d8',
+  fontSize: '11px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}

@@ -4,6 +4,53 @@ import { supabase } from '../lib/supabaseClient'
 
 const THEORY_FILES_BUCKET = 'theory-files'
 
+
+const IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.jpe', '.jfif', '.pjpeg', '.pjp', '.png', '.webp', '.web', '.gif',
+  '.bmp', '.dib', '.svg', '.avif', '.heic', '.heif', '.tif', '.tiff', '.ico', '.raw',
+  '.dng', '.cr2', '.cr3', '.nef', '.arw', '.orf', '.rw2'
+]
+
+const VIDEO_EXTENSIONS = [
+  '.mp4', '.m4v', '.mov', '.qt', '.webm', '.avi', '.mkv', '.wmv', '.flv', '.mpeg',
+  '.mpg', '.mpe', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.ogv', '.ogg', '.asf'
+]
+
+const DOCUMENT_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv'
+]
+
+const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
+const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
+const PDF_ACCEPT = '.pdf,application/pdf'
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
+const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
+
+function hasExtension(fileName: string, extensions: string[]) {
+  const cleanName = fileName.toLowerCase().trim()
+  return extensions.some((ext) => cleanName.endsWith(ext))
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || hasExtension(file.name, IMAGE_EXTENSIONS)
+}
+
+function isVideoFile(file: File) {
+  return file.type.startsWith('video/') || hasExtension(file.name, VIDEO_EXTENSIONS)
+}
+
+function isPdfFile(file: File) {
+  return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
+}
+
+function isDocumentFile(file: File) {
+  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
+}
+
+function isAllowedMediaFile(file: File) {
+  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
+}
+
 type TheorySection = 'fondamenti' | 'risorse'
 type TheoryResourceType = 'file' | 'video' | 'youtube' | 'social' | 'link'
 
@@ -270,8 +317,8 @@ function AdminTeoria() {
   }
 
   function getFileAccept() {
-    if (resourceType === 'video') return 'video/mp4,video/webm,video/quicktime'
-    return '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*'
+    if (resourceType === 'video') return VIDEO_ACCEPT
+    return DOCUMENT_ACCEPT
   }
 
   return (

@@ -16,6 +16,53 @@ const GALLERY_BUCKET = 'gallery'
 const EVENT_IMAGES_BUCKET = 'event-images'
 const EVENT_DOCUMENTS_BUCKET = 'event-documents'
 
+
+const IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.jpe', '.jfif', '.pjpeg', '.pjp', '.png', '.webp', '.web', '.gif',
+  '.bmp', '.dib', '.svg', '.avif', '.heic', '.heif', '.tif', '.tiff', '.ico', '.raw',
+  '.dng', '.cr2', '.cr3', '.nef', '.arw', '.orf', '.rw2'
+]
+
+const VIDEO_EXTENSIONS = [
+  '.mp4', '.m4v', '.mov', '.qt', '.webm', '.avi', '.mkv', '.wmv', '.flv', '.mpeg',
+  '.mpg', '.mpe', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.ogv', '.ogg', '.asf'
+]
+
+const DOCUMENT_EXTENSIONS = [
+  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt', '.rtf', '.odt', '.ods', '.odp', '.csv'
+]
+
+const IMAGE_ACCEPT = `image/*,${IMAGE_EXTENSIONS.join(',')}`
+const VIDEO_ACCEPT = `video/*,${VIDEO_EXTENSIONS.join(',')}`
+const PDF_ACCEPT = '.pdf,application/pdf'
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},${VIDEO_ACCEPT},${PDF_ACCEPT}`
+const DOCUMENT_ACCEPT = `${PDF_ACCEPT},${DOCUMENT_EXTENSIONS.join(',')},${IMAGE_ACCEPT}`
+
+function hasExtension(fileName: string, extensions: string[]) {
+  const cleanName = fileName.toLowerCase().trim()
+  return extensions.some((ext) => cleanName.endsWith(ext))
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith('image/') || hasExtension(file.name, IMAGE_EXTENSIONS)
+}
+
+function isVideoFile(file: File) {
+  return file.type.startsWith('video/') || hasExtension(file.name, VIDEO_EXTENSIONS)
+}
+
+function isPdfFile(file: File) {
+  return file.type === 'application/pdf' || hasExtension(file.name, ['.pdf'])
+}
+
+function isDocumentFile(file: File) {
+  return isPdfFile(file) || hasExtension(file.name, DOCUMENT_EXTENSIONS)
+}
+
+function isAllowedMediaFile(file: File) {
+  return isImageFile(file) || isVideoFile(file) || isPdfFile(file)
+}
+
 type AdminTab =
   | 'news'
   | 'galleria'
@@ -693,10 +740,9 @@ function AreaUtente() {
 
       for (let index = 0; index < filesArray.length; index++) {
         const file = filesArray[index]
-        const fileName = file.name.toLowerCase()
-        const isImage = file.type.startsWith('image/')
-        const isVideo = file.type.startsWith('video/')
-        const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf')
+        const isImage = isImageFile(file)
+        const isVideo = isVideoFile(file)
+        const isPdf = isPdfFile(file)
 
         if (!isImage && !isVideo && !isPdf) {
           setMessage(`File non consentito: ${file.name}. Puoi caricare solo immagini, video o PDF.`)
@@ -842,7 +888,7 @@ function AreaUtente() {
       let previewUrl: string | null = null
 
       if (socialPreviewFile) {
-        if (!socialPreviewFile.type.startsWith('image/')) {
+        if (!isImageFile(socialPreviewFile)) {
           setMessage('L’anteprima social deve essere un’immagine')
           return
         }
@@ -1353,7 +1399,7 @@ function AreaUtente() {
                           {albums.map((album) => <option key={album.id} value={album.id}>{album.event_year} - {album.title}</option>)}
                         </select>
 
-                        <input key={galleryInputKey} type="file" accept="image/*,video/mp4,video/webm,video/quicktime,.pdf" multiple onChange={(e) => setGalleryFiles(e.target.files)} />
+                        <input key={galleryInputKey} type="file" accept={MEDIA_ACCEPT} multiple onChange={(e) => setGalleryFiles(e.target.files)} />
                         {galleryFiles && galleryFiles.length > 0 && <small style={mutedText}>File selezionati: {galleryFiles.length}</small>}
                         <button className="primary-auth-button" type="submit">Carica file selezionati</button>
                       </form>
@@ -1381,7 +1427,7 @@ function AreaUtente() {
                         <input type="url" placeholder="Incolla link Facebook, Instagram o TikTok" value={socialUrl} onChange={(e) => setSocialUrl(e.target.value)} />
                         <div style={{ display: 'grid', gap: '8px' }}>
                           <label style={mutedText}>Immagine anteprima opzionale</label>
-                          <input key={socialPreviewInputKey} type="file" accept="image/*" onChange={(e) => setSocialPreviewFile(e.target.files?.[0] ?? null)} />
+                          <input key={socialPreviewInputKey} type="file" accept={IMAGE_ACCEPT} onChange={(e) => setSocialPreviewFile(e.target.files?.[0] ?? null)} />
                           {socialPreviewFile && <small style={mutedText}>Anteprima selezionata: {socialPreviewFile.name}</small>}
                         </div>
                         <button className="primary-auth-button" type="submit">Aggiungi Social</button>
@@ -1514,13 +1560,13 @@ function AreaUtente() {
 
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Immagine evento opzionale</label>
-                        <input key={eventImageInputKey} type="file" accept="image/*" onChange={(e) => setEventImageFile(e.target.files?.[0] ?? null)} />
+                        <input key={eventImageInputKey} type="file" accept={IMAGE_ACCEPT} onChange={(e) => setEventImageFile(e.target.files?.[0] ?? null)} />
                         {eventImageFile && <small style={mutedText}>File selezionato: {eventImageFile.name}</small>}
                       </div>
 
                       <div style={{ display: 'grid', gap: '8px' }}>
                         <label style={mutedText}>Documenti evento opzionali</label>
-                        <input key={eventDocsInputKey} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*" onChange={(e) => setEventDocumentFiles(e.target.files)} />
+                        <input key={eventDocsInputKey} type="file" multiple accept={DOCUMENT_ACCEPT} onChange={(e) => setEventDocumentFiles(e.target.files)} />
                         {eventDocumentFiles && eventDocumentFiles.length > 0 && <small style={mutedText}>Documenti selezionati: {eventDocumentFiles.length}</small>}
                       </div>
 

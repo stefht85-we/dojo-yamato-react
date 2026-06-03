@@ -23,6 +23,45 @@ type TheoryResource = {
   created_at: string
 }
 
+type FondamentiBlock = {
+  kicker: string
+  title: string
+  text: string
+  image: string
+  alt: string
+}
+
+const fondamentiBlocks: FondamentiBlock[] = [
+  {
+    kicker: 'Origini',
+    title: 'Dalle radici di Okinawa al Giappone',
+    text: 'Il Karate nasce come metodo di difesa e disciplina personale. Nel tempo si è trasformato in un percorso educativo fatto di tecnica, rispetto, autocontrollo e crescita del carattere.',
+    image: '/images/teoria/giappone-karate.jpg',
+    alt: 'Illustrazione ispirata al Giappone e alla tradizione del Karate',
+  },
+  {
+    kicker: 'Pratica',
+    title: 'Kihon, Kata e Kumite',
+    text: 'La pratica si sviluppa attraverso le tecniche fondamentali, le forme codificate e il confronto controllato. Ogni parte dell’allenamento aiuta l’allievo a migliorare corpo, mente e attenzione.',
+    image: '/images/teoria/karate-origini.jpg',
+    alt: 'Illustrazione di pratica del Karate',
+  },
+  {
+    kicker: 'Shotokan',
+    title: 'Precisione, stabilità e spirito',
+    text: 'Lo stile Shotokan valorizza posizioni solide, tecniche pulite e ricerca continua del miglioramento. Non conta solo eseguire una tecnica, ma farlo con controllo, presenza e rispetto.',
+    image: '/images/teoria/shotokan-tigre.jpg',
+    alt: 'Simbolo e richiamo allo stile Shotokan',
+  },
+  {
+    kicker: 'Maestro',
+    title: 'Gichin Funakoshi',
+    text: 'Gichin Funakoshi è una figura centrale nella diffusione del Karate moderno. Il suo insegnamento ricorda che il Karate inizia e finisce con il rispetto.',
+    image: '/images/teoria/gichin-funakoshi.jpg',
+    alt: 'Illustrazione dedicata al maestro Gichin Funakoshi',
+  },
+]
+
 function Teoria() {
   const { section } = useParams()
 
@@ -64,14 +103,8 @@ function Teoria() {
 
     const resourcesWithSignedUrls = await Promise.all(
       ((data ?? []) as TheoryResource[]).map(async (item) => {
-        const signedFileUrl = item.file_url
-          ? await getSignedUrlFromPublicUrl(item.file_url)
-          : null
-
-        return {
-          ...item,
-          file_url: signedFileUrl || item.file_url,
-        }
+        const signedFileUrl = item.file_url ? await getSignedUrlFromPublicUrl(item.file_url) : null
+        return { ...item, file_url: signedFileUrl || item.file_url }
       })
     )
 
@@ -79,13 +112,8 @@ function Teoria() {
     setLoading(false)
   }
 
-  const fondamentiResources = useMemo(() => {
-    return resources.filter((item) => item.section === 'fondamenti')
-  }, [resources])
-
-  const risorseDidattiche = useMemo(() => {
-    return resources.filter((item) => item.section === 'risorse')
-  }, [resources])
+  const fondamentiResources = useMemo(() => resources.filter((item) => item.section === 'fondamenti'), [resources])
+  const risorseDidattiche = useMemo(() => resources.filter((item) => item.section === 'risorse'), [resources])
 
   const groupedResources = useMemo(() => {
     const orderedCategories = ['KATA', 'KUMITE', 'ESAMI', 'ESERCIZI PREPARAZIONE ATLETICA', 'ALTRO']
@@ -100,10 +128,7 @@ function Teoria() {
 
   function showAccessDenied() {
     setAccessMessage(getAccessDeniedMessage('i materiali della sezione Teoria'))
-
-    window.setTimeout(() => {
-      setAccessMessage('')
-    }, 5000)
+    window.setTimeout(() => setAccessMessage(''), 5000)
   }
 
   function getResourceUrl(item: TheoryResource) {
@@ -136,10 +161,7 @@ function Teoria() {
 
   function getDownloadName(item: TheoryResource) {
     const extension = item.resource_type === 'video' ? 'mp4' : 'pdf'
-    const cleanTitle =
-      item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
-      'dojo-yamato-teoria'
-
+    const cleanTitle = item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'dojo-yamato-teoria'
     return `${cleanTitle}.${extension}`
   }
 
@@ -157,8 +179,10 @@ function Teoria() {
 
     return (
       <div style={loginNoticeStyle}>
-        <strong>Materiali riservati agli utenti registrati.</strong>
-        Puoi vedere l’elenco dei contenuti, ma per aprire video, documenti e link devi accedere.
+        <div style={noticeTextStyle}>
+          <strong>Materiali riservati agli utenti registrati.</strong>
+          <span>Puoi vedere l’elenco dei contenuti, ma per aprire video, documenti e link devi accedere.</span>
+        </div>
         <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
       </div>
     )
@@ -166,7 +190,6 @@ function Teoria() {
 
   function renderLockedBadge() {
     if (userCanOpenMedia) return null
-
     return <span style={lockedBadgeStyle}>Accesso utenti</span>
   }
 
@@ -176,18 +199,10 @@ function Teoria() {
     const url = getResourceUrl(item)
 
     if (item.resource_type === 'youtube' || item.resource_type === 'social' || item.resource_type === 'link') {
-      return (
-        <a href={url} target="_blank" rel="noreferrer" style={openButtonStyle}>
-          Apri
-        </a>
-      )
+      return <a href={url} target="_blank" rel="noreferrer" style={openButtonStyle}>Apri</a>
     }
 
-    return (
-      <a href={url} download={getDownloadName(item)} target="_blank" rel="noreferrer" style={openButtonStyle}>
-        Download
-      </a>
-    )
+    return <a href={url} download={getDownloadName(item)} target="_blank" rel="noreferrer" style={openButtonStyle}>Download</a>
   }
 
   function renderVideoPreview(item: TheoryResource) {
@@ -202,7 +217,6 @@ function Teoria() {
             ) : (
               <video src={videoUrl} style={videoPreviewStyle} muted preload="metadata" playsInline controls={false} onContextMenu={(e) => e.preventDefault()} />
             )}
-
             <span style={playOverlayStyle}>▶</span>
           </div>
 
@@ -211,9 +225,7 @@ function Teoria() {
               <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
               {renderLockedBadge()}
             </span>
-
             <strong style={resourceTitleStyle}>{item.title}</strong>
-
             {item.description && <span style={resourceDescriptionStyle}>{item.description}</span>}
           </span>
         </button>
@@ -224,9 +236,7 @@ function Teoria() {
   }
 
   function renderResource(item: TheoryResource) {
-    if (item.resource_type === 'video' || item.resource_type === 'youtube') {
-      return renderVideoPreview(item)
-    }
+    if (item.resource_type === 'video' || item.resource_type === 'youtube') return renderVideoPreview(item)
 
     const url = getResourceUrl(item)
 
@@ -235,7 +245,6 @@ function Teoria() {
         {userCanOpenMedia ? (
           <a href={url} target="_blank" rel="noreferrer" style={resourceItemStyle}>
             <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
-
             <span style={resourceTextWrapperStyle}>
               <strong style={resourceTitleStyle}>{item.title}</strong>
               {item.description && <span style={resourceDescriptionStyle}>{item.description}</span>}
@@ -244,7 +253,6 @@ function Teoria() {
         ) : (
           <button type="button" style={lockedResourceItemStyle} onClick={showAccessDenied}>
             <span style={resourceBadgeStyle}>{getResourceLabel(item)}</span>
-
             <span style={resourceTextWrapperStyle}>
               <span style={resourceTopRowStyle}>
                 <strong style={resourceTitleStyle}>{item.title}</strong>
@@ -267,12 +275,10 @@ function Teoria() {
 
     if (selectedVideo.resource_type === 'youtube') {
       const embedUrl = getYoutubeEmbedUrl(videoUrl)
-
       return (
         <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
           <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
             <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
-
             {embedUrl ? (
               <iframe src={embedUrl} title={selectedVideo.title} style={youtubeFrameStyle} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
             ) : (
@@ -287,9 +293,7 @@ function Teoria() {
       <div style={modalOverlayStyle} onClick={() => setSelectedVideo(null)}>
         <div style={videoModalStyle} onClick={(e) => e.stopPropagation()}>
           <button type="button" style={closeButtonStyle} onClick={() => setSelectedVideo(null)} aria-label="Chiudi video">×</button>
-
           <video src={videoUrl} style={modalVideoStyle} controls autoPlay playsInline controlsList="nodownload noplaybackrate" disablePictureInPicture onContextMenu={(e) => e.preventDefault()} />
-
           <p style={videoNoticeStyle}>Video visualizzabile direttamente nella pagina.</p>
         </div>
       </div>
@@ -299,14 +303,11 @@ function Teoria() {
   if (!section) {
     return (
       <main style={pageStyle}>
+        <style>{teoriaResponsiveCss}</style>
         <section style={heroStyle}>
           <p style={eyebrowStyle}>A.S.D. DOJO YAMATO</p>
           <h1 style={titleStyle}>Teoria</h1>
-
-          <p style={introStyle}>
-            Una sezione dedicata alla conoscenza del Karate e ai materiali utili per studiare, allenarsi e prepararsi con maggiore consapevolezza.
-          </p>
-
+          <p style={introStyle}>Una sezione dedicata alla conoscenza del Karate e ai materiali utili per studiare, allenarsi e prepararsi con maggiore consapevolezza.</p>
           <div style={choiceButtonsStyle}>
             <Link to="/teoria/fondamenti" style={yamatoButtonStyle}>Fondamenti</Link>
             <Link to="/teoria/risorse-didattiche" style={yamatoButtonStyle}>Risorse Didattiche</Link>
@@ -319,54 +320,65 @@ function Teoria() {
   if (section === 'fondamenti') {
     return (
       <main style={pageStyle}>
-        <section style={heroStyle}>
-          <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
-          <p style={eyebrowStyle}>TEORIA</p>
-          <h1 style={sectionPageTitleStyle}>Fondamenti</h1>
+        <style>{teoriaResponsiveCss}</style>
 
-          <p style={introStyle}>
-            Una panoramica semplice per conoscere il Karate, le sue origini e i principi che guidano la pratica nel dojo.
-          </p>
+        <section style={cleanHeroStyle}>
+          <div style={heroContentStyle}>
+            <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
+            <p style={eyebrowStyle}>TEORIA</p>
+            <h1 style={sectionPageTitleStyle}>Fondamenti del Karate</h1>
+            <p style={introStyle}>Un viaggio semplice e visuale per scoprire il Karate, le sue origini, lo stile Shotokan e i valori che guidano ogni allenamento nel dojo.</p>
+          </div>
+          <div style={heroMiniPanelStyle}>
+            <span style={kanjiStyle}>道</span>
+            <strong>Disciplina • Rispetto • Crescita</strong>
+            <p>La teoria aiuta a dare significato alla pratica.</p>
+          </div>
+        </section>
+
+        <section className="teoria-intro-grid" style={introGridStyle}>
+          <article style={highlightCardStyle}>
+            <p style={cardKickerStyle}>Dojo Yamato</p>
+            <h2 style={highlightTitleStyle}>Non solo tecnica, ma educazione</h2>
+            <p style={paragraphStyle}>Nel Karate il movimento diventa uno strumento educativo: si impara ad ascoltare, rispettare i compagni, controllare l’energia e affrontare le difficoltà con più sicurezza.</p>
+          </article>
+          <figure style={imageFigureStyle}>
+            <img src="/images/teoria/dojo-tradizione.jpg" alt="Dojo e valori della pratica" style={imageStyle} />
+          </figure>
         </section>
 
         <section style={contentStyle}>
-          <article style={textBlockStyle}>
-            <h2 style={blockTitleStyle}>Cos’è il Karate</h2>
-            <p style={paragraphStyle}>
-              Il Karate è un’arte marziale di origine giapponese basata sul controllo del corpo, della mente e delle emozioni. Non è soltanto tecnica o combattimento, ma un percorso educativo che aiuta a crescere con disciplina, rispetto e consapevolezza.
-            </p>
-          </article>
+          {fondamentiBlocks.map((block, index) => (
+            <article key={block.title} className={`teoria-info-card ${index % 2 ? 'teoria-info-card--reverse' : ''}`} style={infoCardStyle}>
+              <div style={infoTextStyle}>
+                <p style={cardKickerStyle}>{block.kicker}</p>
+                <h2 style={blockTitleStyle}>{block.title}</h2>
+                <p style={paragraphStyle}>{block.text}</p>
+              </div>
+              <figure style={imageFigureStyle}>
+                <img src={block.image} alt={block.alt} style={imageStyle} />
+              </figure>
+            </article>
+          ))}
+        </section>
 
-          <article style={textBlockStyle}>
-            <h2 style={blockTitleStyle}>Origini</h2>
-            <p style={paragraphStyle}>
-              Il Karate affonda le sue radici nell’isola di Okinawa, dove nel tempo si è sviluppato un sistema di difesa personale poi evoluto in disciplina marziale. Dalla tradizione di Okinawa il Karate si è diffuso in Giappone e nel resto del mondo.
-            </p>
-          </article>
-
-          <article style={textBlockStyle}>
-            <h2 style={blockTitleStyle}>Stile Shotokan</h2>
-            <p style={paragraphStyle}>
-              Lo stile Shotokan si caratterizza per tecniche precise, posizioni stabili, lavoro su kihon, kata e kumite e per una continua ricerca di controllo, efficacia e miglioramento personale.
-            </p>
-          </article>
-
-          <article style={textBlockStyle}>
-            <h2 style={blockTitleStyle}>Principi fondamentali</h2>
-            <p style={paragraphStyle}>
-              Il Karate insegna rispetto, autocontrollo, impegno, perseveranza e capacità di affrontare le difficoltà con equilibrio. Nel dojo si impara che la tecnica è importante, ma ancora più importante è la formazione del carattere.
-            </p>
-          </article>
+        <section style={principlesStyle}>
+          <h2 style={materialsTitleStyle}>Principi fondamentali</h2>
+          <div className="teoria-principles-grid" style={principlesGridStyle}>
+            {['Rispetto', 'Autocontrollo', 'Perseveranza', 'Consapevolezza'].map((item) => (
+              <div key={item} style={principleCardStyle}>
+                <span style={principleIconStyle}>✓</span>
+                <strong>{item}</strong>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section style={materialsStyle}>
           <h2 style={materialsTitleStyle}>Approfondimenti</h2>
           {renderAccessNotice()}
-
           {loading && <p style={mutedTextStyle}>Caricamento materiali...</p>}
-
           {!loading && fondamentiResources.length === 0 && <div style={emptyBoxStyle}>Non sono ancora presenti materiali di approfondimento.</div>}
-
           {!loading && fondamentiResources.length > 0 && <div style={resourceListStyle}>{fondamentiResources.map(renderResource)}</div>}
         </section>
 
@@ -379,30 +391,23 @@ function Teoria() {
   if (section === 'risorse-didattiche') {
     return (
       <main style={pageStyle}>
+        <style>{teoriaResponsiveCss}</style>
         <section style={heroStyle}>
           <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
           <p style={eyebrowStyle}>TEORIA</p>
           <h1 style={sectionPageTitleStyle}>Risorse Didattiche</h1>
-
           <p style={introStyle}>Documenti, video e collegamenti utili per studiare e allenarsi, organizzati per argomento.</p>
         </section>
 
         <section style={materialsStyle}>
           {renderAccessNotice()}
-
           {loading && <p style={mutedTextStyle}>Caricamento materiali...</p>}
-
           {!loading && groupedResources.length === 0 && <div style={emptyBoxStyle}>Non sono ancora presenti materiali didattici pubblicati.</div>}
-
           {!loading && groupedResources.length > 0 && (
             <div style={accordionWrapperStyle}>
               {groupedResources.map((group) => (
                 <details key={group.category} style={detailsStyle} open>
-                  <summary style={summaryStyle}>
-                    {group.category}
-                    <span style={countBadgeStyle}>{group.items.length}</span>
-                  </summary>
-
+                  <summary style={summaryStyle}>{group.category}<span style={countBadgeStyle}>{group.items.length}</span></summary>
                   <div style={detailsContentStyle}>{group.items.map(renderResource)}</div>
                 </details>
               ))}
@@ -418,6 +423,7 @@ function Teoria() {
 
   return (
     <main style={pageStyle}>
+      <style>{teoriaResponsiveCss}</style>
       <section style={heroStyle}>
         <Link to="/teoria" style={backLinkStyle}>← Torna a Teoria</Link>
         <p style={eyebrowStyle}>TEORIA</p>
@@ -427,11 +433,43 @@ function Teoria() {
   )
 }
 
+const teoriaResponsiveCss = `
+  .teoria-info-card {
+    grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+  }
+
+  .teoria-info-card--reverse > div:first-child {
+    order: 2;
+  }
+
+  .teoria-info-card--reverse > figure {
+    order: 1;
+  }
+
+  @media (max-width: 900px) {
+    .teoria-intro-grid,
+    .teoria-info-card {
+      grid-template-columns: 1fr !important;
+    }
+
+    .teoria-info-card--reverse > div:first-child,
+    .teoria-info-card--reverse > figure {
+      order: initial;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .teoria-principles-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+`
+
 const pageStyle: CSSProperties = {
   minHeight: '100vh',
-  background: '#020817',
+  background: 'radial-gradient(circle at top left, rgba(185,68,79,0.16), transparent 32%), #020817',
   color: 'white',
-  padding: '58px 24px 90px',
+  padding: '46px 24px 86px',
 }
 
 const heroStyle: CSSProperties = {
@@ -439,6 +477,45 @@ const heroStyle: CSSProperties = {
   margin: '0 auto',
   display: 'grid',
   gap: '18px',
+}
+
+const cleanHeroStyle: CSSProperties = {
+  width: 'min(1180px, calc(100% - 8px))',
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(240px, 360px)',
+  gap: '22px',
+  alignItems: 'stretch',
+  padding: '28px',
+  borderRadius: '28px',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.075), rgba(185,68,79,0.16))',
+  border: '1px solid rgba(255,255,255,0.1)',
+  boxShadow: '0 24px 70px rgba(0,0,0,0.28)',
+}
+
+const heroContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  alignContent: 'center',
+}
+
+const heroMiniPanelStyle: CSSProperties = {
+  minHeight: '220px',
+  borderRadius: '24px',
+  background: 'linear-gradient(180deg, rgba(2,8,23,0.82), rgba(2,8,23,0.46))',
+  border: '1px solid rgba(255,255,255,0.12)',
+  display: 'grid',
+  placeItems: 'center',
+  textAlign: 'center',
+  padding: '24px',
+  color: '#f8fafc',
+}
+
+const kanjiStyle: CSSProperties = {
+  fontSize: '82px',
+  lineHeight: 1,
+  fontWeight: 950,
+  color: '#d94a57',
 }
 
 const dojoBadgeStyle: CSSProperties = {
@@ -473,7 +550,7 @@ const sectionPageTitleStyle: CSSProperties = {
 const introStyle: CSSProperties = {
   margin: 0,
   maxWidth: '860px',
-  color: '#d8d8d8',
+  color: '#e5e7eb',
   fontSize: '18px',
   lineHeight: 1.7,
 }
@@ -500,28 +577,94 @@ const yamatoButtonStyle: CSSProperties = {
 
 const backLinkStyle: CSSProperties = {
   width: 'fit-content',
-  color: '#d95b64',
+  color: '#ff8d95',
   textDecoration: 'none',
   fontWeight: 900,
 }
 
-const contentStyle: CSSProperties = {
+const introGridStyle: CSSProperties = {
   width: 'min(1180px, calc(100% - 8px))',
-  margin: '34px auto 0',
+  margin: '24px auto 0',
   display: 'grid',
-  gap: '14px',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 0.9fr)',
+  gap: '18px',
 }
 
-const textBlockStyle: CSSProperties = {
+const highlightCardStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  borderRadius: '24px',
+  padding: '26px',
+  display: 'grid',
+  alignContent: 'center',
+  gap: '10px',
+}
+
+const highlightTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 'clamp(30px, 4vw, 46px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const cardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  margin: 0,
+  padding: '6px 11px',
+  borderRadius: '999px',
+  background: 'rgba(185,68,79,0.22)',
+  border: '1px solid rgba(185,68,79,0.35)',
+  color: '#ffd6d9',
+  fontSize: '11px',
+  fontWeight: 950,
+  letterSpacing: '0.7px',
+  textTransform: 'uppercase',
+}
+
+const contentStyle: CSSProperties = {
+  width: 'min(1180px, calc(100% - 8px))',
+  margin: '18px auto 0',
+  display: 'grid',
+  gap: '18px',
+}
+
+const infoCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+  alignItems: 'center',
   background: 'rgba(255,255,255,0.045)',
   border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '18px',
-  padding: '22px',
+  borderRadius: '24px',
+  padding: '18px',
+}
+
+const infoTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '8px',
+}
+
+const imageFigureStyle: CSSProperties = {
+  margin: 0,
+  borderRadius: '20px',
+  overflow: 'hidden',
+  minHeight: '260px',
+  background: '#111827',
+  border: '1px solid rgba(255,255,255,0.1)',
+}
+
+const imageStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  minHeight: '260px',
+  objectFit: 'cover',
+  display: 'block',
 }
 
 const blockTitleStyle: CSSProperties = {
-  margin: '0 0 10px',
-  fontSize: '24px',
+  margin: 0,
+  fontSize: 'clamp(26px, 4vw, 40px)',
+  lineHeight: 1.1,
   fontWeight: 950,
 }
 
@@ -530,6 +673,42 @@ const paragraphStyle: CSSProperties = {
   color: '#e5e7eb',
   fontSize: '16px',
   lineHeight: 1.75,
+}
+
+const principlesStyle: CSSProperties = {
+  width: 'min(1180px, calc(100% - 8px))',
+  margin: '22px auto 0',
+  display: 'grid',
+  gap: '14px',
+}
+
+const principlesGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: '12px',
+}
+
+const principleCardStyle: CSSProperties = {
+  minHeight: '96px',
+  borderRadius: '18px',
+  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  placeItems: 'center',
+  gap: '8px',
+  textAlign: 'center',
+  padding: '16px',
+  fontWeight: 950,
+}
+
+const principleIconStyle: CSSProperties = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '999px',
+  background: 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 }
 
 const materialsStyle: CSSProperties = {
@@ -551,13 +730,16 @@ const loginNoticeStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '14px',
   flexWrap: 'wrap',
-  width: 'fit-content',
-  maxWidth: '100%',
   padding: '14px 16px',
   borderRadius: '16px',
   background: 'rgba(185,68,79,0.18)',
   border: '1px solid rgba(185,68,79,0.28)',
   color: '#f3dede',
+}
+
+const noticeTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
 }
 
 const loginButtonStyle: CSSProperties = {
@@ -619,18 +801,7 @@ const lockedResourceItemStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const videoResourceItemStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-  alignItems: 'center',
-  width: '100%',
-  textAlign: 'left',
-  color: 'white',
-  background: 'transparent',
-  border: 'none',
-  padding: 0,
-  cursor: 'pointer',
-}
+const videoResourceItemStyle: CSSProperties = lockedResourceItemStyle
 
 const videoThumbStyle: CSSProperties = {
   position: 'relative',

@@ -1,74 +1,71 @@
 import { supabase } from './supabaseClient'
 
-const SIGNED_URL_EXPIRES_IN = 60 * 60 // 1 ora
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24
 
-type CacheItem = {
-  signedUrl: string
-  expiresAt: number
+function isExternalUrl(url: string) {
+  return /^https?:\/\//i.test(url) && !url.includes('/storage/v1/object/')
 }
 
-const signedUrlCache = new Map<string, CacheItem>()
+function cleanStoragePath(path: string) {
+  return decodeURIComponent(path).replace(/^\/+/, '')
+}
 
-function extractBucketAndPathFromUrl(url: string) {
+export function getStorageInfoFromUrl(url: string | null | undefined) {
+  if (!url) return null
+
+  const cleanUrl = url.trim()
+  if (!cleanUrl) return null
+
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    const [bucket, ...pathParts] = cleanUrl.replace(/^\/+/, '').split('/')
+    if (!bucket || pathParts.length === 0) return null
+    return { bucket, path: cleanStoragePath(pathParts.join('/')) }
+  }
+
   try {
-    const parsed = new URL(url)
+    const parsed = new URL(cleanUrl)
 
-    const marker = '/storage/v1/object/public/'
-    const index = parsed.pathname.indexOf(marker)
+    const publicMarker = '/storage/v1/object/public/'
+    const signMarker = '/storage/v1/object/sign/'
+    const authenticatedMarker = '/storage/v1/object/authenticated/'
 
-    if (index === -1) return null
+    let marker = ''
+    if (parsed.pathname.includes(publicMarker)) marker = publicMarker
+    if (parsed.pathname.includes(signMarker)) marker = signMarker
+    if (parsed.pathname.includes(authenticatedMarker)) marker = authenticatedMarker
 
-    const fullPath = parsed.pathname.substring(index + marker.length)
-    const [bucket, ...pathParts] = fullPath.split('/')
+    if (!marker) return null
 
+    const afterMarker = parsed.pathname.split(marker)[1]
+    if (!afterMarker) return null
+
+    const [bucket, ...pathParts] = afterMarker.split('/')
     if (!bucket || pathParts.length === 0) return null
 
-    return {
-      bucket,
-      path: decodeURIComponent(pathParts.join('/')),
-    }
+    return { bucket, path: cleanStoragePath(pathParts.join('/')) }
   } catch {
     return null
   }
 }
 
-export async function getSignedUrlFromPublicUrl(
-  url: string | null | undefined
-): Promise<string | null> {
+export async function getSignedUrlFromPublicUrl(url: string | null | undefined) {
   if (!url) return null
 
-  const now = Date.now()
-  const cached = signedUrlCache.get(url)
+  const cleanUrl = url.trim()
+  if (!cleanUrl) return null
 
-  if (cached && cached.expiresAt > now) {
-    return cached.signedUrl
-  }
+  if (isExternalUrl(cleanUrl)) return cleanUrl
 
-  const extracted = extractBucketAndPathFromUrl(url)
-
-  if (!extracted) {
-    return url
-  }
-
-  const { bucket, path } = extracted
+  const storageInfo = getStorageInfoFromUrl(cleanUrl)
+  if (!storageInfo) return cleanUrl
 
   const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, SIGNED_URL_EXPIRES_IN)
+    .from(storageInfo.bucket)
+    .createSignedUrl(storageInfo.path, SIGNED_URL_TTL_SECONDS)
 
   if (error || !data?.signedUrl) {
-    console.error('Errore creazione signed URL:', error)
-    return null
+    return cleanUrl
   }
 
-  signedUrlCache.set(url, {
-    signedUrl: data.signedUrl,
-    expiresAt: now + SIGNED_URL_EXPIRES_IN * 1000 - 60 * 1000,
-  })
-
   return data.signedUrl
-}
-
-export function clearSignedUrlCache() {
-  signedUrlCache.clear()
 }

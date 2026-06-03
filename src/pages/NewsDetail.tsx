@@ -22,7 +22,7 @@ type MediaType =
   | 'social'
 
 type NewsItem = {
-  id: number
+  id: string
   title: string
   content: string
   image_url: string | null
@@ -33,8 +33,8 @@ type NewsItem = {
 }
 
 type NewsMedia = {
-  id: number
-  news_id: number
+  id: string
+  news_id: string
   media_type: MediaType
   title: string | null
   url: string
@@ -73,19 +73,12 @@ function NewsDetail() {
       return
     }
 
-    const numericNewsId = Number(newsId)
-
-    if (Number.isNaN(numericNewsId)) {
-      setLoading(false)
-      return
-    }
-
     setLoading(true)
 
     const { data: newsData, error: newsError } = await supabase
       .from('news')
       .select('id, title, content, image_url, cover_image_url, published, news_date, created_at')
-      .eq('id', numericNewsId)
+      .eq('id', newsId)
       .eq('published', true)
       .single()
 
@@ -100,7 +93,7 @@ function NewsDetail() {
     const { data: mediaData, error: mediaError } = await supabase
       .from('news_media')
       .select('id, news_id, media_type, title, url, thumbnail_url, sort_order, created_at')
-      .eq('news_id', numericNewsId)
+      .eq('news_id', newsId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
 
@@ -576,8 +569,7 @@ const floatingMessageStyle: CSSProperties = {
 
 const coverSectionStyle: CSSProperties = {
   width: 'min(1000px, calc(100% - 8px))',
-  height: 'min(480px, 56vw)',
-  minHeight: '260px',
+  aspectRatio: '40 / 21',
   margin: '0 auto 28px',
   borderRadius: '22px',
   overflow: 'hidden',
@@ -588,6 +580,7 @@ const coverImageStyle: CSSProperties = {
   width: '100%',
   height: '100%',
   objectFit: 'cover',
+  objectPosition: 'center',
   display: 'block',
 }
 
