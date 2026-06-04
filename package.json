@@ -15,8 +15,7 @@
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2",
     "resend": "^6.12.4",
-    "@aws-sdk/client-s3": "^3.758.0",
-    "@aws-sdk/s3-request-presigner": "^3.758.0"
+    "@aws-sdk/client-s3": "^3.917.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

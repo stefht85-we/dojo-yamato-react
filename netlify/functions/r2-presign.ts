@@ -1,5 +1,4 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,12 +43,21 @@ export const handler = async (event: any) => {
     return json(500, { error: 'Variabili ambiente R2 mancanti' })
   }
 
-  let payload: { folder?: string; fileName?: string; contentType?: string }
+  let payload: {
+    folder?: string
+    fileName?: string
+    contentType?: string
+    base64?: string
+  }
 
   try {
     payload = JSON.parse(event.body || '{}')
   } catch {
     return json(400, { error: 'Payload non valido' })
+  }
+
+  if (!payload.base64) {
+    return json(400, { error: 'File mancante nel payload upload R2' })
   }
 
   const folder = cleanPathPart(payload.folder || 'uploads')
@@ -58,6 +66,8 @@ export const handler = async (event: any) => {
   const key = `${folder}/${fileName}`.replace(/\/+/g, '/')
 
   try {
+    const fileBuffer = Buffer.from(payload.base64, 'base64')
+
     const client = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -68,21 +78,21 @@ export const handler = async (event: any) => {
       },
     })
 
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ContentType: contentType,
-    })
-
-    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 })
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType,
+      })
+    )
 
     return json(200, {
-      uploadUrl,
       publicUrl: `${publicUrl.replace(/\/$/, '')}/${key}`,
       key,
     })
   } catch (error) {
-    console.error('R2 presign error:', error)
-    return json(500, { error: 'Errore generazione presigned URL R2' })
+    console.error('R2 server upload error:', error)
+    return json(500, { error: 'Errore upload server su Cloudflare R2' })
   }
 }

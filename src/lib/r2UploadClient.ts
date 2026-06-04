@@ -1,8 +1,9 @@
 export type R2UploadResponse = {
-  uploadUrl: string
   publicUrl: string
   key: string
 }
+
+const MAX_NETLIFY_FUNCTION_UPLOAD_MB = 5.5
 
 function sanitizeFileName(fileName: string) {
   const name = fileName
@@ -16,11 +17,35 @@ function sanitizeFileName(fileName: string) {
   return name || `file-${Date.now()}`
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const base64 = result.includes(',') ? result.split(',')[1] : result
+      resolve(base64)
+    }
+
+    reader.onerror = () => reject(new Error('Errore lettura file locale'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export async function uploadToR2(file: File, folder: string) {
+  const sizeMb = file.size / 1024 / 1024
+
+  if (sizeMb > MAX_NETLIFY_FUNCTION_UPLOAD_MB) {
+    throw new Error(
+      `File troppo grande per upload tramite Netlify Function (${sizeMb.toFixed(1)} MB). ` +
+        `Riduci il file sotto ${MAX_NETLIFY_FUNCTION_UPLOAD_MB} MB oppure useremo una modalità dedicata per video grandi.`
+    )
+  }
+
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '')
   const safeName = sanitizeFileName(file.name)
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
-  const contentType = file.type || 'application/octet-stream'
+  const base64 = await fileToBase64(file)
 
   const response = await fetch('/.netlify/functions/r2-presign', {
     method: 'POST',
@@ -30,28 +55,26 @@ export async function uploadToR2(file: File, folder: string) {
     body: JSON.stringify({
       folder: cleanFolder,
       fileName,
-      contentType,
+      contentType: file.type || 'application/octet-stream',
+      base64,
     }),
   })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(errorText || 'Errore creazione URL upload R2')
+  const text = await response.text()
+  let data: Partial<R2UploadResponse> & { error?: string } = {}
+
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    data = { error: text }
   }
 
-  const data = (await response.json()) as R2UploadResponse
+  if (!response.ok) {
+    throw new Error(data.error || 'Errore upload file news su Cloudflare R2')
+  }
 
-  const uploadResponse = await fetch(data.uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': contentType,
-    },
-    body: file,
-  })
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text()
-    throw new Error(errorText || `Errore upload Cloudflare R2 (${uploadResponse.status})`)
+  if (!data.publicUrl) {
+    throw new Error('Upload R2 completato senza URL pubblico')
   }
 
   return data.publicUrl
