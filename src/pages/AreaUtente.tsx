@@ -13,8 +13,6 @@ import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 import { uploadToR2 } from '../lib/r2UploadClient'
 import './AreaUtente.css'
 
-const EVENT_IMAGES_BUCKET = 'event-images'
-const EVENT_DOCUMENTS_BUCKET = 'event-documents'
 
 type AdminTab =
   | 'news'
@@ -515,20 +513,6 @@ function AreaUtente() {
     setMessage('Profilo salvato')
   }
 
-  async function uploadFileToBucket(file: File, bucket: string, folder: string) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `${folder}/${fileName}`
-
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
-
-    return data.publicUrl
-  }
-
   function resetAlbumForm() {
     setEditingAlbumId(null)
     setAlbumTitle('')
@@ -973,10 +957,16 @@ function AreaUtente() {
     setMessage(editingEventId ? 'Aggiornamento evento...' : 'Creazione evento...')
 
     try {
+      const eventFolderYear = eventIsProvisional
+        ? provisionalYearNumber
+        : eventDate
+          ? new Date(eventDate).getFullYear()
+          : new Date().getFullYear()
+
       let finalImageUrl = existingEventImageUrl
 
       if (eventImageFile) {
-        finalImageUrl = await uploadFileToBucket(eventImageFile, EVENT_IMAGES_BUCKET, 'events')
+        finalImageUrl = await uploadToR2(eventImageFile, `eventi/images/${eventFolderYear}`)
       }
 
       const payload = {
@@ -1018,7 +1008,7 @@ function AreaUtente() {
         const docsToInsert = []
 
         for (const file of filesArray) {
-          const fileUrl = await uploadFileToBucket(file, EVENT_DOCUMENTS_BUCKET, `events/${eventIdToUse}`)
+          const fileUrl = await uploadToR2(file, `eventi/documents/${eventFolderYear}/${eventIdToUse}`)
 
           docsToInsert.push({
             event_id: eventIdToUse,
