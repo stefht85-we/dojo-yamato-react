@@ -1,0 +1,21 @@
+{
+	"dbConnectionString": "postgres://localhost:56041/postgres",
+	"geolocation": {
+		"data": {
+			"city": "Milan",
+			"country": {
+				"code": "IT",
+				"name": "Italy"
+			},
+			"subdivision": {
+				"code": "25",
+				"name": "Lombardy"
+			},
+			"timezone": "Europe/Rome",
+			"latitude": 45.4722,
+			"longitude": 9.1922,
+			"postalCode": "20143"
+		},
+		"timestamp": 1780483292322
+	}
+}
