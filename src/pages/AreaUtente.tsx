@@ -13,7 +13,6 @@ import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 import { uploadToR2 } from '../lib/r2UploadClient'
 import './AreaUtente.css'
 
-const GALLERY_BUCKET = 'gallery'
 const EVENT_IMAGES_BUCKET = 'event-images'
 const EVENT_DOCUMENTS_BUCKET = 'event-documents'
 
