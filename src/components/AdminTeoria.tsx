@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-
-const THEORY_FILES_BUCKET = 'theory-files'
+import { uploadToR2 } from '../lib/r2UploadClient'
 
 type TheorySection = 'fondamenti' | 'risorse'
 type TheoryResourceType = 'file' | 'video' | 'youtube' | 'social' | 'link'
@@ -88,19 +87,8 @@ function AdminTeoria() {
   }
 
   async function uploadTheoryFile(file: File) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `${section}/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(THEORY_FILES_BUCKET)
-      .upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(THEORY_FILES_BUCKET).getPublicUrl(filePath)
-
-    return data.publicUrl
+    const sectionFolder = section === 'fondamenti' ? 'fondamenti' : 'risorse'
+    return uploadToR2(file, `teoria/${sectionFolder}`)
   }
 
   function resetForm() {

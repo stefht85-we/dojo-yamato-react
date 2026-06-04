@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-
-const TEACHER_IMAGES_BUCKET = 'teacher-images'
+import { uploadToR2 } from '../lib/r2UploadClient'
 
 type Teacher = {
   id: string
@@ -63,21 +62,7 @@ function AdminInsegnanti() {
   }
 
   async function uploadTeacherImage(file: File, folder: string) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `${folder}/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(TEACHER_IMAGES_BUCKET)
-      .upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage
-      .from(TEACHER_IMAGES_BUCKET)
-      .getPublicUrl(filePath)
-
-    return data.publicUrl
+    return uploadToR2(file, `insegnanti/${folder}`)
   }
 
   function resetForm() {

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-
-const BUCKET = 'self-defense'
+import { uploadToR2 } from '../lib/r2UploadClient'
 
 type DefenseMedia = {
   id: string
@@ -46,19 +45,7 @@ export default function AdminDifesaPersonale() {
   }
 
   async function uploadFile(selectedFile: File) {
-    const fileExt = selectedFile.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `media/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(filePath, selectedFile)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
-
-    return data.publicUrl
+    return uploadToR2(selectedFile, 'difesa-personale/media')
   }
 
   async function handleCreate(e: FormEvent) {

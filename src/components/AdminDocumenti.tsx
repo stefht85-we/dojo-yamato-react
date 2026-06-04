@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-
-const DOCUMENTS_BUCKET = 'documents'
+import { uploadToR2 } from '../lib/r2UploadClient'
 
 type DojoDocument = {
   id: string
@@ -58,19 +57,7 @@ function AdminDocumenti() {
   }
 
   async function uploadFileToBucket(file: File) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `documents/${fileName}`
-
-    const { error: uploadError } = await supabase.storage
-      .from(DOCUMENTS_BUCKET)
-      .upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(DOCUMENTS_BUCKET).getPublicUrl(filePath)
-
-    return data.publicUrl
+    return uploadToR2(file, 'documenti')
   }
 
   function resetDocumentForm() {
