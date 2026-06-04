@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { uploadToR2 } from '../lib/r2UploadClient'
 
 const ADMIN_EMAIL = 'stefht85@hotmail.com'
 const NEWS_MEDIA_BUCKET = 'news-media'
@@ -106,20 +107,15 @@ function AdminNews() {
     setNewsMedia((data ?? []) as NewsMedia[])
   }
 
-  async function uploadFileToBucket(file: File, bucket: string, folder: string) {
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-    const filePath = `${folder}/${fileName}`
+  async function uploadFileToBucket(file: File, _bucket: string, folder: string) {
+    // MIGRAZIONE STORAGE:
+    // Il database resta su Supabase, ma i file fisici vengono caricati su Cloudflare R2.
+    // Mappatura usata:
+    // - news/<id>                         -> news/media/<id>
+    // - news/<id>/social-previews         -> news/media/<id>/social-previews
+    const r2Folder = folder.startsWith('news/') ? folder.replace(/^news\//, 'news/media/') : folder
 
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file)
-
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath)
-
-    return data.publicUrl
+    return uploadToR2(file, r2Folder)
   }
 
   function resetNewsForm() {
