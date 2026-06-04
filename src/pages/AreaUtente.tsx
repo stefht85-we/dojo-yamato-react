@@ -10,6 +10,7 @@ import AdminIscritti from '../components/AdminIscritti'
 import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
 import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { uploadToR2 } from '../lib/r2UploadClient'
 import './AreaUtente.css'
 
 const GALLERY_BUCKET = 'gallery'
@@ -704,7 +705,8 @@ function AreaUtente() {
         }
 
         const mediaType: 'image' | 'video' | 'file' = isImage ? 'image' : isVideo ? 'video' : 'file'
-        const fileUrl = await uploadFileToBucket(file, GALLERY_BUCKET, `albums/${selectedAlbumId}`)
+        const r2Folder = `galleria/${album.event_year}/${selectedAlbumId}`
+        const fileUrl = await uploadToR2(file, r2Folder)
 
         uploadedMedia.push({
           album_id: selectedAlbumId,
@@ -847,7 +849,9 @@ function AreaUtente() {
           return
         }
 
-        previewUrl = await uploadFileToBucket(socialPreviewFile, GALLERY_BUCKET, `albums/${selectedAlbumId}/social-previews`)
+        const album = albums.find((item) => item.id === selectedAlbumId)
+        const r2Folder = `galleria/${album?.event_year ?? new Date().getFullYear()}/${selectedAlbumId}/social-previews`
+        previewUrl = await uploadToR2(socialPreviewFile, r2Folder)
       }
 
       const currentAlbumMedia = media.filter((item) => item.album_id === selectedAlbumId)
