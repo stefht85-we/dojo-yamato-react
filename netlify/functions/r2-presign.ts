@@ -61,6 +61,7 @@ export const handler = async (event: any) => {
     const client = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      forcePathStyle: true,
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -81,7 +82,7 @@ export const handler = async (event: any) => {
       key,
     })
   } catch (error) {
-    console.error(error)
+    console.error('R2 presign error:', error)
     return json(500, { error: 'Errore generazione presigned URL R2' })
   }
 }

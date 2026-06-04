@@ -20,6 +20,7 @@ export async function uploadToR2(file: File, folder: string) {
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '')
   const safeName = sanitizeFileName(file.name)
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+  const contentType = file.type || 'application/octet-stream'
 
   const response = await fetch('/.netlify/functions/r2-presign', {
     method: 'POST',
@@ -29,7 +30,7 @@ export async function uploadToR2(file: File, folder: string) {
     body: JSON.stringify({
       folder: cleanFolder,
       fileName,
-      contentType: file.type || 'application/octet-stream',
+      contentType,
     }),
   })
 
@@ -43,14 +44,14 @@ export async function uploadToR2(file: File, folder: string) {
   const uploadResponse = await fetch(data.uploadUrl, {
     method: 'PUT',
     headers: {
-      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Type': contentType,
     },
     body: file,
   })
 
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text()
-    throw new Error(errorText || 'Errore upload file su Cloudflare R2')
+    throw new Error(errorText || `Errore upload Cloudflare R2 (${uploadResponse.status})`)
   }
 
   return data.publicUrl
