@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
-import {
-  canDownloadMedia,
-  canOpenMedia,
-  getAccessDeniedMessage,
-} from '../lib/permissions'
+import { getAccessDeniedMessage } from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type TheoryResource = {
   id: string
@@ -26,24 +22,18 @@ type TheoryResource = {
 function Teoria() {
   const { section } = useParams()
 
-  const [user, setUser] = useState<User | null>(null)
   const [resources, setResources] = useState<TheoryResource[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<TheoryResource | null>(null)
   const [accessMessage, setAccessMessage] = useState('')
 
-  const userCanOpenMedia = canOpenMedia(user)
-  const userCanDownloadMedia = canDownloadMedia(user)
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
+  const userCanOpenMedia = canOpenRestrictedContent
+  const userCanDownloadMedia = canOpenRestrictedContent
 
   useEffect(() => {
-    loadUser()
     loadResources()
   }, [])
-
-  async function loadUser() {
-    const { data } = await supabase.auth.getUser()
-    setUser(data.user)
-  }
 
   async function loadResources() {
     setLoading(true)
@@ -99,7 +89,7 @@ function Teoria() {
   }, [risorseDidattiche])
 
   function showAccessDenied() {
-    setAccessMessage(getAccessDeniedMessage('i materiali della sezione Teoria'))
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere l’elenco dei materiali, ma non puoi aprire o scaricare i contenuti.' : getAccessDeniedMessage('i materiali della sezione Teoria'))
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -157,9 +147,11 @@ function Teoria() {
 
     return (
       <div style={loginNoticeStyle}>
-        <strong>Materiali riservati agli utenti registrati.</strong>
-        Puoi vedere l’elenco dei contenuti, ma per aprire video, documenti e link devi accedere.
-        <Link to="/area-utente" style={loginButtonStyle}>Accedi / Registrati</Link>
+        <strong>{isPending ? 'Accesso in attesa di approvazione.' : 'Materiali riservati agli utenti registrati.'}</strong>
+        {isPending
+          ? 'Puoi vedere l’elenco dei contenuti, ma non puoi aprire video, documenti e link finché l’accesso non viene approvato.'
+          : 'Puoi vedere l’elenco dei contenuti, ma per aprire video, documenti e link devi accedere.'}
+        <Link to="/area-utente" style={loginButtonStyle}>{isPending ? 'Stato richiesta' : 'Accedi / Registrati'}</Link>
       </div>
     )
   }
@@ -167,7 +159,7 @@ function Teoria() {
   function renderLockedBadge() {
     if (userCanOpenMedia) return null
 
-    return <span style={lockedBadgeStyle}>Accesso utenti</span>
+    return <span style={lockedBadgeStyle}>{isPending ? 'In attesa' : 'Accesso utenti'}</span>
   }
 
   function renderDownloadButton(item: TheoryResource) {

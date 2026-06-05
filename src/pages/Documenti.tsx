@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type DojoDocument = {
   id: string
@@ -16,26 +16,17 @@ type DojoDocument = {
 }
 
 function Documenti() {
-  const [user, setUser] = useState<User | null>(null)
   const [documents, setDocuments] = useState<DojoDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [accessMessage, setAccessMessage] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
-  const canAccessMedia = Boolean(user)
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
+  const canAccessMedia = canOpenRestrictedContent
 
   useEffect(() => {
-    loadUser()
     loadDocuments()
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => {
-      listener.subscription.unsubscribe()
-    }
   }, [])
 
   const categories = useMemo(() => {
@@ -46,11 +37,6 @@ function Documenti() {
     if (categoryFilter === 'all') return documents
     return documents.filter((item) => (item.category || 'Altro') === categoryFilter)
   }, [documents, categoryFilter])
-
-  async function loadUser() {
-    const { data } = await supabase.auth.getUser()
-    setUser(data.user)
-  }
 
   async function loadDocuments() {
     setLoading(true)
@@ -87,7 +73,7 @@ function Documenti() {
   }
 
   function showAccessDenied() {
-    setAccessMessage('Accedi o registrati all’Area Utente per aprire e scaricare i documenti.')
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere l’elenco, ma non puoi aprire o scaricare i documenti.' : 'Accedi o registrati all’Area Utente per aprire e scaricare i documenti.')
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -163,10 +149,12 @@ function Documenti() {
 
         {!canAccessMedia && (
           <div style={loginNoticeStyle}>
-            <strong>Documenti riservati agli utenti registrati.</strong>
-            Puoi vedere l’elenco, ma per aprire e scaricare i file devi accedere.
+            <strong>{isPending ? 'Accesso in attesa di approvazione.' : 'Documenti riservati agli utenti registrati.'}</strong>
+            {isPending
+              ? 'Puoi vedere l’elenco dei documenti, ma non puoi aprire o scaricare i file finché l’accesso non viene approvato.'
+              : 'Puoi vedere l’elenco, ma per aprire e scaricare i file devi accedere.'}
             <Link to="/area-utente" style={loginButtonStyle}>
-              Accedi / Registrati
+              {isPending ? 'Stato richiesta' : 'Accedi / Registrati'}
             </Link>
           </div>
         )}
@@ -231,7 +219,7 @@ function Documenti() {
 
                 {!canAccessMedia && (
                   <p style={lockedTextStyle}>
-                    Accesso richiesto per aprire o scaricare questo documento.
+                    {isPending ? 'In attesa di approvazione: apertura e download bloccati.' : 'Accesso richiesto per aprire o scaricare questo documento.'}
                   </p>
                 )}
 

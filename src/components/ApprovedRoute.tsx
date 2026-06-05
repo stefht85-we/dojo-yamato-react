@@ -1,107 +1,77 @@
-﻿import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
-import { isAdmin as checkIsAdmin } from '../lib/permissions'
-import type { User } from '@supabase/supabase-js'
-
-type AccessState = 'loading' | 'anonymous' | 'pending' | 'approved' | 'rejected'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type Props = {
   children: ReactNode
+  allowPendingPreview?: boolean
+  allowPublicPreview?: boolean
 }
 
-function ApprovedRoute({ children }: Props) {
-  const [state, setState] = useState<AccessState>('loading')
-  const [user, setUser] = useState<User | null>(null)
+function ApprovedRoute({ children, allowPendingPreview = false, allowPublicPreview = false }: Props) {
+  const { status, user } = useAccessStatus()
 
-  useEffect(() => {
-    let active = true
-
-    async function checkAccess() {
-      const { data } = await supabase.auth.getUser()
-      const currentUser = data.user
-
-      if (!active) return
-      setUser(currentUser)
-
-      if (!currentUser) {
-        setState('anonymous')
-        return
-      }
-
-      if (checkIsAdmin(currentUser)) {
-        setState('approved')
-        return
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('approved, approval_status')
-        .eq('id', currentUser.id)
-        .maybeSingle()
-
-      if (error || !profile) {
-        setState('pending')
-        return
-      }
-
-      if (profile.approved === true && profile.approval_status === 'approved') {
-        setState('approved')
-      } else if (profile.approval_status === 'rejected') {
-        setState('rejected')
-      } else {
-        setState('pending')
-      }
-    }
-
-    checkAccess()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      checkAccess()
-    })
-
-    return () => {
-      active = false
-      listener.subscription.unsubscribe()
-    }
-  }, [])
-
-  if (state === 'loading') {
+  if (status === 'loading') {
     return <AccessMessage title="Verifica accesso..." text="Stiamo controllando i permessi del tuo account." />
   }
 
-  if (state === 'anonymous') {
+  if (status === 'anonymous' && !allowPublicPreview) {
     return (
       <AccessMessage
         title="Area riservata"
-        text="Per leggere questi contenuti devi effettuare il login con un account approvato."
+        text="Per visualizzare questi contenuti devi effettuare il login o registrarti."
         action={<Link className="primary-auth-button" to="/area-utente">Vai al login</Link>}
       />
     )
   }
 
-  if (state === 'pending') {
-    return (
-      <AccessMessage
-        title="Accesso in attesa di approvazione"
-        text={`Lâ€™account ${user?.email ?? ''} Ã¨ registrato, ma deve ancora essere approvato dalla segreteria.`}
-        action={<Link className="secondary-auth-button" to="/area-utente">Vai allâ€™area utente</Link>}
-      />
-    )
-  }
-
-  if (state === 'rejected') {
+  if (status === 'rejected') {
     return (
       <AccessMessage
         title="Accesso non approvato"
-        text="La richiesta di accesso non Ã¨ stata approvata. Per informazioni contatta la segreteria del Dojo Yamato."
+        text="La richiesta di accesso non è stata approvata. Per informazioni contatta la segreteria del Dojo Yamato."
         action={<Link className="secondary-auth-button" to="/contatti">Contatti</Link>}
       />
     )
   }
 
-  return <>{children}</>
+  if (status === 'pending' && !allowPendingPreview) {
+    return (
+      <AccessMessage
+        title="Accesso in attesa di approvazione"
+        text={`L'account ${user?.email ?? ''} è registrato, ma deve ancora essere approvato dalla segreteria.`}
+        action={<Link className="secondary-auth-button" to="/area-utente">Vai all'area utente</Link>}
+      />
+    )
+  }
+
+  return (
+    <>
+      {status === 'anonymous' && allowPublicPreview && <PublicPreviewBanner />}
+      {status === 'pending' && allowPendingPreview && <PendingPreviewBanner />}
+      {children}
+    </>
+  )
+}
+
+function PublicPreviewBanner() {
+  return (
+    <div style={publicBannerStyle}>
+      <strong>Contenuti in anteprima.</strong>
+      Puoi vedere le pagine e le anteprime, ma per aprire immagini, video o scaricare documenti devi registrarti ed essere approvato.
+      <Link to="/area-utente" style={pendingBannerLinkStyle}>Accedi / Registrati</Link>
+    </div>
+  )
+}
+
+function PendingPreviewBanner() {
+  return (
+    <div style={pendingBannerStyle}>
+      <strong>Account in attesa di approvazione.</strong>
+      Puoi vedere titoli e anteprime, ma non puoi aprire, ingrandire o scaricare i contenuti finché l'accesso non viene approvato.
+      <Link to="/area-utente" style={pendingBannerLinkStyle}>Stato richiesta</Link>
+    </div>
+  )
 }
 
 function AccessMessage({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
@@ -115,6 +85,46 @@ function AccessMessage({ title, text, action }: { title: string; text: string; a
       </section>
     </main>
   )
+}
+
+const publicBannerStyle = {
+  position: 'sticky' as const,
+  top: 88,
+  zIndex: 900,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '10px',
+  flexWrap: 'wrap' as const,
+  padding: '12px 18px',
+  background: 'rgba(32,54,91,0.96)',
+  color: '#fff',
+  fontWeight: 800,
+  textAlign: 'center' as const,
+  boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
+}
+
+const pendingBannerStyle = {
+  position: 'sticky' as const,
+  top: 88,
+  zIndex: 900,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '10px',
+  flexWrap: 'wrap' as const,
+  padding: '12px 18px',
+  background: 'rgba(185,68,79,0.95)',
+  color: '#fff',
+  fontWeight: 800,
+  textAlign: 'center' as const,
+  boxShadow: '0 12px 28px rgba(0,0,0,0.28)',
+}
+
+const pendingBannerLinkStyle = {
+  color: '#fff',
+  textDecoration: 'underline',
+  fontWeight: 950,
 }
 
 export default ApprovedRoute

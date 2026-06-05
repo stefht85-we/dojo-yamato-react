@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type GalleryAlbum = {
   id: string
@@ -35,7 +35,6 @@ type GalleryMedia = {
 function GalleriaAlbum() {
   const { albumId } = useParams()
 
-  const [user, setUser] = useState<User | null>(null)
   const [album, setAlbum] = useState<GalleryAlbum | null>(null)
   const [media, setMedia] = useState<GalleryMedia[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,30 +42,17 @@ function GalleriaAlbum() {
   const [accessMessage, setAccessMessage] = useState('')
   const [activeMedia, setActiveMedia] = useState<GalleryMedia | null>(null)
 
-  const canAccessMedia = Boolean(user)
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
+  const canAccessMedia = canOpenRestrictedContent
 
   useEffect(() => {
-    loadUser()
     loadAlbum()
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => {
-      listener.subscription.unsubscribe()
-    }
   }, [albumId])
 
   const mediaCountLabel = useMemo(() => {
     if (media.length === 1) return '1 contenuto'
     return `${media.length} contenuti`
   }, [media.length])
-
-  async function loadUser() {
-    const { data } = await supabase.auth.getUser()
-    setUser(data.user)
-  }
 
   async function loadAlbum() {
     if (!albumId) return
@@ -121,7 +107,7 @@ function GalleriaAlbum() {
   }
 
   function showAccessDenied() {
-    setAccessMessage('Accedi o registrati all’Area Utente per aprire immagini, video e contenuti della galleria.')
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Accedi o registrati all’Area Utente per aprire immagini, video e contenuti della galleria.')
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -245,10 +231,12 @@ function GalleriaAlbum() {
 
         {!canAccessMedia && (
           <div style={loginNoticeStyle}>
-            <strong>Contenuti riservati agli utenti registrati.</strong>
-            Puoi vedere le anteprime, ma per aprire immagini, video e contenuti completi devi accedere.
+            <strong>{isPending ? 'Accesso in attesa di approvazione.' : 'Contenuti riservati agli utenti registrati.'}</strong>
+            {isPending
+              ? 'Puoi vedere le anteprime, ma non puoi aprire immagini, video e file finché l’accesso non viene approvato.'
+              : 'Puoi vedere le anteprime, ma per aprire immagini, video e contenuti completi devi accedere.'}
             <Link to="/area-utente" style={loginButtonStyle}>
-              Accedi / Registrati
+              {isPending ? 'Stato richiesta' : 'Accedi / Registrati'}
             </Link>
           </div>
         )}
@@ -266,7 +254,7 @@ function GalleriaAlbum() {
           <div style={filterBoxStyle}>
             <span style={filterLabelStyle}>Accesso</span>
             <span style={accessStatusStyle}>
-              {canAccessMedia ? 'Utente autorizzato' : 'Login richiesto'}
+              {canAccessMedia ? 'Utente autorizzato' : isPending ? 'In attesa di approvazione' : 'Login richiesto'}
             </span>
           </div>
         </div>
@@ -350,7 +338,7 @@ function GalleriaAlbum() {
 
                     {!canAccessMedia && (
                       <p style={lockedTextStyle}>
-                        Accesso richiesto per aprire questo contenuto.
+                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Accesso richiesto per aprire questo contenuto.'}
                       </p>
                     )}
 
@@ -365,7 +353,7 @@ function GalleriaAlbum() {
                 {!item.caption && !canAccessMedia && (
                   <div style={mediaCardBodyStyle}>
                     <p style={lockedTextStyle}>
-                      Accesso richiesto per aprire questo contenuto.
+                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Accesso richiesto per aprire questo contenuto.'}
                     </p>
                   </div>
                 )}

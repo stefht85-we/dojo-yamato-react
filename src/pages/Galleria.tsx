@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type GalleryAlbum = {
   id: string
@@ -21,6 +22,8 @@ export default function Galleria() {
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
+  const [accessMessage, setAccessMessage] = useState('')
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
 
   useEffect(() => {
     loadAlbums()
@@ -76,6 +79,80 @@ export default function Galleria() {
   }, [albumsByYear])
 
   const selectedAlbums = selectedYear ? albumsByYear[selectedYear] || [] : []
+
+  function showAccessDenied() {
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere gli album, ma non puoi aprirli finché l’accesso non viene approvato.' : 'Puoi vedere gli album disponibili, ma per aprirli devi registrarti ed essere approvato.')
+
+    window.setTimeout(() => {
+      setAccessMessage('')
+    }, 5000)
+  }
+
+  function renderAlbumCard(album: GalleryAlbum) {
+    const cardContent = (
+      <>
+        <div style={styles.albumCoverWrap}>
+          {album.signed_cover_url ? (
+            <img
+              src={album.signed_cover_url}
+              alt={album.title}
+              loading="lazy"
+              style={styles.albumCover}
+            />
+          ) : (
+            <div style={styles.albumCoverFallback}>📷</div>
+          )}
+        </div>
+
+        <div style={styles.albumBody}>
+          <p style={styles.albumDate}>
+            {formatAlbumDate(album.event_date, album.event_year)}
+          </p>
+
+          <h3 style={styles.albumTitle}>{album.title}</h3>
+
+          {album.description && (
+            <p style={styles.albumDescription}>
+              {album.description.length > 110
+                ? `${album.description.slice(0, 110)}...`
+                : album.description}
+            </p>
+          )}
+
+          {album.category && (
+            <span style={styles.categoryBadge}>{album.category}</span>
+          )}
+
+          {!canOpenRestrictedContent && (
+            <p style={styles.lockedHint}>{isPending ? 'In attesa di approvazione: apertura album bloccata.' : 'Registrazione richiesta: apertura album bloccata.'}</p>
+          )}
+        </div>
+      </>
+    )
+
+    if (canOpenRestrictedContent) {
+      return (
+        <Link
+          key={album.id}
+          to={`/galleria/${album.id}`}
+          style={styles.albumCard}
+        >
+          {cardContent}
+        </Link>
+      )
+    }
+
+    return (
+      <button
+        key={album.id}
+        type="button"
+        onClick={showAccessDenied}
+        style={{ ...styles.albumCard, ...styles.lockedAlbumCard }}
+      >
+        {cardContent}
+      </button>
+    )
+  }
 
   return (
     <main style={styles.page}>
@@ -166,7 +243,7 @@ export default function Galleria() {
                   <p style={styles.kicker}>Anno {selectedYear}</p>
                   <h2 style={styles.sectionTitle}>Album disponibili</h2>
                   <p style={styles.sectionSubtitle}>
-                    Clicca su un album per visualizzare tutte le foto e i contenuti.
+                    {canOpenRestrictedContent ? 'Clicca su un album per visualizzare tutte le foto e i contenuti.' : isPending ? 'Puoi vedere gli album disponibili; l’apertura sarà abilitata dopo l’approvazione.' : 'Puoi vedere gli album disponibili; per aprirli devi registrarti ed essere approvato.'}
                   </p>
                 </div>
 
@@ -174,46 +251,7 @@ export default function Galleria() {
                   <p style={styles.empty}>Nessun album disponibile per questo anno.</p>
                 ) : (
                   <div style={styles.albumGrid}>
-                    {selectedAlbums.map((album) => (
-                      <Link
-                        key={album.id}
-                        to={`/galleria/${album.id}`}
-                        style={styles.albumCard}
-                      >
-                        <div style={styles.albumCoverWrap}>
-                          {album.signed_cover_url ? (
-                            <img
-                              src={album.signed_cover_url}
-                              alt={album.title}
-                              loading="lazy"
-                              style={styles.albumCover}
-                            />
-                          ) : (
-                            <div style={styles.albumCoverFallback}>📷</div>
-                          )}
-                        </div>
-
-                        <div style={styles.albumBody}>
-                          <p style={styles.albumDate}>
-                            {formatAlbumDate(album.event_date, album.event_year)}
-                          </p>
-
-                          <h3 style={styles.albumTitle}>{album.title}</h3>
-
-                          {album.description && (
-                            <p style={styles.albumDescription}>
-                              {album.description.length > 110
-                                ? `${album.description.slice(0, 110)}...`
-                                : album.description}
-                            </p>
-                          )}
-
-                          {album.category && (
-                            <span style={styles.categoryBadge}>{album.category}</span>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
+                    {selectedAlbums.map((album) => renderAlbumCard(album))}
                   </div>
                 )}
               </div>
@@ -221,6 +259,8 @@ export default function Galleria() {
           </>
         )}
       </section>
+
+      {accessMessage && <div style={styles.floatingMessage}>{accessMessage}</div>}
     </main>
   )
 }
@@ -476,6 +516,33 @@ const styles: Record<string, CSSProperties> = {
     border: '1px solid rgba(185,68,79,0.35)',
     fontSize: 12,
     fontWeight: 800,
+  },
+  lockedAlbumCard: {
+    width: '100%',
+    padding: 0,
+    textAlign: 'left',
+    cursor: 'not-allowed',
+    opacity: 0.92,
+  },
+  lockedHint: {
+    margin: '12px 0 0',
+    color: '#f3dede',
+    fontSize: 13,
+    fontWeight: 800,
+  },
+  floatingMessage: {
+    position: 'fixed',
+    left: '50%',
+    bottom: 24,
+    transform: 'translateX(-50%)',
+    zIndex: 1001,
+    width: 'min(560px, calc(100% - 32px))',
+    padding: '14px 16px',
+    borderRadius: 16,
+    background: 'rgba(185,68,79,0.95)',
+    color: 'white',
+    fontWeight: 800,
+    boxShadow: '0 18px 40px rgba(0,0,0,0.36)',
   },
   empty: {
     color: '#cbd5e1',

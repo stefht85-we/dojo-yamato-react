@@ -31,10 +31,10 @@ function App() {
           <Route path="/chi-siamo" element={<ChiSiamo />} />
           <Route path="/insegnanti" element={<Insegnanti />} />
           <Route path="/corsi" element={<Corsi />} />
-          <Route path="/galleria" element={<ApprovedRoute><Galleria /></ApprovedRoute>} />
-          <Route path="/galleria/:albumId" element={<ApprovedRoute><GalleriaAlbum /></ApprovedRoute>} />
-          <Route path="/teoria" element={<ApprovedRoute><Teoria /></ApprovedRoute>} />
-          <Route path="/teoria/:section" element={<ApprovedRoute><Teoria /></ApprovedRoute>} />
+          <Route path="/galleria" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Galleria /></ApprovedRoute>} />
+          <Route path="/galleria/:albumId" element={<ApprovedRoute allowPublicPreview allowPendingPreview><GalleriaAlbum /></ApprovedRoute>} />
+          <Route path="/teoria" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Teoria /></ApprovedRoute>} />
+          <Route path="/teoria/:section" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Teoria /></ApprovedRoute>} />
           <Route path="/news" element={<News />} />
           <Route path="/news/:newsId" element={<NewsDetail />} />
           <Route path="/contatti" element={<Contatti />} />
@@ -42,7 +42,7 @@ function App() {
           <Route path="/bacheca" element={<ApprovedRoute><Bacheca /></ApprovedRoute>} />
           <Route path="/calendario-eventi" element={<ApprovedRoute><CalendarioEventi /></ApprovedRoute>} />
           <Route path="/eventi/:eventoId" element={<ApprovedRoute><EventoDettaglio /></ApprovedRoute>} />
-          <Route path="/documenti" element={<ApprovedRoute><Documenti /></ApprovedRoute>} />
+          <Route path="/documenti" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Documenti /></ApprovedRoute>} />
           <Route path="/difesa-personale" element={<DifesaPersonale />} />
         </Routes>
       </main>
