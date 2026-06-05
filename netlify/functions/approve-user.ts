@@ -3,96 +3,50 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-function htmlPage(title: string, message: string) {
-  return `<!doctype html>
-<html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${title}</title>
-</head>
-<body style="font-family:Arial,sans-serif;background:#0b0f1a;color:#fff;padding:40px">
-  <div style="max-width:720px;margin:auto;background:#151b2a;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px">
-    <h1>${title}</h1>
-    <p style="font-size:18px;line-height:1.5">${message}</p>
-  </div>
-</body>
-</html>`
-}
+const supabase = supabaseUrl && serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+  : null
 
 export async function handler(event: any) {
-  if (!supabaseUrl || !serviceRoleKey) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage('Errore configurazione', 'Variabili Supabase server mancanti.'),
-    }
+  try {
+    if (!supabase) return html(500, 'Configurazione server mancante')
+
+    const token = event.queryStringParameters?.token
+    if (!token) return html(400, 'Token mancante')
+
+    const { data: profile, error: findError } = await supabase
+      .from('profiles')
+      .select('id, email, nome, cognome')
+      .eq('approval_token', token)
+      .maybeSingle()
+
+    if (findError) return html(500, `Errore ricerca token: ${findError.message}`)
+    if (!profile) return html(404, 'Token non valido o già usato')
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        approved: true,
+        approval_status: 'approved',
+        role: 'reader',
+        approved_at: new Date().toISOString(),
+        rejected_at: null,
+        approval_token: null,
+      })
+      .eq('id', profile.id)
+
+    if (updateError) return html(500, `Errore approvazione: ${updateError.message}`)
+
+    return html(200, `Accesso approvato per ${profile.email}. L’utente può ora accedere ai contenuti riservati.`)
+  } catch (error) {
+    return html(500, error instanceof Error ? error.message : 'Errore approvazione')
   }
+}
 
-  const token = String(event.queryStringParameters?.token || '').trim()
-
-  if (!token) {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage('Token mancante', 'Il link di approvazione non contiene un token valido.'),
-    }
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-
-  const { data: profile, error: selectError } = await supabase
-    .from('profiles')
-    .select('id, email, nome, cognome, approval_status, approval_token_expires_at')
-    .eq('approval_token', token)
-    .maybeSingle()
-
-  if (selectError || !profile) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage('Richiesta non trovata', 'Token non valido oppure richiesta già gestita.'),
-    }
-  }
-
-  if (profile.approval_token_expires_at && new Date(profile.approval_token_expires_at).getTime() < Date.now()) {
-    return {
-      statusCode: 410,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage('Link scaduto', 'Il link di approvazione è scaduto.'),
-    }
-  }
-
-  const { error: updateError } = await supabase
-    .from('profiles')
-    .update({
-      approved: true,
-      approval_status: 'approved',
-      approved_at: new Date().toISOString(),
-      rejected_at: null,
-      approval_token: null,
-      approval_token_expires_at: null,
-      role: 'reader',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', profile.id)
-
-  if (updateError) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      body: htmlPage('Errore approvazione', updateError.message),
-    }
-  }
-
+function html(statusCode: number, message: string) {
   return {
-    statusCode: 200,
+    statusCode,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    body: htmlPage(
-      'Accesso approvato',
-      `Hai approvato l’accesso in sola lettura per ${profile.nome || ''} ${profile.cognome || ''} (${profile.email}).`
-    ),
+    body: `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Dojo Yamato</title></head><body style="font-family:Arial,sans-serif;padding:32px;"><h1>Dojo Yamato</h1><p>${message}</p><p><a href="/">Torna al sito</a></p></body></html>`,
   }
 }

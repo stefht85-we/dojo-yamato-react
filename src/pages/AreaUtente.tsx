@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 import type { CSSProperties, FormEvent, MouseEvent } from 'react'
@@ -8,6 +8,7 @@ import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
 import AdminIscritti from '../components/AdminIscritti'
 import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
+import AdminAccessiUtenti from '../components/AdminAccessiUtenti'
 import { isAdmin as checkIsAdmin } from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 import { uploadToR2 } from '../lib/r2UploadClient'
@@ -23,8 +24,7 @@ type AdminTab =
   | 'teoria'
   | 'difesa'
   | 'iscritti'
-
-type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+  | 'accessi'
 
 type GalleryAlbum = {
   id: string
@@ -81,11 +81,10 @@ type DojoEvent = {
   signed_image_url?: string | null
 }
 
+type ApprovalStatus = 'loading' | 'missing' | 'pending' | 'approved' | 'rejected'
+
 function AreaUtente() {
   const [user, setUser] = useState<User | null>(null)
-  const [profileLoading, setProfileLoading] = useState(false)
-  const [profileApproved, setProfileApproved] = useState(false)
-  const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus>('pending')
 
   const [email, setEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
@@ -103,6 +102,8 @@ function AreaUtente() {
   const [newsletterOptIn, setNewsletterOptIn] = useState(false)
   const [showRegisterForm, setShowRegisterForm] = useState(false)
   const [message, setMessage] = useState('')
+  const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus>('loading')
+  const [isApprovedReader, setIsApprovedReader] = useState(false)
 
   const [adminTab, setAdminTab] = useState<AdminTab>('news')
 
@@ -158,43 +159,39 @@ function AreaUtente() {
   }, [albums, albumYearFilter])
 
   async function loadProfile(currentUser: User) {
-    setProfileLoading(true)
+    const adminUser = checkIsAdmin(currentUser)
 
-    const currentUserIsAdmin = checkIsAdmin(currentUser)
-    const baseProfilePayload = {
-      id: currentUser.id,
-      email: currentUser.email ?? null,
-      role: currentUserIsAdmin ? 'admin' : 'reader',
-      ...(currentUserIsAdmin ? { approved: true, approval_status: 'approved' } : {}),
-    }
-
-    await supabase.from('profiles').upsert(baseProfilePayload, { onConflict: 'id' })
-
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('nome, cognome, phone, birth_date, address, city, newsletter_opt_in, privacy_accepted, approved, approval_status')
+      .select('nome, cognome, phone, birth_date, address, city, newsletter_opt_in, privacy_accepted, role, approved, approval_status')
       .eq('id', currentUser.id)
-      .single()
+      .maybeSingle()
 
-    if (data) {
-      setNome(data.nome ?? '')
-      setCognome(data.cognome ?? '')
-      setPhone(data.phone ?? '')
-      setBirthDate(data.birth_date ?? '')
-      setAddress(data.address ?? '')
-      setCity(data.city ?? '')
-      setNewsletterOptIn(Boolean(data.newsletter_opt_in))
-      setPrivacyAccepted(Boolean(data.privacy_accepted))
-
-      const approved = currentUserIsAdmin || Boolean(data.approved)
-      setProfileApproved(approved)
-      setApprovalStatus(currentUserIsAdmin ? 'approved' : ((data.approval_status as ApprovalStatus | null) ?? (approved ? 'approved' : 'pending')))
-    } else {
-      setProfileApproved(currentUserIsAdmin)
-      setApprovalStatus(currentUserIsAdmin ? 'approved' : 'pending')
+    if (error) {
+      setApprovalStatus('missing')
+      setIsApprovedReader(false)
+      setMessage(`Errore lettura profilo: ${error.message}`)
+      return
     }
 
-    setProfileLoading(false)
+    if (!data) {
+      setApprovalStatus(adminUser ? 'approved' : 'pending')
+      setIsApprovedReader(adminUser)
+      return
+    }
+
+    setNome(data.nome ?? '')
+    setCognome(data.cognome ?? '')
+    setPhone(data.phone ?? '')
+    setBirthDate(data.birth_date ?? '')
+    setAddress(data.address ?? '')
+    setCity(data.city ?? '')
+    setNewsletterOptIn(Boolean(data.newsletter_opt_in))
+    setPrivacyAccepted(Boolean(data.privacy_accepted))
+
+    const approved = adminUser || data.approved === true || data.approval_status === 'approved'
+    setIsApprovedReader(approved)
+    setApprovalStatus(approved ? 'approved' : ((data.approval_status as ApprovalStatus) || 'pending'))
   }
 
   async function loadAlbums() {
@@ -344,17 +341,17 @@ function AreaUtente() {
     }
 
     if (!address.trim()) {
-      setMessage('Inserisci lâ€™indirizzo')
+      setMessage('Inserisci l’indirizzo')
       return
     }
 
     if (!city.trim()) {
-      setMessage('Inserisci la cittÃ ')
+      setMessage('Inserisci la città')
       return
     }
 
     if (!email.trim() || !confirmEmail.trim()) {
-      setMessage('Inserisci e conferma lâ€™indirizzo email')
+      setMessage('Inserisci e conferma l’indirizzo email')
       return
     }
 
@@ -411,7 +408,7 @@ function AreaUtente() {
     }
 
     if (data.user) {
-      const approvalResponse = await fetch('/.netlify/functions/request-user-approval', {
+      const response = await fetch('/.netlify/functions/request-user-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -428,9 +425,10 @@ function AreaUtente() {
         }),
       })
 
-      if (!approvalResponse.ok) {
-        const approvalResult = await approvalResponse.json().catch(() => null)
-        setMessage(approvalResult?.error || 'Registrazione creata, ma non sono riuscito a inviare la richiesta di approvazione allâ€™amministratore.')
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setMessage(result?.error || 'Registrazione creata, ma errore invio richiesta approvazione. Contatta la segreteria.')
         return
       }
 
@@ -450,6 +448,11 @@ function AreaUtente() {
       }
     }
 
+    await supabase.auth.signOut()
+    setUser(null)
+    setApprovalStatus('pending')
+    setIsApprovedReader(false)
+
     setNome('')
     setCognome('')
     setPhone('')
@@ -464,17 +467,58 @@ function AreaUtente() {
     setNewsletterOptIn(false)
     setShowRegisterForm(false)
 
-    setMessage('Registrazione ricevuta. Il tuo account Ã¨ in attesa di approvazione da parte dellâ€™amministratore.')
+    setMessage('Registrazione ricevuta. L’accesso ai contenuti riservati sarà attivo solo dopo approvazione admin. Controlla anche la conferma email se richiesta.')
   }
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
     setMessage('Login...')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const cleanEmail = email.trim().toLowerCase()
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
 
-    if (error) setMessage(error.message)
-    else setMessage('Login effettuato')
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    const currentUser = data.user
+    if (!currentUser) {
+      setMessage('Login non riuscito')
+      return
+    }
+
+    const adminUser = checkIsAdmin(currentUser)
+
+    if (!adminUser) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('approved, approval_status')
+        .eq('id', currentUser.id)
+        .maybeSingle()
+
+      if (profileError) {
+        await supabase.auth.signOut()
+        setUser(null)
+        setMessage(`Errore verifica approvazione: ${profileError.message}`)
+        return
+      }
+
+      if (!profile || profile.approved !== true || profile.approval_status !== 'approved') {
+        await supabase.auth.signOut()
+        setUser(null)
+        setApprovalStatus((profile?.approval_status as ApprovalStatus) || 'pending')
+        setIsApprovedReader(false)
+        setMessage('Account registrato ma non ancora approvato. Attendi approvazione da parte della segreteria.')
+        return
+      }
+    }
+
+    setUser(currentUser)
+    setApprovalStatus('approved')
+    setIsApprovedReader(true)
+    loadProfile(currentUser)
+    setMessage('Login effettuato')
   }
 
   async function handleLogout() {
@@ -506,7 +550,7 @@ function AreaUtente() {
         city: city.trim() || null,
         newsletter_opt_in: newsletterOptIn,
         privacy_accepted: privacyAccepted,
-        role: checkIsAdmin(user) ? 'admin' : 'reader',
+        role: checkIsAdmin(user) ? 'admin' : 'user',
       })
       .eq('id', user.id)
 
@@ -559,7 +603,7 @@ function AreaUtente() {
     const numericYear = Number(albumYear)
 
     if (!albumTitle.trim()) {
-      setMessage('Inserisci il titolo dellâ€™album')
+      setMessage('Inserisci il titolo dell’album')
       return
     }
 
@@ -632,11 +676,11 @@ function AreaUtente() {
       .eq('id', album.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  album: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità album: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  album aggiornata')
+    setMessage('Visibilità album aggiornata')
     loadAlbums()
   }
 
@@ -672,7 +716,7 @@ function AreaUtente() {
     }
 
     if (!galleryFiles || galleryFiles.length === 0) {
-      setMessage('Seleziona uno o piÃ¹ file')
+      setMessage('Seleziona uno o più file')
       return
     }
 
@@ -853,7 +897,7 @@ function AreaUtente() {
 
       if (socialPreviewFile) {
         if (!socialPreviewFile.type.startsWith('image/')) {
-          setMessage('Lâ€™anteprima social deve essere unâ€™immagine')
+          setMessage('L’anteprima social deve essere un’immagine')
           return
         }
 
@@ -1087,11 +1131,11 @@ function AreaUtente() {
     const { error } = await supabase.from('events').update({ visible: !event.visible }).eq('id', event.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  evento: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità evento: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  evento aggiornata')
+    setMessage('Visibilità evento aggiornata')
     loadEvents()
   }
 
@@ -1161,7 +1205,7 @@ function AreaUtente() {
       return (
         <div style={tinyMediaPreviewWrapper}>
           <video src={getAdminMediaPreviewUrl(item)} style={tinyPhotoImage} muted />
-          <span style={videoBadge}>â–¶</span>
+          <span style={videoBadge}>▶</span>
         </div>
       )
     }
@@ -1187,7 +1231,7 @@ function AreaUtente() {
 
       return (
         <div style={socialPreviewFallbackStyle}>
-          <span style={{ fontSize: '20px' }}>ðŸ”—</span>
+          <span style={{ fontSize: '20px' }}>🔗</span>
           <span style={{ fontSize: '9px', fontWeight: 800 }}>{item.caption || 'SOCIAL'}</span>
         </div>
       )
@@ -1240,7 +1284,7 @@ function AreaUtente() {
 
                   <div style={twoColumnsStyle}>
                     <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
                   </div>
 
                   <input type="email" placeholder="Indirizzo email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -1271,36 +1315,20 @@ function AreaUtente() {
     )
   }
 
-  if (!isAdmin && profileLoading) {
+  if (user && !isAdmin && (!isApprovedReader || approvalStatus !== 'approved')) {
     return (
       <>
         <style>{areaUtenteInlineStyles}</style>
-        <div className="profile-layout">
-          <div className="profile-card">
-            <h1>Verifica account...</h1>
-            <p style={mutedText}>Sto controllando lo stato di approvazione del tuo profilo.</p>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  if (!isAdmin && !profileApproved) {
-    const rejected = approvalStatus === 'rejected'
-
-    return (
-      <>
-        <style>{areaUtenteInlineStyles}</style>
-        <div className="profile-layout">
-          <div className="profile-card">
+        <div className="auth-page">
+          <div className="auth-card">
             <p style={dojoBadgeStyle}>Area riservata</p>
-            <h1>{rejected ? 'Accesso non approvato' : 'Account in attesa di approvazione'}</h1>
+            <h1>Account in attesa di approvazione</h1>
             <p style={mutedText}>
-              {rejected
-                ? 'La tua richiesta di accesso allâ€™area riservata non Ã¨ stata approvata. Per chiarimenti contatta la segreteria del Dojo Yamato.'
-                : 'La tua registrazione Ã¨ stata ricevuta correttamente. Lâ€™accesso ai contenuti riservati sarÃ  abilitato dopo approvazione da parte dellâ€™amministratore.'}
+              La tua registrazione è stata ricevuta, ma l’accesso ai contenuti riservati non è ancora stato approvato dalla segreteria.
             </p>
-            <button style={{ marginTop: '22px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
+            <p style={mutedText}>Stato richiesta: <strong>{approvalStatus}</strong></p>
+            {message && <p style={{ marginTop: '16px' }}>{message}</p>}
+            <button className="secondary-auth-button" type="button" onClick={handleLogout}>Esci</button>
           </div>
         </div>
       </>
@@ -1331,7 +1359,7 @@ function AreaUtente() {
 
             <div style={twoColumnsStyle}>
               <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-              <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+              <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
             <label style={checkboxLabelStyle}>
@@ -1361,9 +1389,10 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'teoria')} onClick={() => setAdminTab('teoria')}>Teoria</button>
                 <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>Difesa personale</button>
                 <button type="button" style={tabButton(adminTab === 'iscritti')} onClick={() => setAdminTab('iscritti')}>Iscritti</button>
+                <button type="button" style={tabButton(adminTab === 'accessi')} onClick={() => setAdminTab('accessi')}>Accessi utenti</button>
               </div>
 
-              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'difesa' && (
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'difesa' && adminTab !== 'accessi' && (
                 <div style={messageBox}>{message}</div>
               )}
 
@@ -1415,7 +1444,7 @@ function AreaUtente() {
                       {selectedAlbum && (
                         <div style={selectedAlbumBox}>
                           <strong>Album selezionato:</strong><br />
-                          {selectedAlbum.title} Â· {selectedAlbum.event_year}<br />
+                          {selectedAlbum.title} · {selectedAlbum.event_year}<br />
                           <span style={mutedText}>Contenuti presenti: {selectedAlbumMedia.length}</span>
                         </div>
                       )}
@@ -1462,10 +1491,10 @@ function AreaUtente() {
                           <div key={album.id} style={{ display: 'grid', gap: '8px' }}>
                             <article style={{ ...compactAlbumCard, border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)' }}>
                               <div style={compactAlbumMain}>
-                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“</div>}
+                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <h4 style={compactAlbumTitle}>{album.title}</h4>
-                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` Â· ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` Â· ${album.category}` : ''}{' Â· '}{album.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{albumMedia.length} contenuti</p>
+                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` · ${album.category}` : ''}{' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti</p>
                                 </div>
                               </div>
 
@@ -1482,7 +1511,7 @@ function AreaUtente() {
                                 <div style={photoManagerHeader}>
                                   <div>
                                     <h3 style={{ marginBottom: '6px' }}>Contenuti album: {album.title}</h3>
-                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} Â· {albumMedia.length} elementi</p>
+                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} · {albumMedia.length} elementi</p>
                                   </div>
                                   <button type="button" className="secondary-auth-button" onClick={() => {
                                     setSelectedAlbumId('')
@@ -1562,7 +1591,7 @@ function AreaUtente() {
                       )}
 
                       <input type="url" placeholder="Link esterno opzionale" value={eventExternalUrl} onChange={(e) => setEventExternalUrl(e.target.value)} />
-                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti allâ€™evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
+                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti all’evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
 
                       {existingEventImageUrl && <div><p style={mutedText}>Immagine attuale:</p><img src={existingEventImageUrl} alt="Immagine evento attuale" style={previewImageStyle} /></div>}
 
@@ -1597,10 +1626,10 @@ function AreaUtente() {
                       {events.map((event) => (
                         <article key={event.id} style={compactAlbumCard}>
                           <div style={compactAlbumMain}>
-                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“…</div>}
+                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📅</div>}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h4 style={compactAlbumTitle}>{event.title}</h4>
-                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` Â· ${event.location}` : ''}{' Â· '}{event.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{event.event_documents?.length ?? 0} documenti</p>
+                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` · ${event.location}` : ''}{' · '}{event.visible ? 'Visibile' : 'Nascosto'}{' · '}{event.event_documents?.length ?? 0} documenti</p>
                             </div>
                           </div>
 
@@ -1608,7 +1637,7 @@ function AreaUtente() {
                             <div style={eventDocsList}>
                               {event.event_documents.map((doc) => (
                                 <div key={doc.id} style={eventDocRow}>
-                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>ðŸ“„ {doc.title}</a>
+                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>📄 {doc.title}</a>
                                   <button type="button" onClick={() => handleDeleteEventDocument(doc.id)} style={tinyDeleteButton}>X</button>
                                 </div>
                               ))}
@@ -1631,11 +1660,13 @@ function AreaUtente() {
               {adminTab === 'insegnanti' && <AdminInsegnanti />}
               {adminTab === 'teoria' && <AdminTeoria />}
               {adminTab === 'iscritti' && <AdminIscritti />}
+
+              {adminTab === 'accessi' && <AdminAccessiUtenti />}
               {adminTab === 'difesa' && <AdminDifesaPersonale />}
             </section>
           )}
 
-          {!isAdmin && <div style={userInfoBox}><strong>Account approvato.</strong><br />Ora puoi accedere in sola lettura ai contenuti riservati disponibili per gli utenti registrati.</div>}
+          {!isAdmin && <div style={userInfoBox}><strong>Account user attivo.</strong><br />Ora puoi accedere ai contenuti riservati disponibili per gli utenti registrati.</div>}
 
           <button style={{ marginTop: '30px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
           {!isAdmin && message && <p style={{ marginTop: '16px' }}>{message}</p>}
