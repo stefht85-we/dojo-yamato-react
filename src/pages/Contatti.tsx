@@ -1,5 +1,11 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
+
+const FORM_NAME = 'richiesta-informazioni'
+
+function encodeFormData(data: Record<string, string>) {
+  return new URLSearchParams(data).toString()
+}
 
 function Contatti() {
   const [nome, setNome] = useState('')
@@ -23,16 +29,25 @@ function Contatti() {
     setMessage('')
 
     try {
-      const formData = new FormData(e.currentTarget)
-
       const response = await fetch('/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData as unknown as Record<string, string>).toString(),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: encodeFormData({
+          'form-name': FORM_NAME,
+          nome,
+          cognome,
+          eta,
+          telefono,
+          email,
+          note,
+          'bot-field': '',
+        }),
       })
 
       if (!response.ok) {
-        throw new Error('Invio non riuscito')
+        throw new Error(`Invio non riuscito: ${response.status}`)
       }
 
       setMessage('Richiesta inviata correttamente. Ti ricontatteremo presto.')
@@ -43,9 +58,8 @@ function Contatti() {
       setEmail('')
       setNote('')
     } catch (error) {
-      setMessage(
-        'Errore durante lâ€™invio. Se stai provando in locale, il form funzionerÃ  dopo il deploy su Netlify.'
-      )
+      console.error('Errore invio form Netlify:', error)
+      setMessage('Errore durante l’invio. Riprova oppure contattaci telefonicamente.')
     } finally {
       setIsSending(false)
     }
@@ -107,7 +121,7 @@ function Contatti() {
                   <li>Non serve portare kimono o attrezzatura, ma abbigliamento sportivo comodo.</li>
                   <li>Si pratica scalzi o con calzini antiscivolo.</li>
                   <li>Durata lezione: 60 minuti.</li>
-                  <li>Per i minori Ã¨ necessario che ci sia un genitore per iniziare la prova.</li>
+                  <li>Per i minori è necessario che ci sia un genitore per iniziare la prova.</li>
                   <li>Lezioni ad hoc per agonisti o per chi vuole competere nelle gare.</li>
                 </ul>
               </aside>
@@ -118,19 +132,21 @@ function Contatti() {
                 <h2 style={cardTitleStyle}>Compila il form</h2>
 
                 <p style={formIntroStyle}>
-                  Inserisci i dati dellâ€™atleta interessato o del genitore/tutore.
+                  Inserisci i dati dell’atleta interessato o del genitore/tutore.
                   Verrai ricontattato appena possibile.
                 </p>
 
                 <form
-                  name="richiesta-informazioni"
+                  name={FORM_NAME}
                   method="POST"
+                  action="/"
                   data-netlify="true"
                   netlify-honeypot="bot-field"
+                  encType="application/x-www-form-urlencoded"
                   onSubmit={handleSubmit}
                   style={formStyle}
                 >
-                  <input type="hidden" name="form-name" value="richiesta-informazioni" />
+                  <input type="hidden" name="form-name" value={FORM_NAME} />
 
                   <p style={{ display: 'none' }}>
                     <label>Non compilare: <input name="bot-field" /></label>
@@ -159,7 +175,7 @@ function Contatti() {
                     <input
                       type="text"
                       name="eta"
-                      placeholder="EtÃ  atleta / bambino"
+                      placeholder="Età atleta / bambino"
                       value={eta}
                       onChange={(e) => setEta(e.target.value)}
                       style={inputStyle}
