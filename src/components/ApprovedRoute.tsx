@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { isAdmin as checkIsAdmin } from '../lib/permissions'
@@ -84,8 +85,8 @@ function ApprovedRoute({ children }: Props) {
     return (
       <AccessMessage
         title="Accesso in attesa di approvazione"
-        text={`L’account ${user?.email ?? ''} è registrato, ma deve ancora essere approvato dalla segreteria.`}
-        action={<Link className="secondary-auth-button" to="/area-utente">Vai all’area utente</Link>}
+        text={`Lâ€™account ${user?.email ?? ''} Ã¨ registrato, ma deve ancora essere approvato dalla segreteria.`}
+        action={<Link className="secondary-auth-button" to="/area-utente">Vai allâ€™area utente</Link>}
       />
     )
   }
@@ -94,7 +95,7 @@ function ApprovedRoute({ children }: Props) {
     return (
       <AccessMessage
         title="Accesso non approvato"
-        text="La richiesta di accesso non è stata approvata. Per informazioni contatta la segreteria del Dojo Yamato."
+        text="La richiesta di accesso non Ã¨ stata approvata. Per informazioni contatta la segreteria del Dojo Yamato."
         action={<Link className="secondary-auth-button" to="/contatti">Contatti</Link>}
       />
     )
