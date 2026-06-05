@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 
 function Contatti() {
@@ -44,7 +44,7 @@ function Contatti() {
       setNote('')
     } catch (error) {
       setMessage(
-        'Errore durante l’invio. Se stai provando in locale, il form funzionerà dopo il deploy su Netlify.'
+        'Errore durante lâ€™invio. Se stai provando in locale, il form funzionerÃ  dopo il deploy su Netlify.'
       )
     } finally {
       setIsSending(false)
@@ -107,7 +107,7 @@ function Contatti() {
                   <li>Non serve portare kimono o attrezzatura, ma abbigliamento sportivo comodo.</li>
                   <li>Si pratica scalzi o con calzini antiscivolo.</li>
                   <li>Durata lezione: 60 minuti.</li>
-                  <li>Per i minori è necessario che ci sia un genitore per iniziare la prova.</li>
+                  <li>Per i minori Ã¨ necessario che ci sia un genitore per iniziare la prova.</li>
                   <li>Lezioni ad hoc per agonisti o per chi vuole competere nelle gare.</li>
                 </ul>
               </aside>
@@ -118,19 +118,19 @@ function Contatti() {
                 <h2 style={cardTitleStyle}>Compila il form</h2>
 
                 <p style={formIntroStyle}>
-                  Inserisci i dati dell’atleta interessato o del genitore/tutore.
+                  Inserisci i dati dellâ€™atleta interessato o del genitore/tutore.
                   Verrai ricontattato appena possibile.
                 </p>
 
                 <form
-                  name="contatti-dojo-yamato"
+                  name="richiesta-informazioni"
                   method="POST"
                   data-netlify="true"
                   netlify-honeypot="bot-field"
                   onSubmit={handleSubmit}
                   style={formStyle}
                 >
-                  <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
+                  <input type="hidden" name="form-name" value="richiesta-informazioni" />
 
                   <p style={{ display: 'none' }}>
                     <label>Non compilare: <input name="bot-field" /></label>
@@ -159,7 +159,7 @@ function Contatti() {
                     <input
                       type="text"
                       name="eta"
-                      placeholder="Età atleta / bambino"
+                      placeholder="EtÃ  atleta / bambino"
                       value={eta}
                       onChange={(e) => setEta(e.target.value)}
                       style={inputStyle}
@@ -507,3 +507,4 @@ const messageStyle: CSSProperties = {
 }
 
 export default Contatti
+
