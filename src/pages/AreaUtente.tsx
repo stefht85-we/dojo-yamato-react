@@ -24,6 +24,8 @@ type AdminTab =
   | 'difesa'
   | 'iscritti'
 
+type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
 type GalleryAlbum = {
   id: string
   title: string
@@ -81,6 +83,9 @@ type DojoEvent = {
 
 function AreaUtente() {
   const [user, setUser] = useState<User | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileApproved, setProfileApproved] = useState(false)
+  const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus>('pending')
 
   const [email, setEmail] = useState('')
   const [confirmEmail, setConfirmEmail] = useState('')
@@ -153,17 +158,21 @@ function AreaUtente() {
   }, [albums, albumYearFilter])
 
   async function loadProfile(currentUser: User) {
-    const profilePayload = {
+    setProfileLoading(true)
+
+    const currentUserIsAdmin = checkIsAdmin(currentUser)
+    const baseProfilePayload = {
       id: currentUser.id,
       email: currentUser.email ?? null,
-      role: checkIsAdmin(currentUser) ? 'admin' : 'user',
+      role: currentUserIsAdmin ? 'admin' : 'reader',
+      ...(currentUserIsAdmin ? { approved: true, approval_status: 'approved' } : {}),
     }
 
-    await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
+    await supabase.from('profiles').upsert(baseProfilePayload, { onConflict: 'id' })
 
     const { data } = await supabase
       .from('profiles')
-      .select('nome, cognome, phone, birth_date, address, city, newsletter_opt_in, privacy_accepted')
+      .select('nome, cognome, phone, birth_date, address, city, newsletter_opt_in, privacy_accepted, approved, approval_status')
       .eq('id', currentUser.id)
       .single()
 
@@ -176,7 +185,16 @@ function AreaUtente() {
       setCity(data.city ?? '')
       setNewsletterOptIn(Boolean(data.newsletter_opt_in))
       setPrivacyAccepted(Boolean(data.privacy_accepted))
+
+      const approved = currentUserIsAdmin || Boolean(data.approved)
+      setProfileApproved(approved)
+      setApprovalStatus(currentUserIsAdmin ? 'approved' : ((data.approval_status as ApprovalStatus | null) ?? (approved ? 'approved' : 'pending')))
+    } else {
+      setProfileApproved(currentUserIsAdmin)
+      setApprovalStatus(currentUserIsAdmin ? 'approved' : 'pending')
     }
+
+    setProfileLoading(false)
   }
 
   async function loadAlbums() {
@@ -382,7 +400,7 @@ function AreaUtente() {
           city: city.trim(),
           newsletter_opt_in: newsletterOptIn,
           privacy_accepted: privacyAccepted,
-          role: 'user',
+          role: 'reader',
         },
       },
     })
@@ -393,21 +411,28 @@ function AreaUtente() {
     }
 
     if (data.user) {
-      const profilePayload = {
-        id: data.user.id,
-        email: cleanEmail,
-        nome: nome.trim(),
-        cognome: cognome.trim(),
-        phone: phone.trim(),
-        birth_date: birthDate,
-        address: address.trim(),
-        city: city.trim(),
-        role: cleanEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user',
-        newsletter_opt_in: newsletterOptIn,
-        privacy_accepted: privacyAccepted,
-      }
+      const approvalResponse = await fetch('/.netlify/functions/request-user-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: data.user.id,
+          email: cleanEmail,
+          nome: nome.trim(),
+          cognome: cognome.trim(),
+          phone: phone.trim(),
+          birthDate,
+          address: address.trim(),
+          city: city.trim(),
+          newsletterOptIn,
+          privacyAccepted,
+        }),
+      })
 
-      await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
+      if (!approvalResponse.ok) {
+        const approvalResult = await approvalResponse.json().catch(() => null)
+        setMessage(approvalResult?.error || 'Registrazione creata, ma non sono riuscito a inviare la richiesta di approvazione all’amministratore.')
+        return
+      }
 
       if (newsletterOptIn) {
         await supabase.from('newsletter_subscribers').upsert(
@@ -439,7 +464,7 @@ function AreaUtente() {
     setNewsletterOptIn(false)
     setShowRegisterForm(false)
 
-    setMessage('Registrazione inviata. Controlla la tua email per confermare l’account.')
+    setMessage('Registrazione ricevuta. Il tuo account è in attesa di approvazione da parte dell’amministratore.')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -481,7 +506,7 @@ function AreaUtente() {
         city: city.trim() || null,
         newsletter_opt_in: newsletterOptIn,
         privacy_accepted: privacyAccepted,
-        role: checkIsAdmin(user) ? 'admin' : 'user',
+        role: checkIsAdmin(user) ? 'admin' : 'reader',
       })
       .eq('id', user.id)
 
@@ -1246,6 +1271,42 @@ function AreaUtente() {
     )
   }
 
+  if (!isAdmin && profileLoading) {
+    return (
+      <>
+        <style>{areaUtenteInlineStyles}</style>
+        <div className="profile-layout">
+          <div className="profile-card">
+            <h1>Verifica account...</h1>
+            <p style={mutedText}>Sto controllando lo stato di approvazione del tuo profilo.</p>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (!isAdmin && !profileApproved) {
+    const rejected = approvalStatus === 'rejected'
+
+    return (
+      <>
+        <style>{areaUtenteInlineStyles}</style>
+        <div className="profile-layout">
+          <div className="profile-card">
+            <p style={dojoBadgeStyle}>Area riservata</p>
+            <h1>{rejected ? 'Accesso non approvato' : 'Account in attesa di approvazione'}</h1>
+            <p style={mutedText}>
+              {rejected
+                ? 'La tua richiesta di accesso all’area riservata non è stata approvata. Per chiarimenti contatta la segreteria del Dojo Yamato.'
+                : 'La tua registrazione è stata ricevuta correttamente. L’accesso ai contenuti riservati sarà abilitato dopo approvazione da parte dell’amministratore.'}
+            </p>
+            <button style={{ marginTop: '22px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <style>{areaUtenteInlineStyles}</style>
@@ -1255,7 +1316,7 @@ function AreaUtente() {
           <h1>Area Utente</h1>
 
           <p>Loggato come: <strong>{user.email}</strong></p>
-          <p style={mutedText}>Ruolo: <strong>{isAdmin ? 'Admin' : 'User registrato'}</strong></p>
+          <p style={mutedText}>Ruolo: <strong>{isAdmin ? 'Admin' : 'Lettore approvato'}</strong></p>
 
           <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '20px' }}>
             <div style={twoColumnsStyle}>
@@ -1574,7 +1635,7 @@ function AreaUtente() {
             </section>
           )}
 
-          {!isAdmin && <div style={userInfoBox}><strong>Account user attivo.</strong><br />Ora puoi accedere ai contenuti riservati disponibili per gli utenti registrati.</div>}
+          {!isAdmin && <div style={userInfoBox}><strong>Account approvato.</strong><br />Ora puoi accedere in sola lettura ai contenuti riservati disponibili per gli utenti registrati.</div>}
 
           <button style={{ marginTop: '30px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
           {!isAdmin && message && <p style={{ marginTop: '16px' }}>{message}</p>}
