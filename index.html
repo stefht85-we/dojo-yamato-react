@@ -9,10 +9,11 @@
   <body>
     <!--
       Form nascosto necessario a Netlify Forms per riconoscere il form React durante il build.
-      Non rimuovere se vuoi ricevere le richieste dalla pagina Contatti.
+      Non rimuovere se vuoi ricevere le richieste dalla pagina Contatti / Richiedi informazioni.
+      Il name deve essere identico al form-name usato nel form React.
     -->
-    <form name="contatti-dojo-yamato" data-netlify="true" netlify-honeypot="bot-field" hidden>
-      <input type="hidden" name="form-name" value="contatti-dojo-yamato" />
+    <form name="richiesta-informazioni" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="richiesta-informazioni" />
       <input name="bot-field" />
       <input type="text" name="nome" />
       <input type="text" name="cognome" />
