@@ -290,4 +290,26 @@ const ctaStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
+
+const lockedNoticeStyle: React.CSSProperties = {
+  marginTop: '20px',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  background: 'rgba(255, 193, 7, 0.10)',
+  border: '1px solid rgba(255, 193, 7, 0.28)',
+  color: '#ffe8a3',
+  lineHeight: 1.55,
+}
+
+const lockedCtaStyle: React.CSSProperties = {
+  ...ctaStyle,
+  color: '#a7b0c0',
+}
+
+const lockedAlbumRowStyle: React.CSSProperties = {
+  ...albumRowStyle,
+  cursor: 'not-allowed',
+  opacity: 0.74,
+}
+
 export default GalleriaAnno

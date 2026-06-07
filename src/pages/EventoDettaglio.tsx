@@ -291,4 +291,34 @@ const documentsListStyle: CSSProperties = { display: 'grid', gap: '10px' }
 const documentRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', textDecoration: 'none' }
 const documentBadgeStyle: CSSProperties = { ...dojoBadgeStyle, minWidth: '48px', height: '38px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', flexShrink: 0 }
 const documentTitleStyle: CSSProperties = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px', fontWeight: 800 }
+
+const lockedNoticeStyle: CSSProperties = {
+  padding: '12px 14px',
+  borderRadius: '16px',
+  background: 'rgba(255, 193, 7, 0.10)',
+  border: '1px solid rgba(255, 193, 7, 0.28)',
+  color: '#ffe8a3',
+  display: 'grid',
+  gap: '4px',
+  fontSize: '14px',
+  lineHeight: 1.45,
+}
+const lockedDocumentRowStyle: CSSProperties = {
+  ...documentRowStyle,
+  width: '100%',
+  cursor: 'not-allowed',
+  opacity: 0.72,
+  textAlign: 'left',
+}
+const lockedPillStyle: CSSProperties = {
+  marginLeft: 'auto',
+  padding: '5px 9px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.10)',
+  color: '#ffd7d7',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
 const mutedText: CSSProperties = { color: '#d8d8d8', lineHeight: 1.6 }
