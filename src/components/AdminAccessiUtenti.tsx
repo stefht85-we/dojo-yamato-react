@@ -19,18 +19,25 @@ type ManagedUser = {
   approval_requested_at: string | null
   approved_at: string | null
   rejected_at: string | null
+  disabled: boolean
+  deleted_at: string | null
 }
 
 function AdminAccessiUtenti() {
   const [users, setUsers] = useState<ManagedUser[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [filter, setFilter] = useState<'all' | ApprovalStatus>('pending')
+  const [filter, setFilter] = useState<'all' | ApprovalStatus | 'disabled'>('pending')
 
   const visibleUsers = useMemo(() => {
     if (filter === 'all') return users
-    return users.filter((user) => user.approval_status === filter)
+    if (filter === 'disabled') return users.filter((user) => user.disabled || Boolean(user.deleted_at))
+    return users.filter((user) => user.approval_status === filter && !user.disabled && !user.deleted_at)
   }, [users, filter])
+
+  const visibleSelectedCount = visibleUsers.filter((user) => selectedIds.includes(user.id)).length
+  const allVisibleSelected = visibleUsers.length > 0 && visibleSelectedCount === visibleUsers.length
 
   useEffect(() => {
     loadUsers()
@@ -68,6 +75,7 @@ function AdminAccessiUtenti() {
     try {
       const result = await api('admin-list-users')
       setUsers(result.users ?? [])
+      setSelectedIds([])
       setMessage('Utenti caricati')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Errore caricamento utenti')
@@ -90,19 +98,40 @@ function AdminAccessiUtenti() {
     }
   }
 
-  async function deleteUser(user: ManagedUser) {
-    const ok = window.confirm(`Vuoi eliminare definitivamente l’utente ${user.email}?\n\nL’utente sarà eliminato da Supabase Auth e dalla tabella profiles.`)
+  async function softDeleteUsers(targetIds: string[]) {
+    if (targetIds.length === 0) return
+    const label = targetIds.length === 1 ? 'questo utente' : `${targetIds.length} utenti selezionati`
+    const ok = window.confirm(`Vuoi disattivare ${label}?\n\nL’utente resterà nello storico, ma non sarà approvato e non potrà accedere ai contenuti riservati.`)
     if (!ok) return
 
     setLoading(true)
-    setMessage('Eliminazione utente...')
+    setMessage('Disattivazione utenti...')
 
     try {
-      await api('admin-delete-user', { userId: user.id, email: user.email })
+      await api('admin-soft-delete-users', { userIds: targetIds })
       await loadUsers()
-      setMessage('Utente eliminato')
+      setMessage(targetIds.length === 1 ? 'Utente disattivato' : 'Utenti disattivati')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Errore eliminazione utente')
+      setMessage(error instanceof Error ? error.message : 'Errore disattivazione utenti')
+      setLoading(false)
+    }
+  }
+
+  async function hardDeleteUsers(targetIds: string[]) {
+    if (targetIds.length === 0) return
+    const label = targetIds.length === 1 ? 'questo utente' : `${targetIds.length} utenti selezionati`
+    const ok = window.confirm(`ATTENZIONE: vuoi eliminare definitivamente ${label}?\n\nLa cancellazione rimuove il profilo e l’utente da Supabase Auth. Operazione non reversibile.`)
+    if (!ok) return
+
+    setLoading(true)
+    setMessage('Eliminazione definitiva utenti...')
+
+    try {
+      await api('admin-delete-users', { userIds: targetIds })
+      await loadUsers()
+      setMessage(targetIds.length === 1 ? 'Utente eliminato definitivamente' : 'Utenti eliminati definitivamente')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Errore eliminazione definitiva')
       setLoading(false)
     }
   }
@@ -124,13 +153,28 @@ function AdminAccessiUtenti() {
     }
   }
 
+  function toggleUser(userId: string) {
+    setSelectedIds((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId])
+  }
+
+  function toggleVisibleUsers() {
+    const visibleIds = visibleUsers.map((user) => user.id)
+    if (allVisibleSelected) {
+      setSelectedIds((current) => current.filter((id) => !visibleIds.includes(id)))
+      return
+    }
+    setSelectedIds((current) => Array.from(new Set([...current, ...visibleIds])))
+  }
+
   return (
     <section style={wrapperStyle}>
       <div style={headerStyle}>
         <div>
           <p style={labelStyle}>Gestione accessi</p>
-          <h3 style={{ margin: '2px 0 6px', fontSize: '19px' }}>Utenti registrati e approvazioni</h3>
-          <p style={mutedStyle}>Approva, rifiuta, assegna ruolo, invia reset password o elimina utenti.</p>
+          <h3 style={{ margin: '2px 0 6px', fontSize: '18px' }}>Utenti registrati e approvazioni</h3>
+          <p style={mutedStyle}>Approva, rifiuta, cambia ruolo, reset password, disattiva o elimina utenti.</p>
         </div>
         <button type="button" className="secondary-auth-button" onClick={loadUsers} disabled={loading} style={refreshButtonStyle}>Aggiorna</button>
       </div>
@@ -139,7 +183,18 @@ function AdminAccessiUtenti() {
         <button type="button" style={filterButton(filter === 'pending')} onClick={() => setFilter('pending')}>In attesa</button>
         <button type="button" style={filterButton(filter === 'approved')} onClick={() => setFilter('approved')}>Approvati</button>
         <button type="button" style={filterButton(filter === 'rejected')} onClick={() => setFilter('rejected')}>Rifiutati</button>
+        <button type="button" style={filterButton(filter === 'disabled')} onClick={() => setFilter('disabled')}>Disattivati</button>
         <button type="button" style={filterButton(filter === 'all')} onClick={() => setFilter('all')}>Tutti</button>
+      </div>
+
+      <div style={bulkBarStyle}>
+        <label style={checkLabelStyle}>
+          <input type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleUsers} disabled={visibleUsers.length === 0 || loading} />
+          Seleziona visibili
+        </label>
+        <span style={bulkCountStyle}>{selectedIds.length} selezionati</span>
+        <button type="button" style={bulkButtonStyle} onClick={() => softDeleteUsers(selectedIds)} disabled={loading || selectedIds.length === 0}>Disattiva selezionati</button>
+        <button type="button" style={bulkDangerStyle} onClick={() => hardDeleteUsers(selectedIds)} disabled={loading || selectedIds.length === 0}>Elimina definitivamente</button>
       </div>
 
       {message && <div style={messageStyle}>{message}</div>}
@@ -147,13 +202,15 @@ function AdminAccessiUtenti() {
       <div style={tableWrapperStyle}>
         <table style={tableStyle}>
           <colgroup>
-            <col style={{ width: '33%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '31%' }} />
             <col style={{ width: '16%' }} />
             <col style={{ width: '25%' }} />
-            <col style={{ width: '26%' }} />
+            <col style={{ width: '21%' }} />
           </colgroup>
           <thead>
             <tr>
+              <th style={thStyle}>Sel.</th>
               <th style={thStyle}>Utente</th>
               <th style={thStyle}>Accesso</th>
               <th style={thStyle}>Stato / ruolo</th>
@@ -162,11 +219,21 @@ function AdminAccessiUtenti() {
           </thead>
           <tbody>
             {visibleUsers.map((user) => (
-              <tr key={user.id}>
+              <tr key={user.id} style={user.disabled || user.deleted_at ? disabledRowStyle : undefined}>
+                <td style={tdStyle}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(user.id)}
+                    onChange={() => toggleUser(user.id)}
+                    disabled={loading}
+                    aria-label={`Seleziona ${user.email}`}
+                  />
+                </td>
                 <td style={tdStyle}>
                   <strong style={userNameStyle}>{user.nome || user.cognome ? `${user.nome ?? ''} ${user.cognome ?? ''}`.trim() : 'Senza nome'}</strong>
                   <span style={emailStyle}>{user.email}</span>
                   <span style={phoneStyle}>{user.phone || 'Tel. non indicato'}</span>
+                  {(user.disabled || user.deleted_at) && <span style={disabledBadgeStyle}>Disattivato</span>}
                 </td>
                 <td style={tdStyle}>{formatDate(user.last_sign_in_at)}</td>
                 <td style={tdStyle}>
@@ -189,7 +256,7 @@ function AdminAccessiUtenti() {
                       style={selectStyle}
                       aria-label="Ruolo utente"
                     >
-                      <option value="reader">Lettore</option>
+                      <option value="reader">User / Lettore</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>
@@ -199,7 +266,8 @@ function AdminAccessiUtenti() {
                     <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'approved' })} disabled={loading}>OK</button>
                     <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'rejected' })} disabled={loading}>No</button>
                     <button type="button" style={smallButtonStyle} onClick={() => sendPasswordReset(user)} disabled={loading}>Reset</button>
-                    <button type="button" style={dangerButtonStyle} onClick={() => deleteUser(user)} disabled={loading}>Elimina</button>
+                    <button type="button" style={warningButtonStyle} onClick={() => softDeleteUsers([user.id])} disabled={loading}>Disatt.</button>
+                    <button type="button" style={dangerButtonStyle} onClick={() => hardDeleteUsers([user.id])} disabled={loading}>Elimina</button>
                   </div>
                 </td>
               </tr>
@@ -207,7 +275,7 @@ function AdminAccessiUtenti() {
 
             {visibleUsers.length === 0 && (
               <tr>
-                <td style={tdStyle} colSpan={4}>Nessun utente da mostrare.</td>
+                <td style={tdStyle} colSpan={5}>Nessun utente da mostrare.</td>
               </tr>
             )}
           </tbody>
@@ -229,10 +297,7 @@ function formatDate(value: string | null) {
   }).replace(', ', '\n')
 }
 
-const wrapperStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-}
+const wrapperStyle: CSSProperties = { display: 'grid', gap: '11px' }
 
 const headerStyle: CSSProperties = {
   display: 'flex',
@@ -242,11 +307,7 @@ const headerStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const refreshButtonStyle: CSSProperties = {
-  padding: '7px 12px',
-  minHeight: '34px',
-  fontSize: '12px',
-}
+const refreshButtonStyle: CSSProperties = { padding: '7px 12px', minHeight: '34px', fontSize: '12px' }
 
 const labelStyle: CSSProperties = {
   margin: 0,
@@ -257,42 +318,9 @@ const labelStyle: CSSProperties = {
   fontSize: '11px',
 }
 
-const mutedStyle: CSSProperties = {
-  margin: 0,
-  color: '#a7b0c0',
-  fontSize: '12px',
-  lineHeight: 1.35,
-}
+const mutedStyle: CSSProperties = { margin: 0, color: '#a7b0c0', fontSize: '12px', lineHeight: 1.35 }
 
-const userNameStyle: CSSProperties = {
-  display: 'block',
-  color: '#fff',
-  fontSize: '12px',
-  lineHeight: 1.15,
-}
-
-const emailStyle: CSSProperties = {
-  display: 'block',
-  marginTop: '3px',
-  color: '#a7b0c0',
-  fontSize: '9.5px',
-  lineHeight: 1.15,
-  wordBreak: 'break-word',
-}
-
-const phoneStyle: CSSProperties = {
-  display: 'block',
-  marginTop: '4px',
-  color: '#e5e7eb',
-  fontSize: '10.5px',
-  lineHeight: 1.15,
-}
-
-const filtersStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '6px',
-}
+const filtersStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '6px' }
 
 const filterButton = (active: boolean): CSSProperties => ({
   border: active ? '1px solid rgba(185,68,79,0.8)' : '1px solid rgba(255,255,255,0.14)',
@@ -305,6 +333,22 @@ const filterButton = (active: boolean): CSSProperties => ({
   fontSize: '12px',
 })
 
+const bulkBarStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '7px',
+  padding: '8px',
+  borderRadius: '13px',
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const checkLabelStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '11px', fontWeight: 800 }
+const bulkCountStyle: CSSProperties = { color: '#a7b0c0', fontSize: '11px', marginRight: 'auto' }
+const bulkButtonStyle: CSSProperties = { border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: '9px', padding: '6px 8px', cursor: 'pointer', fontWeight: 850, fontSize: '10.5px' }
+const bulkDangerStyle: CSSProperties = { ...bulkButtonStyle, border: '1px solid rgba(220,38,38,0.6)', background: 'rgba(220,38,38,0.22)' }
+
 const messageStyle: CSSProperties = {
   padding: '9px 12px',
   borderRadius: '12px',
@@ -314,80 +358,22 @@ const messageStyle: CSSProperties = {
   fontSize: '12px',
 }
 
-const tableWrapperStyle: CSSProperties = {
-  width: '100%',
-  overflowX: 'hidden',
-  border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '15px',
-}
+const tableWrapperStyle: CSSProperties = { width: '100%', overflowX: 'hidden', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '15px' }
+const tableStyle: CSSProperties = { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }
+const thStyle: CSSProperties = { textAlign: 'left', padding: '8px 6px', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '10.5px', lineHeight: 1.15, whiteSpace: 'normal' }
+const tdStyle: CSSProperties = { padding: '8px 6px', borderTop: '1px solid rgba(255,255,255,0.08)', verticalAlign: 'top', fontSize: '10.5px', lineHeight: 1.2, whiteSpace: 'pre-line', wordBreak: 'break-word' }
+const disabledRowStyle: CSSProperties = { opacity: 0.62, background: 'rgba(255,255,255,0.025)' }
 
-const tableStyle: CSSProperties = {
-  width: '100%',
-  tableLayout: 'fixed',
-  borderCollapse: 'collapse',
-}
+const userNameStyle: CSSProperties = { display: 'block', color: '#fff', fontSize: '11.5px', lineHeight: 1.15 }
+const emailStyle: CSSProperties = { display: 'block', marginTop: '3px', color: '#a7b0c0', fontSize: '9px', lineHeight: 1.15, wordBreak: 'break-word' }
+const phoneStyle: CSSProperties = { display: 'block', marginTop: '4px', color: '#e5e7eb', fontSize: '10px', lineHeight: 1.15 }
+const disabledBadgeStyle: CSSProperties = { display: 'inline-flex', marginTop: '5px', padding: '3px 6px', borderRadius: '999px', color: '#fecaca', border: '1px solid rgba(220,38,38,0.35)', background: 'rgba(220,38,38,0.12)', fontSize: '9px', fontWeight: 900 }
 
-const thStyle: CSSProperties = {
-  textAlign: 'left',
-  padding: '8px 7px',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#fff',
-  fontSize: '11px',
-  lineHeight: 1.15,
-  whiteSpace: 'normal',
-}
-
-const tdStyle: CSSProperties = {
-  padding: '8px 7px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
-  verticalAlign: 'top',
-  fontSize: '11px',
-  lineHeight: 1.2,
-  whiteSpace: 'pre-line',
-  wordBreak: 'break-word',
-}
-
-const selectStackStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: '5px',
-}
-
-const selectStyle: CSSProperties = {
-  width: '100%',
-  minWidth: 0,
-  borderRadius: '9px',
-  padding: '6px 4px',
-  border: '1px solid rgba(255,255,255,0.14)',
-  background: '#0f172a',
-  color: '#fff',
-  fontSize: '10.5px',
-  fontWeight: 800,
-}
-
-const actionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '4px',
-}
-
-const smallButtonStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.14)',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#fff',
-  borderRadius: '9px',
-  padding: '6px 3px',
-  cursor: 'pointer',
-  fontWeight: 850,
-  fontSize: '10px',
-  lineHeight: 1,
-  minWidth: 0,
-}
-
-const dangerButtonStyle: CSSProperties = {
-  ...smallButtonStyle,
-  border: '1px solid rgba(220,38,38,0.6)',
-  background: 'rgba(220,38,38,0.22)',
-}
+const selectStackStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr', gap: '5px' }
+const selectStyle: CSSProperties = { width: '100%', minWidth: 0, borderRadius: '9px', padding: '6px 4px', border: '1px solid rgba(255,255,255,0.14)', background: '#0f172a', color: '#fff', fontSize: '10px', fontWeight: 800 }
+const actionsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '4px' }
+const smallButtonStyle: CSSProperties = { border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: '8px', padding: '5px 3px', cursor: 'pointer', fontWeight: 850, fontSize: '9.5px', lineHeight: 1, minWidth: 0 }
+const warningButtonStyle: CSSProperties = { ...smallButtonStyle, border: '1px solid rgba(245,158,11,0.55)', background: 'rgba(245,158,11,0.16)' }
+const dangerButtonStyle: CSSProperties = { ...smallButtonStyle, border: '1px solid rgba(220,38,38,0.6)', background: 'rgba(220,38,38,0.22)' }
 
 export default AdminAccessiUtenti

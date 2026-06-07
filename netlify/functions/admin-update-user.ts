@@ -29,6 +29,10 @@ export async function handler(event: any) {
       payload.approved_at = status === 'approved' ? new Date().toISOString() : null
       payload.rejected_at = status === 'rejected' ? new Date().toISOString() : null
       if (status !== 'pending') payload.approval_token = null
+      if (status === 'approved') {
+        payload.disabled = false
+        payload.deleted_at = null
+      }
     }
 
     if (role === 'admin') {
@@ -36,6 +40,8 @@ export async function handler(event: any) {
       payload.approval_status = 'approved'
       payload.approved_at = new Date().toISOString()
       payload.rejected_at = null
+      payload.disabled = false
+      payload.deleted_at = null
       payload.approval_token = null
     }
 

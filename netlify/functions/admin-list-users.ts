@@ -12,7 +12,7 @@ export async function handler(event: any) {
 
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, nome, cognome, phone, role, approved, approval_status, approval_requested_at, approved_at, rejected_at')
+      .select('id, email, nome, cognome, phone, role, approved, approval_status, approval_requested_at, approved_at, rejected_at, disabled, deleted_at')
 
     if (profilesError) return json(500, { error: profilesError.message })
 
@@ -34,12 +34,17 @@ export async function handler(event: any) {
         approval_requested_at: profile.approval_requested_at || null,
         approved_at: profile.approved_at || null,
         rejected_at: profile.rejected_at || null,
+        disabled: profile.disabled === true,
+        deleted_at: profile.deleted_at || null,
       }
     })
 
     users.sort((a: any, b: any) => {
+      const disabledA = a.disabled || Boolean(a.deleted_at) ? 1 : 0
+      const disabledB = b.disabled || Boolean(b.deleted_at) ? 1 : 0
       const statusOrder: Record<string, number> = { pending: 0, approved: 1, rejected: 2 }
-      return (statusOrder[a.approval_status] ?? 9) - (statusOrder[b.approval_status] ?? 9)
+      return disabledA - disabledB
+        || (statusOrder[a.approval_status] ?? 9) - (statusOrder[b.approval_status] ?? 9)
         || String(a.email).localeCompare(String(b.email))
     })
 
