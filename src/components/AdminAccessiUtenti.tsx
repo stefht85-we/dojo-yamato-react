@@ -129,13 +129,10 @@ function AdminAccessiUtenti() {
       <div style={headerStyle}>
         <div>
           <p style={labelStyle}>Gestione accessi</p>
-          <h3 style={{ margin: '4px 0 8px' }}>Utenti registrati e approvazioni</h3>
-          <p style={mutedStyle}>
-            Da qui puoi approvare o rifiutare gli accessi, assegnare il ruolo e inviare un reset password.
-            Per sicurezza le password esistenti non sono visibili.
-          </p>
+          <h3 style={{ margin: '2px 0 6px', fontSize: '19px' }}>Utenti registrati e approvazioni</h3>
+          <p style={mutedStyle}>Approva, rifiuta, assegna ruolo, invia reset password o elimina utenti.</p>
         </div>
-        <button type="button" className="secondary-auth-button" onClick={loadUsers} disabled={loading}>Aggiorna</button>
+        <button type="button" className="secondary-auth-button" onClick={loadUsers} disabled={loading} style={refreshButtonStyle}>Aggiorna</button>
       </div>
 
       <div style={filtersStyle}>
@@ -150,20 +147,16 @@ function AdminAccessiUtenti() {
       <div style={tableWrapperStyle}>
         <table style={tableStyle}>
           <colgroup>
+            <col style={{ width: '33%' }} />
+            <col style={{ width: '16%' }} />
             <col style={{ width: '25%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '22%' }} />
+            <col style={{ width: '26%' }} />
           </colgroup>
           <thead>
             <tr>
               <th style={thStyle}>Utente</th>
-              <th style={thStyle}>Tel.</th>
-              <th style={thStyle}>Stato</th>
-              <th style={thStyle}>Ruolo</th>
               <th style={thStyle}>Accesso</th>
+              <th style={thStyle}>Stato / ruolo</th>
               <th style={thStyle}>Azioni</th>
             </tr>
           </thead>
@@ -173,32 +166,34 @@ function AdminAccessiUtenti() {
                 <td style={tdStyle}>
                   <strong style={userNameStyle}>{user.nome || user.cognome ? `${user.nome ?? ''} ${user.cognome ?? ''}`.trim() : 'Senza nome'}</strong>
                   <span style={emailStyle}>{user.email}</span>
-                </td>
-                <td style={tdStyle}>{user.phone || '-'}</td>
-                <td style={tdStyle}>
-                  <select
-                    value={user.approval_status}
-                    onChange={(e) => updateUser(user.id, { approval_status: e.target.value as ApprovalStatus })}
-                    disabled={loading}
-                    style={selectStyle}
-                  >
-                    <option value="pending">In attesa</option>
-                    <option value="approved">Approvato</option>
-                    <option value="rejected">Rifiutato</option>
-                  </select>
-                </td>
-                <td style={tdStyle}>
-                  <select
-                    value={user.role}
-                    onChange={(e) => updateUser(user.id, { role: e.target.value as UserRole })}
-                    disabled={loading}
-                    style={selectStyle}
-                  >
-                    <option value="reader">Lettore</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <span style={phoneStyle}>{user.phone || 'Tel. non indicato'}</span>
                 </td>
                 <td style={tdStyle}>{formatDate(user.last_sign_in_at)}</td>
+                <td style={tdStyle}>
+                  <div style={selectStackStyle}>
+                    <select
+                      value={user.approval_status}
+                      onChange={(e) => updateUser(user.id, { approval_status: e.target.value as ApprovalStatus })}
+                      disabled={loading}
+                      style={selectStyle}
+                      aria-label="Stato approvazione"
+                    >
+                      <option value="pending">In attesa</option>
+                      <option value="approved">Approvato</option>
+                      <option value="rejected">Rifiutato</option>
+                    </select>
+                    <select
+                      value={user.role}
+                      onChange={(e) => updateUser(user.id, { role: e.target.value as UserRole })}
+                      disabled={loading}
+                      style={selectStyle}
+                      aria-label="Ruolo utente"
+                    >
+                      <option value="reader">Lettore</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </td>
                 <td style={tdStyle}>
                   <div style={actionsStyle}>
                     <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'approved' })} disabled={loading}>OK</button>
@@ -212,7 +207,7 @@ function AdminAccessiUtenti() {
 
             {visibleUsers.length === 0 && (
               <tr>
-                <td style={tdStyle} colSpan={6}>Nessun utente da mostrare.</td>
+                <td style={tdStyle} colSpan={4}>Nessun utente da mostrare.</td>
               </tr>
             )}
           </tbody>
@@ -231,57 +226,72 @@ function formatDate(value: string | null) {
     year: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  })
+  }).replace(', ', '\n')
 }
 
 const wrapperStyle: CSSProperties = {
   display: 'grid',
-  gap: '18px',
+  gap: '12px',
 }
 
 const headerStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'space-between',
-  gap: '18px',
+  gap: '10px',
   flexWrap: 'wrap',
+}
+
+const refreshButtonStyle: CSSProperties = {
+  padding: '7px 12px',
+  minHeight: '34px',
+  fontSize: '12px',
 }
 
 const labelStyle: CSSProperties = {
   margin: 0,
   color: '#f3dede',
   fontWeight: 900,
-  letterSpacing: '1.2px',
+  letterSpacing: '1px',
   textTransform: 'uppercase',
-  fontSize: '12px',
+  fontSize: '11px',
 }
 
 const mutedStyle: CSSProperties = {
+  margin: 0,
   color: '#a7b0c0',
-  fontSize: '13px',
+  fontSize: '12px',
+  lineHeight: 1.35,
 }
 
 const userNameStyle: CSSProperties = {
   display: 'block',
   color: '#fff',
-  fontSize: '13px',
-  lineHeight: 1.2,
+  fontSize: '12px',
+  lineHeight: 1.15,
 }
 
 const emailStyle: CSSProperties = {
   display: 'block',
-  marginTop: '4px',
+  marginTop: '3px',
   color: '#a7b0c0',
-  fontSize: '11px',
-  lineHeight: 1.2,
-  wordBreak: 'break-all',
+  fontSize: '9.5px',
+  lineHeight: 1.15,
+  wordBreak: 'break-word',
 }
 
+const phoneStyle: CSSProperties = {
+  display: 'block',
+  marginTop: '4px',
+  color: '#e5e7eb',
+  fontSize: '10.5px',
+  lineHeight: 1.15,
+}
 
 const filtersStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '8px',
+  gap: '6px',
 }
 
 const filterButton = (active: boolean): CSSProperties => ({
@@ -289,24 +299,26 @@ const filterButton = (active: boolean): CSSProperties => ({
   background: active ? 'rgba(185,68,79,0.28)' : 'rgba(255,255,255,0.06)',
   color: '#fff',
   borderRadius: '999px',
-  padding: '9px 14px',
+  padding: '7px 11px',
   cursor: 'pointer',
   fontWeight: 800,
+  fontSize: '12px',
 })
 
 const messageStyle: CSSProperties = {
-  padding: '12px 14px',
-  borderRadius: '14px',
+  padding: '9px 12px',
+  borderRadius: '12px',
   background: 'rgba(185,68,79,0.18)',
   border: '1px solid rgba(185,68,79,0.28)',
   color: '#f3dede',
+  fontSize: '12px',
 }
 
 const tableWrapperStyle: CSSProperties = {
   width: '100%',
   overflowX: 'hidden',
   border: '1px solid rgba(255,255,255,0.10)',
-  borderRadius: '16px',
+  borderRadius: '15px',
 }
 
 const tableStyle: CSSProperties = {
@@ -317,51 +329,58 @@ const tableStyle: CSSProperties = {
 
 const thStyle: CSSProperties = {
   textAlign: 'left',
-  padding: '10px 8px',
+  padding: '8px 7px',
   background: 'rgba(255,255,255,0.08)',
   color: '#fff',
-  fontSize: '12px',
-  lineHeight: 1.2,
+  fontSize: '11px',
+  lineHeight: 1.15,
   whiteSpace: 'normal',
 }
 
 const tdStyle: CSSProperties = {
-  padding: '10px 8px',
+  padding: '8px 7px',
   borderTop: '1px solid rgba(255,255,255,0.08)',
   verticalAlign: 'top',
-  fontSize: '12px',
-  lineHeight: 1.25,
-  whiteSpace: 'normal',
+  fontSize: '11px',
+  lineHeight: 1.2,
+  whiteSpace: 'pre-line',
   wordBreak: 'break-word',
+}
+
+const selectStackStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: '5px',
 }
 
 const selectStyle: CSSProperties = {
   width: '100%',
   minWidth: 0,
-  borderRadius: '10px',
-  padding: '7px 6px',
+  borderRadius: '9px',
+  padding: '6px 4px',
   border: '1px solid rgba(255,255,255,0.14)',
   background: '#0f172a',
   color: '#fff',
-  fontSize: '12px',
+  fontSize: '10.5px',
+  fontWeight: 800,
 }
 
 const actionsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '6px',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: '4px',
 }
 
 const smallButtonStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.14)',
   background: 'rgba(255,255,255,0.08)',
   color: '#fff',
-  borderRadius: '10px',
-  padding: '7px 6px',
+  borderRadius: '9px',
+  padding: '6px 3px',
   cursor: 'pointer',
-  fontWeight: 800,
-  fontSize: '11px',
-  lineHeight: 1.1,
+  fontWeight: 850,
+  fontSize: '10px',
+  lineHeight: 1,
   minWidth: 0,
 }
 

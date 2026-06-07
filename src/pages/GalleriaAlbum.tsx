@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -107,7 +107,7 @@ function GalleriaAlbum() {
   }
 
   function showAccessDenied() {
-    setAccessMessage(isPending ? 'La tua registrazione Ã¨ in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Puoi vedere le anteprime dellâ€™album; accedi e attendi approvazione per ingrandire immagini/video o scaricare contenuti.')
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Puoi vedere le anteprime dell’album; accedi e attendi approvazione per ingrandire immagini/video o scaricare contenuti.')
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -216,7 +216,7 @@ function GalleriaAlbum() {
     <main style={pageStyle}>
       <section style={heroStyle}>
         <Link to="/galleria" style={backLinkStyle}>
-          â† Torna alla galleria
+          ← Torna alla galleria
         </Link>
 
         <p style={pageBadgeStyle}>{album.category || 'Galleria'}</p>
@@ -224,7 +224,7 @@ function GalleriaAlbum() {
         <h1 style={titleStyle}>{album.title}</h1>
 
         <p style={introStyle}>
-          {formatAlbumDate(album.event_date, album.event_year)} Â· {mediaCountLabel}
+          {formatAlbumDate(album.event_date, album.event_year)} · {mediaCountLabel}
         </p>
 
         {album.description && <p style={descriptionStyle}>{album.description}</p>}
@@ -233,7 +233,7 @@ function GalleriaAlbum() {
           <div style={loginNoticeStyle}>
             <strong>{isPending ? 'Accesso in attesa di approvazione.' : 'Contenuti riservati agli utenti registrati.'}</strong>
             {isPending
-              ? 'Puoi vedere le anteprime, ma non puoi aprire immagini, video e file finchÃ© lâ€™accesso non viene approvato.'
+              ? 'Puoi vedere le anteprime, ma non puoi aprire immagini, video e file finché l’accesso non viene approvato.'
               : 'Puoi vedere le anteprime, ma per aprire immagini, video e contenuti completi devi accedere.'}
             <Link to="/area-utente" style={loginButtonStyle}>
               {isPending ? 'Stato richiesta' : 'Accedi / Registrati'}
@@ -283,7 +283,7 @@ function GalleriaAlbum() {
                           preload="metadata"
                           style={previewImageStyle}
                         />
-                        <span style={playBadgeStyle}>â–¶</span>
+                        <span style={playBadgeStyle} aria-hidden="true"><span style={playTriangleStyle} /></span>
                       </>
                     ) : item.media_type === 'youtube' ? (
                       <>
@@ -314,7 +314,7 @@ function GalleriaAlbum() {
                         />
                       ) : (
                         <div style={filePreviewStyle}>
-                          <span style={{ fontSize: '24px' }}>ðŸ”—</span>
+                          <span style={{ fontSize: '24px' }}>🔗</span>
                           {item.caption && (
                             <span style={{ fontSize: '12px', fontWeight: 800 }}>
                               {item.caption}
@@ -336,13 +336,6 @@ function GalleriaAlbum() {
                 {item.caption && (
                   <div style={mediaCardBodyStyle}>
                     <h3 style={mediaTitleStyle}>{item.caption}</h3>
-
-                    {!canAccessMedia && (
-                      <p style={lockedTextStyle}>
-                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : ''}
-                      </p>
-                    )}
-
                     {canAccessMedia && (
                       <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
                         Apri contenuto
@@ -350,15 +343,6 @@ function GalleriaAlbum() {
                     )}
                   </div>
                 )}
-
-                {!item.caption && !canAccessMedia && (
-                  <div style={mediaCardBodyStyle}>
-                    <p style={lockedTextStyle}>
-                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : ''}
-                    </p>
-                  </div>
-                )}
-
                 {!item.caption && canAccessMedia && (
                   <div style={mediaCardBodyStyle}>
                     <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
@@ -375,7 +359,7 @@ function GalleriaAlbum() {
       {activeMedia && canAccessMedia && (
         <div style={lightboxStyle} onClick={closeLightbox}>
           <button type="button" style={closeButtonStyle} onClick={closeLightbox}>
-            Ã—
+            ×
           </button>
 
           <div style={lightboxInnerStyle} onClick={(event) => event.stopPropagation()}>
@@ -625,16 +609,25 @@ const playBadgeStyle: CSSProperties = {
   position: 'absolute',
   inset: 0,
   margin: 'auto',
-  width: '54px',
-  height: '54px',
+  width: '50px',
+  height: '50px',
   borderRadius: '999px',
   background: 'rgba(2,8,23,0.74)',
-  border: '1px solid rgba(255,255,255,0.20)',
-  color: 'white',
+  border: '1px solid rgba(255,255,255,0.22)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontWeight: 950,
+  boxShadow: '0 16px 34px rgba(0,0,0,0.28)',
+  pointerEvents: 'none',
+}
+
+const playTriangleStyle: CSSProperties = {
+  width: 0,
+  height: 0,
+  marginLeft: '4px',
+  borderTop: '11px solid transparent',
+  borderBottom: '11px solid transparent',
+  borderLeft: '17px solid #fff',
 }
 
 const filePreviewStyle: CSSProperties = {
@@ -662,14 +655,6 @@ const mediaTitleStyle: CSSProperties = {
   fontWeight: 950,
   lineHeight: 1.25,
 }
-
-const lockedTextStyle: CSSProperties = {
-  margin: 0,
-  color: '#f3dede',
-  fontSize: '13px',
-  lineHeight: 1.45,
-}
-
 const openButtonStyle: CSSProperties = {
   ...dojoBadgeStyle,
   textDecoration: 'none',
@@ -757,4 +742,3 @@ const lightboxCaptionStyle: CSSProperties = {
 }
 
 export default GalleriaAlbum
-
