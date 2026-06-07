@@ -149,13 +149,21 @@ function AdminAccessiUtenti() {
 
       <div style={tableWrapperStyle}>
         <table style={tableStyle}>
+          <colgroup>
+            <col style={{ width: '25%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '22%' }} />
+          </colgroup>
           <thead>
             <tr>
               <th style={thStyle}>Utente</th>
-              <th style={thStyle}>Telefono</th>
+              <th style={thStyle}>Tel.</th>
               <th style={thStyle}>Stato</th>
               <th style={thStyle}>Ruolo</th>
-              <th style={thStyle}>Ultimo accesso</th>
+              <th style={thStyle}>Accesso</th>
               <th style={thStyle}>Azioni</th>
             </tr>
           </thead>
@@ -163,8 +171,8 @@ function AdminAccessiUtenti() {
             {visibleUsers.map((user) => (
               <tr key={user.id}>
                 <td style={tdStyle}>
-                  <strong>{user.nome || user.cognome ? `${user.nome ?? ''} ${user.cognome ?? ''}`.trim() : 'Senza nome'}</strong><br />
-                  <span style={mutedStyle}>{user.email}</span>
+                  <strong style={userNameStyle}>{user.nome || user.cognome ? `${user.nome ?? ''} ${user.cognome ?? ''}`.trim() : 'Senza nome'}</strong>
+                  <span style={emailStyle}>{user.email}</span>
                 </td>
                 <td style={tdStyle}>{user.phone || '-'}</td>
                 <td style={tdStyle}>
@@ -193,9 +201,9 @@ function AdminAccessiUtenti() {
                 <td style={tdStyle}>{formatDate(user.last_sign_in_at)}</td>
                 <td style={tdStyle}>
                   <div style={actionsStyle}>
-                    <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'approved' })} disabled={loading}>Approva</button>
-                    <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'rejected' })} disabled={loading}>Rifiuta</button>
-                    <button type="button" style={smallButtonStyle} onClick={() => sendPasswordReset(user)} disabled={loading}>Reset password</button>
+                    <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'approved' })} disabled={loading}>OK</button>
+                    <button type="button" style={smallButtonStyle} onClick={() => updateUser(user.id, { approval_status: 'rejected' })} disabled={loading}>No</button>
+                    <button type="button" style={smallButtonStyle} onClick={() => sendPasswordReset(user)} disabled={loading}>Reset</button>
                     <button type="button" style={dangerButtonStyle} onClick={() => deleteUser(user)} disabled={loading}>Elimina</button>
                   </div>
                 </td>
@@ -216,7 +224,14 @@ function AdminAccessiUtenti() {
 
 function formatDate(value: string | null) {
   if (!value) return '-'
-  return new Date(value).toLocaleString('it-IT')
+  const date = new Date(value)
+  return date.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 const wrapperStyle: CSSProperties = {
@@ -246,6 +261,23 @@ const mutedStyle: CSSProperties = {
   fontSize: '13px',
 }
 
+const userNameStyle: CSSProperties = {
+  display: 'block',
+  color: '#fff',
+  fontSize: '13px',
+  lineHeight: 1.2,
+}
+
+const emailStyle: CSSProperties = {
+  display: 'block',
+  marginTop: '4px',
+  color: '#a7b0c0',
+  fontSize: '11px',
+  lineHeight: 1.2,
+  wordBreak: 'break-all',
+}
+
+
 const filtersStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -271,43 +303,53 @@ const messageStyle: CSSProperties = {
 }
 
 const tableWrapperStyle: CSSProperties = {
-  overflowX: 'auto',
+  width: '100%',
+  overflowX: 'hidden',
   border: '1px solid rgba(255,255,255,0.10)',
   borderRadius: '16px',
 }
 
 const tableStyle: CSSProperties = {
   width: '100%',
+  tableLayout: 'fixed',
   borderCollapse: 'collapse',
-  minWidth: '900px',
 }
 
 const thStyle: CSSProperties = {
   textAlign: 'left',
-  padding: '12px',
+  padding: '10px 8px',
   background: 'rgba(255,255,255,0.08)',
   color: '#fff',
-  fontSize: '13px',
+  fontSize: '12px',
+  lineHeight: 1.2,
+  whiteSpace: 'normal',
 }
 
 const tdStyle: CSSProperties = {
-  padding: '12px',
+  padding: '10px 8px',
   borderTop: '1px solid rgba(255,255,255,0.08)',
   verticalAlign: 'top',
+  fontSize: '12px',
+  lineHeight: 1.25,
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
 }
 
 const selectStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
   borderRadius: '10px',
-  padding: '8px 10px',
+  padding: '7px 6px',
   border: '1px solid rgba(255,255,255,0.14)',
   background: '#0f172a',
   color: '#fff',
+  fontSize: '12px',
 }
 
 const actionsStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '8px',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '6px',
 }
 
 const smallButtonStyle: CSSProperties = {
@@ -315,9 +357,12 @@ const smallButtonStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.08)',
   color: '#fff',
   borderRadius: '10px',
-  padding: '8px 10px',
+  padding: '7px 6px',
   cursor: 'pointer',
   fontWeight: 800,
+  fontSize: '11px',
+  lineHeight: 1.1,
+  minWidth: 0,
 }
 
 const dangerButtonStyle: CSSProperties = {
