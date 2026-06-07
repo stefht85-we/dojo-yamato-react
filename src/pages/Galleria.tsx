@@ -22,7 +22,6 @@ export default function Galleria() {
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<string | null>(null)
-  const [accessMessage, setAccessMessage] = useState('')
   const { canOpenRestrictedContent, isPending } = useAccessStatus()
 
   useEffect(() => {
@@ -79,14 +78,6 @@ export default function Galleria() {
   }, [albumsByYear])
 
   const selectedAlbums = selectedYear ? albumsByYear[selectedYear] || [] : []
-
-  function showAccessDenied() {
-    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere gli album, ma non puoi aprirli finché l’accesso non viene approvato.' : 'Puoi vedere gli album disponibili, ma per aprirli devi registrarti ed essere approvato.')
-
-    window.setTimeout(() => {
-      setAccessMessage('')
-    }, 5000)
-  }
 
   function renderAlbumCard(album: GalleryAlbum) {
     const cardContent = (
@@ -246,8 +237,6 @@ export default function Galleria() {
           </>
         )}
       </section>
-
-      {accessMessage && <div style={styles.floatingMessage}>{accessMessage}</div>}
     </main>
   )
 }
