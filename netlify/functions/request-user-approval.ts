@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+﻿import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import crypto from 'node:crypto'
 
-const ADMIN_EMAIL = 'stefht85@hotmail.com'
+const ADMIN_EMAIL = 'stefht85@gmail.com'
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -77,8 +77,8 @@ export async function handler(event: any) {
           <p><strong>Telefono:</strong> ${escapeHtml(phone || '')}</p>
           <p><strong>Data nascita:</strong> ${escapeHtml(birthDate || '')}</p>
           <p><strong>Indirizzo:</strong> ${escapeHtml(address || '')}</p>
-          <p><strong>Città:</strong> ${escapeHtml(city || '')}</p>
-          <p><strong>Newsletter:</strong> ${newsletterOptIn ? 'Sì' : 'No'}</p>
+          <p><strong>CittÃ :</strong> ${escapeHtml(city || '')}</p>
+          <p><strong>Newsletter:</strong> ${newsletterOptIn ? 'SÃ¬' : 'No'}</p>
           <p style="margin-top: 24px;">
             <a href="${approveUrl}" style="display:inline-block;padding:12px 18px;background:#15803d;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">APPROVA ACCESSO</a>
           </p>
@@ -119,3 +119,4 @@ function escapeHtml(value: string) {
     '"': '&quot;',
   }[char] || char))
 }
+
