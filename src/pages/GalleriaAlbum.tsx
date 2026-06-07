@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
@@ -107,7 +107,7 @@ function GalleriaAlbum() {
   }
 
   function showAccessDenied() {
-    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Puoi vedere le anteprime dell’album; accedi e attendi approvazione per ingrandire immagini/video o scaricare contenuti.')
+    setAccessMessage(isPending ? 'La tua registrazione Ã¨ in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Puoi vedere le anteprime dellâ€™album; accedi e attendi approvazione per ingrandire immagini/video o scaricare contenuti.')
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -216,7 +216,7 @@ function GalleriaAlbum() {
     <main style={pageStyle}>
       <section style={heroStyle}>
         <Link to="/galleria" style={backLinkStyle}>
-          ← Torna alla galleria
+          â† Torna alla galleria
         </Link>
 
         <p style={pageBadgeStyle}>{album.category || 'Galleria'}</p>
@@ -224,7 +224,7 @@ function GalleriaAlbum() {
         <h1 style={titleStyle}>{album.title}</h1>
 
         <p style={introStyle}>
-          {formatAlbumDate(album.event_date, album.event_year)} · {mediaCountLabel}
+          {formatAlbumDate(album.event_date, album.event_year)} Â· {mediaCountLabel}
         </p>
 
         {album.description && <p style={descriptionStyle}>{album.description}</p>}
@@ -233,7 +233,7 @@ function GalleriaAlbum() {
           <div style={loginNoticeStyle}>
             <strong>{isPending ? 'Accesso in attesa di approvazione.' : 'Contenuti riservati agli utenti registrati.'}</strong>
             {isPending
-              ? 'Puoi vedere le anteprime, ma non puoi aprire immagini, video e file finché l’accesso non viene approvato.'
+              ? 'Puoi vedere le anteprime, ma non puoi aprire immagini, video e file finchÃ© lâ€™accesso non viene approvato.'
               : 'Puoi vedere le anteprime, ma per aprire immagini, video e contenuti completi devi accedere.'}
             <Link to="/area-utente" style={loginButtonStyle}>
               {isPending ? 'Stato richiesta' : 'Accedi / Registrati'}
@@ -283,7 +283,7 @@ function GalleriaAlbum() {
                           preload="metadata"
                           style={previewImageStyle}
                         />
-                        <span style={playBadgeStyle}>▶</span>
+                        <span style={playBadgeStyle}>â–¶</span>
                       </>
                     ) : item.media_type === 'youtube' ? (
                       <>
@@ -314,7 +314,7 @@ function GalleriaAlbum() {
                         />
                       ) : (
                         <div style={filePreviewStyle}>
-                          <span style={{ fontSize: '24px' }}>🔗</span>
+                          <span style={{ fontSize: '24px' }}>ðŸ”—</span>
                           {item.caption && (
                             <span style={{ fontSize: '12px', fontWeight: 800 }}>
                               {item.caption}
@@ -339,7 +339,7 @@ function GalleriaAlbum() {
 
                     {!canAccessMedia && (
                       <p style={lockedTextStyle}>
-                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Anteprima visibile: accesso approvato richiesto per aprire o scaricare.'}
+                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : ''}
                       </p>
                     )}
 
@@ -354,7 +354,7 @@ function GalleriaAlbum() {
                 {!item.caption && !canAccessMedia && (
                   <div style={mediaCardBodyStyle}>
                     <p style={lockedTextStyle}>
-                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Anteprima visibile: accesso approvato richiesto per aprire o scaricare.'}
+                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : ''}
                     </p>
                   </div>
                 )}
@@ -375,7 +375,7 @@ function GalleriaAlbum() {
       {activeMedia && canAccessMedia && (
         <div style={lightboxStyle} onClick={closeLightbox}>
           <button type="button" style={closeButtonStyle} onClick={closeLightbox}>
-            ×
+            Ã—
           </button>
 
           <div style={lightboxInnerStyle} onClick={(event) => event.stopPropagation()}>
@@ -757,3 +757,4 @@ const lightboxCaptionStyle: CSSProperties = {
 }
 
 export default GalleriaAlbum
+
