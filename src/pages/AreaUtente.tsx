@@ -7,8 +7,9 @@ import AdminInsegnanti from '../components/AdminInsegnanti'
 import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
 import AdminIscritti from '../components/AdminIscritti'
+import AdminAccessiUtenti from '../components/AdminAccessiUtenti'
 import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
-import { isAdmin as checkIsAdmin } from '../lib/permissions'
+import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
 import { uploadToR2 } from '../lib/r2UploadClient'
 import './AreaUtente.css'
@@ -23,6 +24,7 @@ type AdminTab =
   | 'teoria'
   | 'difesa'
   | 'iscritti'
+  | 'accessi-utenti'
 
 type GalleryAlbum = {
   id: string
@@ -393,57 +395,21 @@ function AreaUtente() {
     }
 
     if (data.user) {
-      const approvalResponse = await fetch('/.netlify/functions/request-user-approval', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: data.user.id,
-          email: cleanEmail,
-          nome: nome.trim(),
-          cognome: cognome.trim(),
-          phone: phone.trim(),
-          birthDate,
-          address: address.trim(),
-          city: city.trim(),
-          newsletterOptIn,
-          privacyAccepted,
-        }),
-      })
-
-      const approvalResult = await approvalResponse.json().catch(() => null)
-
-      if (!approvalResponse.ok) {
-        setMessage(approvalResult?.error || 'Registrazione creata, ma non è stato possibile generare la richiesta di approvazione.')
-        return
-      }
-
-      const formPayload: Record<string, string> = {
-        'form-name': 'approvazione-iscrizione',
+      const profilePayload = {
+        id: data.user.id,
+        email: cleanEmail,
         nome: nome.trim(),
         cognome: cognome.trim(),
-        email: cleanEmail,
-        telefono: phone.trim(),
-        data_nascita: birthDate || '',
-        indirizzo: address.trim(),
-        citta: city.trim(),
-        stato: 'pending',
-        ruolo: 'reader',
-        approva_url: approvalResult?.approveUrl || '',
-        rifiuta_url: approvalResult?.rejectUrl || '',
-        note: 'Nuova richiesta di iscrizione all area riservata Dojo Yamato. Clicca il link approva_url o rifiuta_url per gestire la richiesta.',
-        'bot-field': '',
+        phone: phone.trim(),
+        birth_date: birthDate,
+        address: address.trim(),
+        city: city.trim(),
+        role: cleanEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user',
+        newsletter_opt_in: newsletterOptIn,
+        privacy_accepted: privacyAccepted,
       }
 
-      const netlifyFormResponse = await fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formPayload).toString(),
-      })
-
-      if (!netlifyFormResponse.ok) {
-        setMessage('Registrazione creata, ma la notifica Netlify non è stata inviata. Controlla il form approvazione-iscrizione su Netlify.')
-        return
-      }
+      await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' })
 
       if (newsletterOptIn) {
         await supabase.from('newsletter_subscribers').upsert(
@@ -475,7 +441,7 @@ function AreaUtente() {
     setNewsletterOptIn(false)
     setShowRegisterForm(false)
 
-    setMessage('Registrazione inviata. Il tuo account è in attesa di approvazione da parte della segreteria.')
+    setMessage('Registrazione inviata. Controlla la tua email per confermare l’account.')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -1336,9 +1302,10 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'teoria')} onClick={() => setAdminTab('teoria')}>Teoria</button>
                 <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>Difesa personale</button>
                 <button type="button" style={tabButton(adminTab === 'iscritti')} onClick={() => setAdminTab('iscritti')}>Iscritti</button>
+                <button type="button" style={tabButton(adminTab === 'accessi-utenti')} onClick={() => setAdminTab('accessi-utenti')}>Accessi utenti</button>
               </div>
 
-              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'difesa' && (
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'accessi-utenti' && adminTab !== 'difesa' && (
                 <div style={messageBox}>{message}</div>
               )}
 
@@ -1606,6 +1573,7 @@ function AreaUtente() {
               {adminTab === 'insegnanti' && <AdminInsegnanti />}
               {adminTab === 'teoria' && <AdminTeoria />}
               {adminTab === 'iscritti' && <AdminIscritti />}
+              {adminTab === 'accessi-utenti' && <AdminAccessiUtenti />}
               {adminTab === 'difesa' && <AdminDifesaPersonale />}
             </section>
           )}
