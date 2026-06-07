@@ -332,22 +332,9 @@ function GalleriaAlbum() {
                     )}
                   </div>
                 </button>
-
                 {item.caption && (
                   <div style={mediaCardBodyStyle}>
                     <h3 style={mediaTitleStyle}>{item.caption}</h3>
-                    {canAccessMedia && (
-                      <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
-                        Apri contenuto
-                      </button>
-                    )}
-                  </div>
-                )}
-                {!item.caption && canAccessMedia && (
-                  <div style={mediaCardBodyStyle}>
-                    <button type="button" style={openButtonStyle} onClick={() => handleOpenMedia(item)}>
-                      Apri contenuto
-                    </button>
                   </div>
                 )}
               </article>
@@ -654,13 +641,6 @@ const mediaTitleStyle: CSSProperties = {
   fontSize: '18px',
   fontWeight: 950,
   lineHeight: 1.25,
-}
-const openButtonStyle: CSSProperties = {
-  ...dojoBadgeStyle,
-  textDecoration: 'none',
-  justifySelf: 'start',
-  border: 'none',
-  cursor: 'pointer',
 }
 
 const mutedText: CSSProperties = {
