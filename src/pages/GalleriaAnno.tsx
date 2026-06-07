@@ -142,28 +142,19 @@ function GalleriaAnno() {
                   </div>
 
                   <span style={canOpenRestrictedContent ? ctaStyle : lockedCtaStyle}>
-                    {canOpenRestrictedContent ? 'Apri →' : 'Bloccato'}
+                    {canOpenRestrictedContent ? 'Apri →' : 'Anteprima →'}
                   </span>
                 </>
               )
 
-              return canOpenRestrictedContent ? (
+              return (
                 <Link
                   key={album.id}
                   to={`/galleria/album/${album.id}`}
-                  style={albumRowStyle}
+                  style={canOpenRestrictedContent ? albumRowStyle : previewAlbumRowStyle}
                 >
                   {content}
                 </Link>
-              ) : (
-                <button
-                  key={album.id}
-                  type="button"
-                  style={lockedAlbumRowStyle}
-                  onClick={(event) => event.preventDefault()}
-                >
-                  {content}
-                </button>
               )
             })}
           </section>
@@ -306,10 +297,10 @@ const lockedCtaStyle: React.CSSProperties = {
   color: '#a7b0c0',
 }
 
-const lockedAlbumRowStyle: React.CSSProperties = {
+const previewAlbumRowStyle: React.CSSProperties = {
   ...albumRowStyle,
-  cursor: 'not-allowed',
-  opacity: 0.74,
+  cursor: 'pointer',
+  opacity: 0.95,
 }
 
 export default GalleriaAnno

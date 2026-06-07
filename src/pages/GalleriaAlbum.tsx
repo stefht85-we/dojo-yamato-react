@@ -107,7 +107,7 @@ function GalleriaAlbum() {
   }
 
   function showAccessDenied() {
-    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Accedi o registrati all’Area Utente per aprire immagini, video e contenuti della galleria.')
+    setAccessMessage(isPending ? 'La tua registrazione è in attesa di approvazione: puoi vedere le anteprime, ma non puoi aprire immagini, video o file.' : 'Puoi vedere le anteprime dell’album; accedi e attendi approvazione per ingrandire immagini/video o scaricare contenuti.')
 
     window.setTimeout(() => {
       setAccessMessage('')
@@ -254,7 +254,7 @@ function GalleriaAlbum() {
           <div style={filterBoxStyle}>
             <span style={filterLabelStyle}>Accesso</span>
             <span style={accessStatusStyle}>
-              {canAccessMedia ? 'Utente autorizzato' : isPending ? 'In attesa di approvazione' : 'Login richiesto'}
+              {canAccessMedia ? 'Utente autorizzato' : isPending ? 'In attesa di approvazione' : 'Anteprima pubblica'}
             </span>
           </div>
         </div>
@@ -269,9 +269,10 @@ function GalleriaAlbum() {
               <article key={item.id} style={mediaCardStyle}>
                 <button
                   type="button"
-                  onClick={() => handleOpenMedia(item)}
-                  style={previewButtonStyle}
-                  aria-label={item.caption || 'Apri contenuto galleria'}
+                  onClick={canAccessMedia ? () => handleOpenMedia(item) : undefined}
+                  disabled={!canAccessMedia}
+                  style={canAccessMedia ? previewButtonStyle : lockedPreviewButtonStyle}
+                  aria-label={canAccessMedia ? (item.caption || 'Apri contenuto galleria') : 'Anteprima contenuto bloccata'}
                 >
                   <div style={previewWrapStyle}>
                     {item.media_type === 'video' ? (
@@ -338,7 +339,7 @@ function GalleriaAlbum() {
 
                     {!canAccessMedia && (
                       <p style={lockedTextStyle}>
-                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Accesso richiesto per aprire questo contenuto.'}
+                        {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Anteprima visibile: accesso approvato richiesto per aprire o scaricare.'}
                       </p>
                     )}
 
@@ -353,7 +354,7 @@ function GalleriaAlbum() {
                 {!item.caption && !canAccessMedia && (
                   <div style={mediaCardBodyStyle}>
                     <p style={lockedTextStyle}>
-                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Accesso richiesto per aprire questo contenuto.'}
+                      {isPending ? 'In attesa di approvazione: apertura contenuto bloccata.' : 'Anteprima visibile: accesso approvato richiesto per aprire o scaricare.'}
                     </p>
                   </div>
                 )}
@@ -597,6 +598,12 @@ const previewButtonStyle: CSSProperties = {
   background: 'transparent',
   cursor: 'pointer',
   textAlign: 'left',
+}
+
+const lockedPreviewButtonStyle: CSSProperties = {
+  ...previewButtonStyle,
+  cursor: 'default',
+  opacity: 1,
 }
 
 const previewWrapStyle: CSSProperties = {

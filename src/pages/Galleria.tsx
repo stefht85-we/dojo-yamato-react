@@ -124,33 +124,20 @@ export default function Galleria() {
           )}
 
           {!canOpenRestrictedContent && (
-            <p style={styles.lockedHint}>{isPending ? 'In attesa di approvazione: apertura album bloccata.' : 'Registrazione richiesta: apertura album bloccata.'}</p>
+            <p style={styles.lockedHint}>{isPending ? 'In attesa di approvazione: anteprime visibili, apertura contenuti bloccata.' : 'Anteprime visibili: accedi e attendi approvazione per aprire o scaricare.'}</p>
           )}
         </div>
       </>
     )
 
-    if (canOpenRestrictedContent) {
-      return (
-        <Link
-          key={album.id}
-          to={`/galleria/${album.id}`}
-          style={styles.albumCard}
-        >
-          {cardContent}
-        </Link>
-      )
-    }
-
     return (
-      <button
+      <Link
         key={album.id}
-        type="button"
-        onClick={showAccessDenied}
-        style={{ ...styles.albumCard, ...styles.lockedAlbumCard }}
+        to={`/galleria/${album.id}`}
+        style={canOpenRestrictedContent ? styles.albumCard : { ...styles.albumCard, ...styles.previewAlbumCard }}
       >
         {cardContent}
-      </button>
+      </Link>
     )
   }
 
@@ -243,7 +230,7 @@ export default function Galleria() {
                   <p style={styles.kicker}>Anno {selectedYear}</p>
                   <h2 style={styles.sectionTitle}>Album disponibili</h2>
                   <p style={styles.sectionSubtitle}>
-                    {canOpenRestrictedContent ? 'Clicca su un album per visualizzare tutte le foto e i contenuti.' : isPending ? 'Puoi vedere gli album disponibili; l’apertura sarà abilitata dopo l’approvazione.' : 'Puoi vedere gli album disponibili; per aprirli devi registrarti ed essere approvato.'}
+                    {canOpenRestrictedContent ? 'Clicca su un album per visualizzare tutte le foto e i contenuti.' : isPending ? 'Puoi entrare negli album e vedere le anteprime; apertura, ingrandimento e download restano bloccati fino all’approvazione.' : 'Puoi entrare negli album e vedere le anteprime; per aprire, ingrandire o scaricare devi registrarti ed essere approvato.'}
                   </p>
                 </div>
 
@@ -517,12 +504,9 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     fontWeight: 800,
   },
-  lockedAlbumCard: {
-    width: '100%',
-    padding: 0,
-    textAlign: 'left',
-    cursor: 'not-allowed',
-    opacity: 0.92,
+  previewAlbumCard: {
+    opacity: 0.95,
+    cursor: 'pointer',
   },
   lockedHint: {
     margin: '12px 0 0',
