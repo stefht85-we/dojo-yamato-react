@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 import type { CSSProperties, FormEvent, MouseEvent } from 'react'
@@ -326,17 +326,17 @@ function AreaUtente() {
     }
 
     if (!address.trim()) {
-      setMessage('Inserisci lâ€™indirizzo')
+      setMessage('Inserisci l’indirizzo')
       return
     }
 
     if (!city.trim()) {
-      setMessage('Inserisci la cittÃ ')
+      setMessage('Inserisci la città')
       return
     }
 
     if (!email.trim() || !confirmEmail.trim()) {
-      setMessage('Inserisci e conferma lâ€™indirizzo email')
+      setMessage('Inserisci e conferma l’indirizzo email')
       return
     }
 
@@ -413,7 +413,35 @@ function AreaUtente() {
       const approvalResult = await approvalResponse.json().catch(() => null)
 
       if (!approvalResponse.ok) {
-        setMessage(approvalResult?.error || 'Registrazione creata, ma non Ã¨ stato possibile inviare la richiesta di approvazione.')
+        setMessage(approvalResult?.error || 'Registrazione creata, ma non è stato possibile generare la richiesta di approvazione.')
+        return
+      }
+
+      const formPayload: Record<string, string> = {
+        'form-name': 'approvazione-iscrizione',
+        nome: nome.trim(),
+        cognome: cognome.trim(),
+        email: cleanEmail,
+        telefono: phone.trim(),
+        data_nascita: birthDate || '',
+        indirizzo: address.trim(),
+        citta: city.trim(),
+        stato: 'pending',
+        ruolo: 'reader',
+        approva_url: approvalResult?.approveUrl || '',
+        rifiuta_url: approvalResult?.rejectUrl || '',
+        note: 'Nuova richiesta di iscrizione all area riservata Dojo Yamato. Clicca il link approva_url o rifiuta_url per gestire la richiesta.',
+        'bot-field': '',
+      }
+
+      const netlifyFormResponse = await fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(formPayload).toString(),
+      })
+
+      if (!netlifyFormResponse.ok) {
+        setMessage('Registrazione creata, ma la notifica Netlify non è stata inviata. Controlla il form approvazione-iscrizione su Netlify.')
         return
       }
 
@@ -447,7 +475,7 @@ function AreaUtente() {
     setNewsletterOptIn(false)
     setShowRegisterForm(false)
 
-    setMessage('Registrazione inviata. Il tuo account Ã¨ in attesa di approvazione da parte della segreteria.')
+    setMessage('Registrazione inviata. Il tuo account è in attesa di approvazione da parte della segreteria.')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -542,7 +570,7 @@ function AreaUtente() {
     const numericYear = Number(albumYear)
 
     if (!albumTitle.trim()) {
-      setMessage('Inserisci il titolo dellâ€™album')
+      setMessage('Inserisci il titolo dell’album')
       return
     }
 
@@ -615,11 +643,11 @@ function AreaUtente() {
       .eq('id', album.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  album: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità album: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  album aggiornata')
+    setMessage('Visibilità album aggiornata')
     loadAlbums()
   }
 
@@ -655,7 +683,7 @@ function AreaUtente() {
     }
 
     if (!galleryFiles || galleryFiles.length === 0) {
-      setMessage('Seleziona uno o piÃ¹ file')
+      setMessage('Seleziona uno o più file')
       return
     }
 
@@ -836,7 +864,7 @@ function AreaUtente() {
 
       if (socialPreviewFile) {
         if (!socialPreviewFile.type.startsWith('image/')) {
-          setMessage('Lâ€™anteprima social deve essere unâ€™immagine')
+          setMessage('L’anteprima social deve essere un’immagine')
           return
         }
 
@@ -1070,11 +1098,11 @@ function AreaUtente() {
     const { error } = await supabase.from('events').update({ visible: !event.visible }).eq('id', event.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  evento: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità evento: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  evento aggiornata')
+    setMessage('Visibilità evento aggiornata')
     loadEvents()
   }
 
@@ -1144,7 +1172,7 @@ function AreaUtente() {
       return (
         <div style={tinyMediaPreviewWrapper}>
           <video src={getAdminMediaPreviewUrl(item)} style={tinyPhotoImage} muted />
-          <span style={videoBadge}>â–¶</span>
+          <span style={videoBadge}>▶</span>
         </div>
       )
     }
@@ -1170,7 +1198,7 @@ function AreaUtente() {
 
       return (
         <div style={socialPreviewFallbackStyle}>
-          <span style={{ fontSize: '20px' }}>ðŸ”—</span>
+          <span style={{ fontSize: '20px' }}>🔗</span>
           <span style={{ fontSize: '9px', fontWeight: 800 }}>{item.caption || 'SOCIAL'}</span>
         </div>
       )
@@ -1223,7 +1251,7 @@ function AreaUtente() {
 
                   <div style={twoColumnsStyle}>
                     <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
                   </div>
 
                   <input type="email" placeholder="Indirizzo email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -1278,7 +1306,7 @@ function AreaUtente() {
 
             <div style={twoColumnsStyle}>
               <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-              <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+              <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
             <label style={checkboxLabelStyle}>
@@ -1362,7 +1390,7 @@ function AreaUtente() {
                       {selectedAlbum && (
                         <div style={selectedAlbumBox}>
                           <strong>Album selezionato:</strong><br />
-                          {selectedAlbum.title} Â· {selectedAlbum.event_year}<br />
+                          {selectedAlbum.title} · {selectedAlbum.event_year}<br />
                           <span style={mutedText}>Contenuti presenti: {selectedAlbumMedia.length}</span>
                         </div>
                       )}
@@ -1409,10 +1437,10 @@ function AreaUtente() {
                           <div key={album.id} style={{ display: 'grid', gap: '8px' }}>
                             <article style={{ ...compactAlbumCard, border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)' }}>
                               <div style={compactAlbumMain}>
-                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“</div>}
+                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <h4 style={compactAlbumTitle}>{album.title}</h4>
-                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` Â· ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` Â· ${album.category}` : ''}{' Â· '}{album.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{albumMedia.length} contenuti</p>
+                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` · ${album.category}` : ''}{' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti</p>
                                 </div>
                               </div>
 
@@ -1429,7 +1457,7 @@ function AreaUtente() {
                                 <div style={photoManagerHeader}>
                                   <div>
                                     <h3 style={{ marginBottom: '6px' }}>Contenuti album: {album.title}</h3>
-                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} Â· {albumMedia.length} elementi</p>
+                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} · {albumMedia.length} elementi</p>
                                   </div>
                                   <button type="button" className="secondary-auth-button" onClick={() => {
                                     setSelectedAlbumId('')
@@ -1509,7 +1537,7 @@ function AreaUtente() {
                       )}
 
                       <input type="url" placeholder="Link esterno opzionale" value={eventExternalUrl} onChange={(e) => setEventExternalUrl(e.target.value)} />
-                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti allâ€™evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
+                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti all’evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
 
                       {existingEventImageUrl && <div><p style={mutedText}>Immagine attuale:</p><img src={existingEventImageUrl} alt="Immagine evento attuale" style={previewImageStyle} /></div>}
 
@@ -1544,10 +1572,10 @@ function AreaUtente() {
                       {events.map((event) => (
                         <article key={event.id} style={compactAlbumCard}>
                           <div style={compactAlbumMain}>
-                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“…</div>}
+                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📅</div>}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h4 style={compactAlbumTitle}>{event.title}</h4>
-                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` Â· ${event.location}` : ''}{' Â· '}{event.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{event.event_documents?.length ?? 0} documenti</p>
+                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` · ${event.location}` : ''}{' · '}{event.visible ? 'Visibile' : 'Nascosto'}{' · '}{event.event_documents?.length ?? 0} documenti</p>
                             </div>
                           </div>
 
@@ -1555,7 +1583,7 @@ function AreaUtente() {
                             <div style={eventDocsList}>
                               {event.event_documents.map((doc) => (
                                 <div key={doc.id} style={eventDocRow}>
-                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>ðŸ“„ {doc.title}</a>
+                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>📄 {doc.title}</a>
                                   <button type="button" onClick={() => handleDeleteEventDocument(doc.id)} style={tinyDeleteButton}>X</button>
                                 </div>
                               ))}

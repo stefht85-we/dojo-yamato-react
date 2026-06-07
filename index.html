@@ -23,6 +23,28 @@
       <textarea name="note"></textarea>
     </form>
 
+    <!--
+      Form nascosto Netlify Forms per ricevere via email le nuove richieste iscrizione.
+      La submission viene inviata dal frontend dopo la registrazione utente.
+    -->
+    <form name="approvazione-iscrizione" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="approvazione-iscrizione" />
+      <input name="bot-field" />
+      <input type="text" name="nome" />
+      <input type="text" name="cognome" />
+      <input type="email" name="email" />
+      <input type="tel" name="telefono" />
+      <input type="text" name="data_nascita" />
+      <input type="text" name="indirizzo" />
+      <input type="text" name="citta" />
+      <input type="text" name="stato" />
+      <input type="text" name="ruolo" />
+      <input type="url" name="approva_url" />
+      <input type="url" name="rifiuta_url" />
+      <textarea name="note"></textarea>
+    </form>
+
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
