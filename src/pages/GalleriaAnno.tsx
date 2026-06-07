@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type GalleryAlbum = {
   id: string
@@ -19,6 +20,7 @@ function GalleriaAnno() {
   const [albums, setAlbums] = useState<GalleryAlbum[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
 
   useEffect(() => {
     async function loadAlbums() {
@@ -72,6 +74,13 @@ function GalleriaAnno() {
           <p style={textStyle}>
             Album fotografici e video ordinati dal più recente al più vecchio.
           </p>
+
+          {!canOpenRestrictedContent && (
+            <div style={lockedNoticeStyle}>
+              <strong>{isPending ? 'Account in attesa di approvazione.' : 'Anteprima pubblica.'}</strong>
+              Puoi vedere gli album disponibili, ma l’apertura sarà abilitata solo dopo approvazione.
+            </div>
+          )}
         </section>
 
         {loading && <p style={textStyle}>Caricamento album...</p>}
@@ -95,49 +104,68 @@ function GalleriaAnno() {
 
         {!loading && !message && albums.length > 0 && (
           <section style={albumListStyle}>
-            {albums.map((album) => (
-              <Link
-                key={album.id}
-                to={`/galleria/album/${album.id}`}
-                style={albumRowStyle}
-              >
-                {album.cover_image_url ? (
-                  <img
-                    src={album.cover_image_url}
-                    alt={album.title}
-                    style={coverStyle}
-                  />
-                ) : (
-                  <div style={coverPlaceholderStyle}>🥋</div>
-                )}
+            {albums.map((album) => {
+              const content = (
+                <>
+                  {album.cover_image_url ? (
+                    <img
+                      src={album.cover_image_url}
+                      alt={album.title}
+                      style={coverStyle}
+                    />
+                  ) : (
+                    <div style={coverPlaceholderStyle}>🥋</div>
+                  )}
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h2 style={albumTitleStyle}>{album.title}</h2>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 style={albumTitleStyle}>{album.title}</h2>
 
-                  <div style={metaRowStyle}>
-                    {album.event_date && (
-                      <span>
-                        {new Date(album.event_date).toLocaleDateString('it-IT')}
-                      </span>
+                    <div style={metaRowStyle}>
+                      {album.event_date && (
+                        <span>
+                          {new Date(album.event_date).toLocaleDateString('it-IT')}
+                        </span>
+                      )}
+
+                      {!album.event_date && <span>{album.event_year}</span>}
+
+                      {album.category && <span>{album.category}</span>}
+                    </div>
+
+                    {album.description && (
+                      <p style={descriptionStyle}>
+                        {album.description.length > 130
+                          ? album.description.substring(0, 130) + '...'
+                          : album.description}
+                      </p>
                     )}
-
-                    {!album.event_date && <span>{album.event_year}</span>}
-
-                    {album.category && <span>{album.category}</span>}
                   </div>
 
-                  {album.description && (
-                    <p style={descriptionStyle}>
-                      {album.description.length > 130
-                        ? album.description.substring(0, 130) + '...'
-                        : album.description}
-                    </p>
-                  )}
-                </div>
+                  <span style={canOpenRestrictedContent ? ctaStyle : lockedCtaStyle}>
+                    {canOpenRestrictedContent ? 'Apri →' : 'Bloccato'}
+                  </span>
+                </>
+              )
 
-                <span style={ctaStyle}>Apri →</span>
-              </Link>
-            ))}
+              return canOpenRestrictedContent ? (
+                <Link
+                  key={album.id}
+                  to={`/galleria/album/${album.id}`}
+                  style={albumRowStyle}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  key={album.id}
+                  type="button"
+                  style={lockedAlbumRowStyle}
+                  onClick={(event) => event.preventDefault()}
+                >
+                  {content}
+                </button>
+              )
+            })}
           </section>
         )}
       </div>

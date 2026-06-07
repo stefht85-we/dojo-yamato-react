@@ -9,6 +9,7 @@ import Insegnanti from './pages/Insegnanti'
 import Corsi from './pages/Corsi'
 import Galleria from './pages/Galleria'
 import GalleriaAlbum from './pages/GalleriaAlbum'
+import GalleriaAnno from './pages/GalleriaAnno'
 import Teoria from './pages/Teoria'
 import News from './pages/News'
 import NewsDetail from './pages/NewsDetail'
@@ -32,7 +33,9 @@ function App() {
           <Route path="/insegnanti" element={<Insegnanti />} />
           <Route path="/corsi" element={<Corsi />} />
           <Route path="/galleria" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Galleria /></ApprovedRoute>} />
+          <Route path="/galleria/anno/:year" element={<ApprovedRoute allowPublicPreview allowPendingPreview><GalleriaAnno /></ApprovedRoute>} />
           <Route path="/galleria/:albumId" element={<ApprovedRoute allowPublicPreview allowPendingPreview><GalleriaAlbum /></ApprovedRoute>} />
+          <Route path="/galleria/album/:albumId" element={<ApprovedRoute allowPublicPreview allowPendingPreview><GalleriaAlbum /></ApprovedRoute>} />
           <Route path="/teoria" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Teoria /></ApprovedRoute>} />
           <Route path="/teoria/:section" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Teoria /></ApprovedRoute>} />
           <Route path="/news" element={<News />} />
@@ -40,8 +43,8 @@ function App() {
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/area-utente" element={<AreaUtente />} />
           <Route path="/bacheca" element={<ApprovedRoute><Bacheca /></ApprovedRoute>} />
-          <Route path="/calendario-eventi" element={<ApprovedRoute><CalendarioEventi /></ApprovedRoute>} />
-          <Route path="/eventi/:eventoId" element={<ApprovedRoute><EventoDettaglio /></ApprovedRoute>} />
+          <Route path="/calendario-eventi" element={<ApprovedRoute allowPublicPreview allowPendingPreview><CalendarioEventi /></ApprovedRoute>} />
+          <Route path="/eventi/:eventoId" element={<ApprovedRoute allowPublicPreview allowPendingPreview><EventoDettaglio /></ApprovedRoute>} />
           <Route path="/documenti" element={<ApprovedRoute allowPublicPreview allowPendingPreview><Documenti /></ApprovedRoute>} />
           <Route path="/difesa-personale" element={<DifesaPersonale />} />
         </Routes>

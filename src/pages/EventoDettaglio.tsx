@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
+import { useAccessStatus } from '../lib/useAccessStatus'
 
 type EventDocument = {
   id: string
@@ -37,6 +38,8 @@ export default function EventoDettaglio() {
   const [event, setEvent] = useState<DojoEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const { canOpenRestrictedContent, isPending } = useAccessStatus()
+  const canOpenAttachments = canOpenRestrictedContent
 
   useEffect(() => {
     loadEvent()
@@ -215,15 +218,30 @@ export default function EventoDettaglio() {
             <p style={sectionBadgeStyle}>Documenti</p>
             <h2 style={sideTitleStyle}>Allegati evento</h2>
 
+            {!canOpenAttachments && (
+              <div style={lockedNoticeStyle}>
+                <strong>{isPending ? 'Account in attesa di approvazione.' : 'Accesso richiesto.'}</strong>
+                Puoi vedere l’elenco degli allegati, ma download e apertura saranno disponibili solo dopo approvazione.
+              </div>
+            )}
+
             {!event.event_documents || event.event_documents.length === 0 ? (
               <p style={mutedText}>Nessun documento allegato.</p>
             ) : (
               <div style={documentsListStyle}>
                 {event.event_documents.map((doc) => (
-                  <a key={doc.id} href={doc.signed_file_url || doc.file_url} target="_blank" rel="noreferrer" style={documentRowStyle}>
-                    <span style={documentBadgeStyle}>{getDocumentBadge(doc)}</span>
-                    <span style={documentTitleStyle}>{doc.title}</span>
-                  </a>
+                  canOpenAttachments ? (
+                    <a key={doc.id} href={doc.signed_file_url || doc.file_url} target="_blank" rel="noreferrer" style={documentRowStyle}>
+                      <span style={documentBadgeStyle}>{getDocumentBadge(doc)}</span>
+                      <span style={documentTitleStyle}>{doc.title}</span>
+                    </a>
+                  ) : (
+                    <button key={doc.id} type="button" style={lockedDocumentRowStyle} onClick={(e) => e.preventDefault()}>
+                      <span style={documentBadgeStyle}>{getDocumentBadge(doc)}</span>
+                      <span style={documentTitleStyle}>{doc.title}</span>
+                      <span style={lockedPillStyle}>Bloccato</span>
+                    </button>
+                  )
                 ))}
               </div>
             )}
