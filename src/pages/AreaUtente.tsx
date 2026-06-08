@@ -7,7 +7,6 @@ import AdminInsegnanti from '../components/AdminInsegnanti'
 import AdminTeoria from '../components/AdminTeoria'
 import AdminDocumenti from '../components/AdminDocumenti'
 import AdminIscritti from '../components/AdminIscritti'
-import AdminAccessiUtenti from '../components/AdminAccessiUtenti'
 import AdminDifesaPersonale from '../components/AdminDifesaPersonale'
 import { ADMIN_EMAIL, isAdmin as checkIsAdmin } from '../lib/permissions'
 import { getSignedUrlFromPublicUrl } from '../lib/storageSignedUrl'
@@ -24,7 +23,6 @@ type AdminTab =
   | 'teoria'
   | 'difesa'
   | 'iscritti'
-  | 'accessi-utenti'
 
 type GalleryAlbum = {
   id: string
@@ -1302,10 +1300,9 @@ function AreaUtente() {
                 <button type="button" style={tabButton(adminTab === 'teoria')} onClick={() => setAdminTab('teoria')}>Teoria</button>
                 <button type="button" style={tabButton(adminTab === 'difesa')} onClick={() => setAdminTab('difesa')}>Difesa personale</button>
                 <button type="button" style={tabButton(adminTab === 'iscritti')} onClick={() => setAdminTab('iscritti')}>Iscritti</button>
-                <button type="button" style={tabButton(adminTab === 'accessi-utenti')} onClick={() => setAdminTab('accessi-utenti')}>Accessi utenti</button>
               </div>
 
-              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'accessi-utenti' && adminTab !== 'difesa' && (
+              {message && adminTab !== 'insegnanti' && adminTab !== 'teoria' && adminTab !== 'documenti' && adminTab !== 'iscritti' && adminTab !== 'difesa' && (
                 <div style={messageBox}>{message}</div>
               )}
 
@@ -1573,7 +1570,6 @@ function AreaUtente() {
               {adminTab === 'insegnanti' && <AdminInsegnanti />}
               {adminTab === 'teoria' && <AdminTeoria />}
               {adminTab === 'iscritti' && <AdminIscritti />}
-              {adminTab === 'accessi-utenti' && <AdminAccessiUtenti />}
               {adminTab === 'difesa' && <AdminDifesaPersonale />}
             </section>
           )}
