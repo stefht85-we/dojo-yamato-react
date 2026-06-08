@@ -11,7 +11,7 @@ const navItems = [
   { to: '/galleria', label: 'Galleria' },
   { to: '/teoria', label: 'Teoria' },
   { to: '/documenti', label: 'Documenti' },
-  { to: '/difesa-personale', label: 'Difesa Pers.' },
+  { to: '/difesa-personale', label: 'Difesa personale' },
   { to: '/contatti', label: 'Contatti' },
   { to: '/area-utente', label: 'Area Utente' },
 ]

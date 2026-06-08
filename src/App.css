@@ -629,3 +629,133 @@ body {
   }
 }
 
+
+
+/* ==========================================================
+   RESPONSIVE V16 - fix menu hamburger iPhone
+   Obiettivo: rendere sempre visibili Difesa personale,
+   Contatti, Area utente e loghi social nel menu mobile.
+   ========================================================== */
+@media (max-width: 1180px) {
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+  }
+
+  .site-header__inner {
+    position: static;
+  }
+
+  .site-nav {
+    position: fixed;
+    top: calc(76px + env(safe-area-inset-top, 0px));
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-height: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    z-index: 9998;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .site-nav--open {
+    display: flex;
+  }
+
+  .site-social {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-nav {
+    gap: 7px;
+  }
+
+  .site-nav__link {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.15;
+  }
+
+  .site-social {
+    margin-top: 6px;
+    padding: 10px 0 2px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 54px));
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .site-social a {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .site-social img {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 520px) {
+  .site-nav {
+    top: calc(68px + env(safe-area-inset-top, 0px));
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 7px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .site-nav--open {
+    display: grid;
+  }
+
+  .site-nav__link {
+    width: 100%;
+    min-height: 38px;
+    justify-content: center;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.12;
+    padding: 8px 8px;
+    border-radius: 13px;
+    white-space: normal;
+  }
+
+  .site-social {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 390px) {
+  .site-brand__text strong {
+    max-width: 160px;
+    font-size: 11px;
+    letter-spacing: 0.45px;
+  }
+
+  .site-nav__link {
+    font-size: 12px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}
