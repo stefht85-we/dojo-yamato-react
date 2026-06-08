@@ -71,3 +71,43 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+@media (max-width: 900px) {
+  .hero-content {
+    max-width: 100% !important;
+  }
+
+  .home-card-grid {
+    gap: 18px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-title {
+    font-size: 34px !important;
+    line-height: 1.05 !important;
+  }
+
+  .hero-text {
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+  }
+
+  .hero-buttons {
+    width: 100%;
+    align-items: stretch !important;
+  }
+
+  .hero-buttons .home-button,
+  .home-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .course-card:hover,
+  .home-button:hover {
+    transform: none;
+  }
+}
+

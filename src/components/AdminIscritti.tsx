@@ -130,7 +130,7 @@ function AdminIscritti() {
   }
 
   function getCreatedDate(value: string | null) {
-    if (!value) return 'â€”'
+    if (!value) return '—'
 
     return new Date(value).toLocaleDateString('it-IT', {
       day: '2-digit',
@@ -140,7 +140,7 @@ function AdminIscritti() {
   }
 
   function getCreatedDateTime(value: string | null) {
-    if (!value) return 'â€”'
+    if (!value) return '—'
 
     return new Date(value).toLocaleString('it-IT', {
       day: '2-digit',
@@ -249,7 +249,7 @@ function AdminIscritti() {
     }
 
     const confirmDelete = window.confirm(
-      `Vuoi eliminare ${profile.email} dallâ€™Iscritti Newsletter newsletter?\n\nNota: questa eliminazione rimuove il profilo e la riga newsletter, non lâ€™utente Auth Supabase. Per Auth usa Accessi utenti.`
+      `Vuoi eliminare ${profile.email} daldalla Newsletter?\n\nNota: questa eliminazione rimuove il profilo e la riga newsletter, non l’utente Auth Supabase. Per Auth usa Accessi utenti.`
     )
 
     if (!confirmDelete) return
@@ -368,7 +368,7 @@ function AdminIscritti() {
   }
 
   async function handleDeleteNewsletter(item: NewsletterMessage) {
-    const confirmDelete = window.confirm(`Vuoi eliminare la newsletter "${item.title}" dallâ€™archivio?`)
+    const confirmDelete = window.confirm(`Vuoi eliminare la newsletter "${item.title}" dall’archivio?`)
     if (!confirmDelete) return
 
     const { error } = await supabase.from('newsletter_messages').delete().eq('id', item.id)
@@ -379,22 +379,24 @@ function AdminIscritti() {
     }
 
     setSelectedNewsletter(null)
-    setMessage('Newsletter eliminata dallâ€™archivio.')
+    setMessage('Newsletter eliminata dall’archivio.')
     loadNewsletterMessages()
   }
 
   async function handleCopyNewsletterEmails() {
     if (newsletterEmails.length === 0) {
-      setMessage('Nessun iscritto con Newsletter sÃ¬.')
+      setMessage('Nessun iscritto con Newsletter sì.')
       return
     }
 
     await navigator.clipboard.writeText(newsletterEmails.join('; '))
-    setMessage('Lista email Newsletter sÃ¬ copiata negli appunti.')
+    setMessage('Lista email Newsletter sì copiata negli appunti.')
   }
 
   return (
-    <div style={wrapperStyle}>
+    <>
+      <style>{newsletterResponsiveCss}</style>
+      <div className="newsletter-admin-panel" style={wrapperStyle}>
       {message && <div style={messageBox}>{message}</div>}
 
       <div style={headerStyle}>
@@ -402,7 +404,7 @@ function AdminIscritti() {
           <p style={dojoBadgeStyle}>Newsletter</p>
           <h3 style={titleStyle}>Iscritti Newsletter</h3>
           <p style={introStyle}>
-            Gestisci gli iscritti, la preferenza newsletter e lâ€™archivio delle comunicazioni.
+            Gestisci gli iscritti, la preferenza newsletter e l’archivio delle comunicazioni.
           </p>
         </div>
 
@@ -419,7 +421,7 @@ function AdminIscritti() {
 
         <div style={summaryBoxStyle}>
           <strong>{newsletterProfiles.length}</strong>
-          <span>newsletter sÃ¬</span>
+          <span>newsletter sì</span>
         </div>
 
         <div style={summaryBoxStyle}>
@@ -461,7 +463,7 @@ function AdminIscritti() {
             </button>
 
             <button type="button" className="primary-auth-button" style={secondaryButtonStyle} onClick={handleCopyNewsletterEmails}>
-              Copia email newsletter sÃ¬
+              Copia email newsletter sì
             </button>
           </div>
         </form>
@@ -470,8 +472,8 @@ function AdminIscritti() {
       <div style={adminCardStyle}>
         <div style={listHeaderStyle}>
           <div style={{ minWidth: 0 }}>
-            <h3 style={cardTitleStyle}>Iscritti Newsletter newsletter</h3>
-            <p style={introStyle}>Per ogni utente puoi impostare Newsletter sÃ¬ o Newsletter no.</p>
+            <h3 style={cardTitleStyle}>Iscritti Newsletter</h3>
+            <p style={introStyle}>Per ogni utente puoi impostare Newsletter sì o Newsletter no.</p>
           </div>
 
           <input
@@ -488,7 +490,7 @@ function AdminIscritti() {
         {filteredProfiles.length > 0 && (
           <div style={usersListStyle}>
             {filteredProfiles.map((profile) => (
-              <article key={profile.id} style={userRowStyle}>
+              <article key={profile.id} className="newsletter-user-row" style={userRowStyle}>
                 <div style={userMainStyle}>
                   <div style={avatarStyle}>
                     {(profile.nome?.[0] || profile.email?.[0] || '?').toUpperCase()}
@@ -523,7 +525,7 @@ function AdminIscritti() {
                       onChange={(event) => handleNewsletterChange(profile, event.target.value)}
                       style={compactSelectStyle}
                     >
-                      <option value="yes">Newsletter sÃ¬</option>
+                      <option value="yes">Newsletter sì</option>
                       <option value="no">Newsletter no</option>
                     </select>
                   </div>
@@ -560,7 +562,7 @@ function AdminIscritti() {
       <div style={adminCardStyle}>
         <h3 style={cardTitleStyle}>Archivio Newsletter</h3>
         <p style={introStyle}>
-          Qui trovi le newsletter salvate con titolo, data, messaggio completo e possibilitÃ  di eliminazione.
+          Qui trovi le newsletter salvate con titolo, data, messaggio completo e possibilità di eliminazione.
         </p>
 
         {newsletterMessages.length === 0 && <p style={mutedText}>Nessuna newsletter archiviata.</p>}
@@ -568,11 +570,11 @@ function AdminIscritti() {
         {newsletterMessages.length > 0 && (
           <div style={newsletterArchiveStyle}>
             {newsletterMessages.map((item) => (
-              <article key={item.id} style={newsletterRowStyle}>
+              <article key={item.id} className="newsletter-archive-row" style={newsletterRowStyle}>
                 <div style={{ minWidth: 0 }}>
                   <h4 style={newsletterTitleStyle}>{item.title}</h4>
                   <p style={userMetaStyle}>
-                    {getCreatedDateTime(item.created_at)} Â· destinatari: {item.recipients_count ?? 0}
+                    {getCreatedDateTime(item.created_at)} · destinatari: {item.recipients_count ?? 0}
                   </p>
                 </div>
 
@@ -608,9 +610,41 @@ function AdminIscritti() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
+
+const newsletterResponsiveCss = `
+@media (max-width: 880px) {
+  .newsletter-user-row {
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+  }
+
+  .newsletter-archive-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .newsletter-admin-panel button,
+  .newsletter-admin-panel select,
+  .newsletter-admin-panel input,
+  .newsletter-admin-panel textarea {
+    width: 100% !important;
+  }
+
+  .newsletter-admin-panel [class*=primary-auth-button],
+  .newsletter-admin-panel [class*=secondary-auth-button] {
+    width: 100% !important;
+  }
+
+  .newsletter-user-row {
+    padding: 10px !important;
+  }
+}
+`
 
 const dojoBadgeStyle: CSSProperties = {
   width: 'fit-content',

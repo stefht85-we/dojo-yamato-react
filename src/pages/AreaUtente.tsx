@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { User } from '@supabase/supabase-js'
 import type { CSSProperties, FormEvent, MouseEvent } from 'react'
@@ -344,17 +344,17 @@ function AreaUtente() {
     }
 
     if (!address.trim()) {
-      setMessage('Inserisci lâ€™indirizzo')
+      setMessage('Inserisci l’indirizzo')
       return
     }
 
     if (!city.trim()) {
-      setMessage('Inserisci la cittÃ ')
+      setMessage('Inserisci la città')
       return
     }
 
     if (!email.trim() || !confirmEmail.trim()) {
-      setMessage('Inserisci e conferma lâ€™indirizzo email')
+      setMessage('Inserisci e conferma l’indirizzo email')
       return
     }
 
@@ -431,7 +431,7 @@ function AreaUtente() {
       const approvalResult = await approvalResponse.json().catch(() => null)
 
       if (!approvalResponse.ok) {
-        setMessage(approvalResult?.error || 'Registrazione creata, ma non Ã¨ stato possibile generare la richiesta di approvazione.')
+        setMessage(approvalResult?.error || 'Registrazione creata, ma non è stato possibile generare la richiesta di approvazione.')
         return
       }
 
@@ -458,7 +458,7 @@ function AreaUtente() {
         data_nascita: birthDate,
         indirizzo: address.trim(),
         citta: city.trim(),
-        newsletter: newsletterOptIn ? 'SÃ¬' : 'No',
+        newsletter: newsletterOptIn ? 'Sì' : 'No',
         stato: 'pending',
         ruolo: cleanEmail === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'reader',
         approva_url: String(approvalResult?.approveUrl || approvalResult?.approva_url || ''),
@@ -480,7 +480,7 @@ function AreaUtente() {
     setNewsletterOptIn(false)
     setShowRegisterForm(false)
 
-    setMessage('Registrazione inviata. Controlla la tua email per confermare lâ€™account.')
+    setMessage('Richiesta di registrazione ricevuta. Il tuo account è in fase di approvazione: a breve potrai accedere ai contenuti riservati dopo l’approvazione dell’amministratore.')
   }
 
   async function handleLogin(e: FormEvent) {
@@ -575,7 +575,7 @@ function AreaUtente() {
     const numericYear = Number(albumYear)
 
     if (!albumTitle.trim()) {
-      setMessage('Inserisci il titolo dellâ€™album')
+      setMessage('Inserisci il titolo dell’album')
       return
     }
 
@@ -648,11 +648,11 @@ function AreaUtente() {
       .eq('id', album.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  album: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità album: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  album aggiornata')
+    setMessage('Visibilità album aggiornata')
     loadAlbums()
   }
 
@@ -688,7 +688,7 @@ function AreaUtente() {
     }
 
     if (!galleryFiles || galleryFiles.length === 0) {
-      setMessage('Seleziona uno o piÃ¹ file')
+      setMessage('Seleziona uno o più file')
       return
     }
 
@@ -869,7 +869,7 @@ function AreaUtente() {
 
       if (socialPreviewFile) {
         if (!socialPreviewFile.type.startsWith('image/')) {
-          setMessage('Lâ€™anteprima social deve essere unâ€™immagine')
+          setMessage('L’anteprima social deve essere un’immagine')
           return
         }
 
@@ -1103,11 +1103,11 @@ function AreaUtente() {
     const { error } = await supabase.from('events').update({ visible: !event.visible }).eq('id', event.id)
 
     if (error) {
-      setMessage(`Errore aggiornamento visibilitÃ  evento: ${error.message}`)
+      setMessage(`Errore aggiornamento visibilità evento: ${error.message}`)
       return
     }
 
-    setMessage('VisibilitÃ  evento aggiornata')
+    setMessage('Visibilità evento aggiornata')
     loadEvents()
   }
 
@@ -1177,7 +1177,7 @@ function AreaUtente() {
       return (
         <div style={tinyMediaPreviewWrapper}>
           <video src={getAdminMediaPreviewUrl(item)} style={tinyPhotoImage} muted />
-          <span style={videoBadge}>â–¶</span>
+          <span style={videoBadge}>▶</span>
         </div>
       )
     }
@@ -1203,7 +1203,7 @@ function AreaUtente() {
 
       return (
         <div style={socialPreviewFallbackStyle}>
-          <span style={{ fontSize: '20px' }}>ðŸ”—</span>
+          <span style={{ fontSize: '20px' }}>🔗</span>
           <span style={{ fontSize: '9px', fontWeight: 800 }}>{item.caption || 'SOCIAL'}</span>
         </div>
       )
@@ -1256,7 +1256,7 @@ function AreaUtente() {
 
                   <div style={twoColumnsStyle}>
                     <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+                    <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
                   </div>
 
                   <input type="email" placeholder="Indirizzo email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -1311,7 +1311,7 @@ function AreaUtente() {
 
             <div style={twoColumnsStyle}>
               <input type="text" placeholder="Indirizzo" value={address} onChange={(e) => setAddress(e.target.value)} />
-              <input type="text" placeholder="CittÃ " value={city} onChange={(e) => setCity(e.target.value)} />
+              <input type="text" placeholder="Città" value={city} onChange={(e) => setCity(e.target.value)} />
             </div>
 
             <label style={checkboxLabelStyle}>
@@ -1396,7 +1396,7 @@ function AreaUtente() {
                       {selectedAlbum && (
                         <div style={selectedAlbumBox}>
                           <strong>Album selezionato:</strong><br />
-                          {selectedAlbum.title} Â· {selectedAlbum.event_year}<br />
+                          {selectedAlbum.title} · {selectedAlbum.event_year}<br />
                           <span style={mutedText}>Contenuti presenti: {selectedAlbumMedia.length}</span>
                         </div>
                       )}
@@ -1443,10 +1443,10 @@ function AreaUtente() {
                           <div key={album.id} style={{ display: 'grid', gap: '8px' }}>
                             <article style={{ ...compactAlbumCard, border: selectedAlbumId === album.id ? '1px solid rgba(185,68,79,0.80)' : '1px solid rgba(255,255,255,0.10)' }}>
                               <div style={compactAlbumMain}>
-                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“</div>}
+                                {getAdminAlbumCoverUrl(album) ? <img src={getAdminAlbumCoverUrl(album)} alt={album.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📁</div>}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <h4 style={compactAlbumTitle}>{album.title}</h4>
-                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` Â· ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` Â· ${album.category}` : ''}{' Â· '}{album.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{albumMedia.length} contenuti</p>
+                                  <p style={compactAlbumMeta}>{album.event_year}{album.event_date ? ` · ${new Date(album.event_date).toLocaleDateString('it-IT')}` : ''}{album.category ? ` · ${album.category}` : ''}{' · '}{album.visible ? 'Visibile' : 'Nascosto'}{' · '}{albumMedia.length} contenuti</p>
                                 </div>
                               </div>
 
@@ -1463,7 +1463,7 @@ function AreaUtente() {
                                 <div style={photoManagerHeader}>
                                   <div>
                                     <h3 style={{ marginBottom: '6px' }}>Contenuti album: {album.title}</h3>
-                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} Â· {albumMedia.length} elementi</p>
+                                    <p style={{ ...mutedText, margin: 0 }}>{album.event_year} · {albumMedia.length} elementi</p>
                                   </div>
                                   <button type="button" className="secondary-auth-button" onClick={() => {
                                     setSelectedAlbumId('')
@@ -1543,7 +1543,7 @@ function AreaUtente() {
                       )}
 
                       <input type="url" placeholder="Link esterno opzionale" value={eventExternalUrl} onChange={(e) => setEventExternalUrl(e.target.value)} />
-                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti allâ€™evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
+                      <input type="text" placeholder="Testo pulsante link, es. Iscriviti all’evento" value={eventExternalUrlLabel} onChange={(e) => setEventExternalUrlLabel(e.target.value)} />
 
                       {existingEventImageUrl && <div><p style={mutedText}>Immagine attuale:</p><img src={existingEventImageUrl} alt="Immagine evento attuale" style={previewImageStyle} /></div>}
 
@@ -1578,10 +1578,10 @@ function AreaUtente() {
                       {events.map((event) => (
                         <article key={event.id} style={compactAlbumCard}>
                           <div style={compactAlbumMain}>
-                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>ðŸ“…</div>}
+                            {(event.signed_image_url || event.image_url) ? <img src={event.signed_image_url || event.image_url || ''} alt={event.title} style={compactCoverStyle} /> : <div style={compactCoverPlaceholder}>📅</div>}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h4 style={compactAlbumTitle}>{event.title}</h4>
-                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` Â· ${event.location}` : ''}{' Â· '}{event.visible ? 'Visibile' : 'Nascosto'}{' Â· '}{event.event_documents?.length ?? 0} documenti</p>
+                              <p style={compactAlbumMeta}>{formatEventDate(event)}{event.location ? ` · ${event.location}` : ''}{' · '}{event.visible ? 'Visibile' : 'Nascosto'}{' · '}{event.event_documents?.length ?? 0} documenti</p>
                             </div>
                           </div>
 
@@ -1589,7 +1589,7 @@ function AreaUtente() {
                             <div style={eventDocsList}>
                               {event.event_documents.map((doc) => (
                                 <div key={doc.id} style={eventDocRow}>
-                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>ðŸ“„ {doc.title}</a>
+                                  <a href={doc.file_url} target="_blank" rel="noreferrer" style={eventDocLink}>📄 {doc.title}</a>
                                   <button type="button" onClick={() => handleDeleteEventDocument(doc.id)} style={tinyDeleteButton}>X</button>
                                 </div>
                               ))}
@@ -1617,7 +1617,7 @@ function AreaUtente() {
             </section>
           )}
 
-          {!isAdmin && <div style={userInfoBox}><strong>Account user attivo.</strong><br />Ora puoi accedere ai contenuti riservati disponibili per gli utenti registrati.</div>}
+          {!isAdmin && <div style={userInfoBox}><strong>Richiesta di registrazione ricevuta.</strong><br />Il tuo account è in fase di approvazione. A breve potrai accedere ai contenuti riservati dopo l’approvazione dell’amministratore.</div>}
 
           <button style={{ marginTop: '30px' }} className="secondary-auth-button" onClick={handleLogout}>Logout</button>
           {!isAdmin && message && <p style={{ marginTop: '16px' }}>{message}</p>}
@@ -1628,6 +1628,22 @@ function AreaUtente() {
 }
 
 const areaUtenteInlineStyles = `
+.profile-card,
+.auth-card {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.profile-card input,
+.profile-card select,
+.profile-card textarea,
+.auth-card input,
+.auth-card select,
+.auth-card textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .primary-auth-button,
 .secondary-auth-button {
   border-radius: 999px !important;
@@ -1650,6 +1666,33 @@ const areaUtenteInlineStyles = `
 .secondary-auth-button:hover {
   opacity: 0.9;
 }
+
+@media (max-width: 760px) {
+  .profile-card form > div,
+  .auth-card form > div {
+    grid-template-columns: 1fr !important;
+  }
+
+  .profile-card button,
+  .auth-card button,
+  .profile-card input,
+  .auth-card input,
+  .profile-card select,
+  .auth-card select,
+  .profile-card textarea,
+  .auth-card textarea {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .profile-card h1,
+  .auth-card h1 {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+}
+
 `
 
 const dojoBadgeStyle: CSSProperties = {
@@ -1670,12 +1713,12 @@ const authDividerStyle: CSSProperties = { height: '1px', background: 'rgba(255,2
 const registerLinkButtonStyle: CSSProperties = { width: '100%', background: 'transparent', border: 'none', color: '#ffffff', fontWeight: 900, cursor: 'pointer', textDecoration: 'underline', fontSize: '15px', padding: '6px 0' }
 const adminSectionStyle: CSSProperties = { marginTop: '42px', paddingTop: '32px', borderTop: '1px solid rgba(255,255,255,0.12)' }
 const adminLabelStyle: CSSProperties = dojoBadgeStyle
-const tabsWrapper: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '22px 0' }
-const tabButton = (active: boolean): CSSProperties => ({ padding: '10px 16px', borderRadius: '999px', border: 'none', cursor: 'pointer', fontWeight: 800, background: active ? 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)' : 'rgba(255,255,255,0.10)', color: active ? 'white' : '#d8d8d8', boxShadow: active ? '0 8px 18px rgba(80,10,18,0.24)' : 'none' })
+const tabsWrapper: CSSProperties = { display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '22px 0', minWidth: 0 }
+const tabButton = (active: boolean): CSSProperties => ({ padding: '9px 13px', borderRadius: '999px', border: 'none', cursor: 'pointer', fontWeight: 800, background: active ? 'linear-gradient(180deg, #b9444f 0%, #82232b 100%)' : 'rgba(255,255,255,0.10)', color: active ? 'white' : '#d8d8d8', boxShadow: active ? '0 8px 18px rgba(80,10,18,0.24)' : 'none' })
 const adminCardStyle: CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '18px', padding: '22px' }
-const galleryAdminLayout: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }
+const galleryAdminLayout: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '20px' }
 const formStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '18px' }
-const twoColumnsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }
+const twoColumnsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '12px' }
 const textareaStyle: CSSProperties = { borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.16)', resize: 'vertical', fontFamily: 'inherit' }
 const mutedText: CSSProperties = { color: '#d8d8d8', lineHeight: 1.6 }
 const checkboxLabelStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '10px', color: '#d8d8d8' }
@@ -1698,7 +1741,7 @@ const smallAdminButton: CSSProperties = { padding: '6px 10px', fontSize: '12px',
 const smallDangerButton: CSSProperties = { padding: '6px 10px', fontSize: '12px', borderRadius: '999px' }
 const inlineMediaPanelStyle: CSSProperties = { background: 'rgba(0,0,0,0.16)', border: '1px solid rgba(185,68,79,0.26)', borderRadius: '14px', padding: '14px' }
 const photoManagerHeader: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '18px' }
-const tinyPhotoGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: '8px', marginTop: '16px' }
+const tinyPhotoGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px', marginTop: '16px' }
 const tinyPhotoCard: CSSProperties = { position: 'relative', background: 'rgba(0,0,0,0.18)', borderRadius: '10px', padding: '5px', border: '1px solid rgba(255,255,255,0.08)' }
 const tinyMediaPreviewWrapper: CSSProperties = { position: 'relative' }
 const tinyPhotoImage: CSSProperties = { width: '100%', height: '56px', objectFit: 'cover', borderRadius: '7px', display: 'block', background: '#111' }
@@ -1717,4 +1760,6 @@ const eventDocLink: CSSProperties = { color: 'white', textDecoration: 'none', fo
 const userInfoBox: CSSProperties = { marginTop: '32px', padding: '20px', borderRadius: '14px', background: 'rgba(255,255,255,0.06)', color: '#d8d8d8' }
 
 export default AreaUtente
+
+
 

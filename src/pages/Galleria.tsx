@@ -261,7 +261,7 @@ const styles: Record<string, CSSProperties> = {
     color: '#ffffff',
   },
   hero: {
-    padding: '130px 24px 70px',
+    padding: 'clamp(54px, 8vw, 100px) 18px clamp(36px, 5vw, 62px)',
     background:
       'linear-gradient(135deg, rgba(2,8,23,0.98), rgba(16,24,39,0.96))',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -305,7 +305,7 @@ const styles: Record<string, CSSProperties> = {
     width: '100%',
     maxWidth: 1180,
     margin: '0 auto',
-    padding: '70px 24px 100px',
+    padding: 'clamp(36px, 5vw, 64px) 14px clamp(56px, 7vw, 90px)',
   },
   yearMenuCard: {
     padding: 22,
@@ -342,7 +342,7 @@ const styles: Record<string, CSSProperties> = {
   },
   yearMenu: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(116px, 1fr))',
     gap: 10,
   },
   yearButton: {
@@ -426,7 +426,7 @@ const styles: Record<string, CSSProperties> = {
   },
   albumGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
     gap: 18,
   },
   albumCard: {

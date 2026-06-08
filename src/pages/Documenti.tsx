@@ -250,7 +250,7 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   background: '#020817',
   color: 'white',
-  padding: '58px 24px 90px',
+  padding: 'clamp(34px, 5vw, 58px) 14px clamp(56px, 7vw, 90px)',
 }
 
 const heroStyle: CSSProperties = {
@@ -264,7 +264,7 @@ const pageBadgeStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   margin: 0,
-  fontSize: 'clamp(48px, 8vw, 82px)',
+  fontSize: 'clamp(34px, 7vw, 72px)',
   lineHeight: 0.98,
   fontWeight: 950,
 }
@@ -349,7 +349,7 @@ const sectionTitleStyle: CSSProperties = {
 const filterBoxStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
-  minWidth: '240px',
+  minWidth: 'min(240px, 100%)',
 }
 
 const filterLabelStyle: CSSProperties = {
@@ -370,7 +370,7 @@ const selectStyle: CSSProperties = {
 
 const documentsGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '18px',
 }
 

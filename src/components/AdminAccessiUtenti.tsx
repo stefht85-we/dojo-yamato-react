@@ -98,6 +98,25 @@ function AdminAccessiUtenti() {
     }
   }
 
+  async function approveUsers(targetIds: string[]) {
+    if (targetIds.length === 0) return
+    const label = targetIds.length === 1 ? 'questo utente' : `${targetIds.length} utenti selezionati`
+    const ok = window.confirm(`Vuoi approvare ${label}?\n\nGli utenti selezionati potranno accedere ai contenuti riservati in base al loro ruolo.`)
+    if (!ok) return
+
+    setLoading(true)
+    setMessage('Approvazione utenti...')
+
+    try {
+      await Promise.all(targetIds.map((userId) => api('admin-update-user', { userId, approval_status: 'approved' })))
+      await loadUsers()
+      setMessage(targetIds.length === 1 ? 'Utente approvato' : 'Utenti approvati')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Errore approvazione utenti')
+      setLoading(false)
+    }
+  }
+
   async function softDeleteUsers(targetIds: string[]) {
     if (targetIds.length === 0) return
     const label = targetIds.length === 1 ? 'questo utente' : `${targetIds.length} utenti selezionati`
@@ -169,7 +188,9 @@ function AdminAccessiUtenti() {
   }
 
   return (
-    <section style={wrapperStyle}>
+    <>
+      <style>{adminAccessResponsiveCss}</style>
+      <section className="admin-access-panel" style={wrapperStyle}>
       <div style={headerStyle}>
         <div>
           <p style={labelStyle}>Gestione accessi</p>
@@ -187,20 +208,21 @@ function AdminAccessiUtenti() {
         <button type="button" style={filterButton(filter === 'all')} onClick={() => setFilter('all')}>Tutti</button>
       </div>
 
-      <div style={bulkBarStyle}>
+      <div className="admin-access-bulk" style={bulkBarStyle}>
         <label style={checkLabelStyle}>
           <input type="checkbox" checked={allVisibleSelected} onChange={toggleVisibleUsers} disabled={visibleUsers.length === 0 || loading} />
           Seleziona visibili
         </label>
         <span style={bulkCountStyle}>{selectedIds.length} selezionati</span>
+        <button type="button" style={bulkApproveStyle} onClick={() => approveUsers(selectedIds)} disabled={loading || selectedIds.length === 0}>Approva selezionati</button>
         <button type="button" style={bulkButtonStyle} onClick={() => softDeleteUsers(selectedIds)} disabled={loading || selectedIds.length === 0}>Disattiva selezionati</button>
         <button type="button" style={bulkDangerStyle} onClick={() => hardDeleteUsers(selectedIds)} disabled={loading || selectedIds.length === 0}>Elimina definitivamente</button>
       </div>
 
       {message && <div style={messageStyle}>{message}</div>}
 
-      <div style={tableWrapperStyle}>
-        <table style={tableStyle}>
+      <div className="admin-access-table-wrap" style={tableWrapperStyle}>
+        <table className="admin-access-table" style={tableStyle}>
           <colgroup>
             <col style={{ width: '7%' }} />
             <col style={{ width: '31%' }} />
@@ -281,9 +303,79 @@ function AdminAccessiUtenti() {
           </tbody>
         </table>
       </div>
-    </section>
+      </section>
+    </>
   )
 }
+
+const adminAccessResponsiveCss = `
+@media (max-width: 760px) {
+  .admin-access-panel {
+    gap: 14px !important;
+  }
+
+  .admin-access-bulk {
+    align-items: stretch !important;
+  }
+
+  .admin-access-bulk button,
+  .admin-access-bulk label {
+    flex: 1 1 150px;
+    justify-content: center;
+  }
+
+  .admin-access-table colgroup,
+  .admin-access-table thead {
+    display: none !important;
+  }
+
+  .admin-access-table,
+  .admin-access-table tbody,
+  .admin-access-table tr,
+  .admin-access-table td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .admin-access-table tr {
+    margin: 10px 0 !important;
+    padding: 10px !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,0.045) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+  }
+
+  .admin-access-table td {
+    padding: 8px 4px !important;
+    border-top: 0 !important;
+  }
+
+  .admin-access-table td:nth-child(2)::before,
+  .admin-access-table td:nth-child(3)::before,
+  .admin-access-table td:nth-child(4)::before,
+  .admin-access-table td:nth-child(5)::before {
+    display: block;
+    margin-bottom: 5px;
+    color: #a7b0c0;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+  }
+
+  .admin-access-table td:nth-child(2)::before { content: "Utente"; }
+  .admin-access-table td:nth-child(3)::before { content: "Ultimo accesso"; }
+  .admin-access-table td:nth-child(4)::before { content: "Stato / ruolo"; }
+  .admin-access-table td:nth-child(5)::before { content: "Azioni"; }
+}
+
+@media (max-width: 430px) {
+  .admin-access-bulk button,
+  .admin-access-bulk label {
+    flex-basis: 100%;
+  }
+}
+`
 
 function formatDate(value: string | null) {
   if (!value) return '-'
@@ -347,6 +439,7 @@ const bulkBarStyle: CSSProperties = {
 const checkLabelStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#fff', fontSize: '11px', fontWeight: 800 }
 const bulkCountStyle: CSSProperties = { color: '#a7b0c0', fontSize: '11px', marginRight: 'auto' }
 const bulkButtonStyle: CSSProperties = { border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: '9px', padding: '6px 8px', cursor: 'pointer', fontWeight: 850, fontSize: '10.5px' }
+const bulkApproveStyle: CSSProperties = { ...bulkButtonStyle, border: '1px solid rgba(34,197,94,0.55)', background: 'rgba(34,197,94,0.18)' }
 const bulkDangerStyle: CSSProperties = { ...bulkButtonStyle, border: '1px solid rgba(220,38,38,0.6)', background: 'rgba(220,38,38,0.22)' }
 
 const messageStyle: CSSProperties = {

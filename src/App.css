@@ -245,3 +245,153 @@
     flex-direction: column;
   }
 }
+
+/* Responsive refinement pack - desktop/tablet/mobile */
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video,
+iframe {
+  max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.site-header__inner {
+  transition: min-height 0.2s ease, width 0.2s ease;
+}
+
+.site-nav__link {
+  white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+  .site-header__inner {
+    width: min(1180px, calc(100% - 24px));
+    gap: 12px;
+  }
+
+  .site-brand__logo {
+    width: 68px;
+    height: 68px;
+  }
+
+  .site-brand__text strong {
+    font-size: 17px;
+    letter-spacing: 1.7px;
+  }
+
+  .site-nav {
+    gap: 5px;
+  }
+
+  .site-nav__link {
+    min-height: 34px;
+    padding: 0 9px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .site-header__inner {
+    width: min(100%, calc(100% - 24px));
+  }
+
+  .site-nav {
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
+  }
+
+  .site-nav__link {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 700px) {
+  .site-header__inner {
+    width: min(100%, calc(100% - 18px));
+    gap: 8px;
+  }
+
+  .site-brand {
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .site-brand__text {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .site-brand__text strong {
+    font-size: 13px;
+    letter-spacing: 1px;
+    line-height: 1.05;
+  }
+
+  .site-brand__text small {
+    font-size: 9px;
+    letter-spacing: 1.2px;
+  }
+
+  .site-menu-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .site-nav {
+    left: 9px;
+    right: 9px;
+    border-radius: 16px;
+  }
+
+  .site-footer__inner {
+    width: min(100%, calc(100% - 24px));
+    padding: 22px 0;
+  }
+
+  .site-footer__links {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .site-brand__logo {
+    width: 54px;
+    height: 54px;
+  }
+
+  .site-brand__text strong {
+    max-width: 150px;
+  }
+}
+

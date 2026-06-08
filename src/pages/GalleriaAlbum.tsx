@@ -414,7 +414,7 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   background: '#020817',
   color: 'white',
-  padding: '58px 24px 90px',
+  padding: 'clamp(34px, 5vw, 58px) 14px clamp(56px, 7vw, 90px)',
 }
 
 const heroStyle: CSSProperties = {
@@ -435,7 +435,7 @@ const pageBadgeStyle: CSSProperties = dojoBadgeStyle
 
 const titleStyle: CSSProperties = {
   margin: 0,
-  fontSize: 'clamp(48px, 8vw, 82px)',
+  fontSize: 'clamp(34px, 7vw, 72px)',
   lineHeight: 0.98,
   fontWeight: 950,
 }
@@ -444,7 +444,7 @@ const introStyle: CSSProperties = {
   margin: 0,
   maxWidth: '850px',
   color: '#d8d8d8',
-  fontSize: '18px',
+  fontSize: 'clamp(15px, 2.2vw, 18px)',
   lineHeight: 1.7,
 }
 
@@ -550,7 +550,7 @@ const accessStatusStyle: CSSProperties = {
 
 const mediaGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '18px',
 }
 

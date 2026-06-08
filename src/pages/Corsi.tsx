@@ -16,7 +16,7 @@ const locations: CourseLocation[] = [
     city: 'Airuno',
     gymName: 'Scuole Elementari',
     address: 'Via Vittorio Emanuele II 23881 AIRUNO (LC)',
-    imageUrl: '/images/palestre/airuno.jpg',
+    imageUrl: '/images/airuno.jpg',
     mapUrl: 'https://www.google.com/maps?q=Airuno%20scuole%20elementari&output=embed',
     schedules: [
       'Bambini e ragazzi: LUN / VEN  18:30-19:30',
@@ -28,7 +28,7 @@ const locations: CourseLocation[] = [
     city: 'Cisano Bergamasco',
     gymName: 'Scuole Elementari',
     address: 'Via Ca de Volpi 7 24034 CISANO BERGAMASCO (BG)',
-    imageUrl: '/images/palestre/cisano.jpg',
+    imageUrl: '/images/cisano.jpg',
     mapUrl: 'https://www.google.com/maps?q=Cisano%20Bergamasco%20scuole%20elementari&output=embed',
     schedules: [
       'Bambini e ragazzi: MER / VEN  16:45-18:45',
@@ -40,7 +40,7 @@ const locations: CourseLocation[] = [
     city: 'Lecco',
     gymName: 'Scuole Elementari',
     address: 'Via Fratelli Cairoli 77/79 LECCO (LC)',
-    imageUrl: '/images/palestre/lecco.jpg',
+    imageUrl: '/images/lecco.jpg',
     mapUrl: 'https://www.google.com/maps?q=Lecco%20scuole%20elementari&output=embed',
     schedules: [
       'Bambini e ragazzi: MAR / GIO  19:00-20:00',
@@ -52,7 +52,7 @@ const locations: CourseLocation[] = [
     city: 'Merate - Sartirana',
     gymName: 'Scuole Elementari',
     address: 'Via Montegrappa 1 23807 MERATE (LC)',
-    imageUrl: '/images/palestre/merate.jpg',
+    imageUrl: '/images/merate.jpg',
     mapUrl: 'https://www.google.com/maps?q=Sartirana%20Merate%20scuole%20elementari&output=embed',
     schedules: [
       'Bambini e ragazzi: MER 18:30-17.30   VEN 17.30-18.30',
@@ -136,7 +136,36 @@ function Corsi() {
 const responsiveCss = `
 @media (max-width: 1050px) {
   .course-location-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .course-location-card > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .course-location-card {
     grid-template-columns: 1fr !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .course-location-card > div {
+    min-height: auto !important;
+    max-height: none !important;
+  }
+
+  .course-location-card img,
+  .course-location-card iframe {
+    height: 190px !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .course-location-card img,
+  .course-location-card iframe {
+    height: 165px !important;
   }
 }
 `

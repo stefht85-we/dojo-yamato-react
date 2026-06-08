@@ -548,3 +548,19 @@
     padding-top: 20px;
   }
 }
+
+@media (max-width: 520px) {
+  .event-detail-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .event-detail-image {
+    max-height: 260px;
+  }
+
+  .event-detail-badges {
+    gap: 8px;
+  }
+}
+
