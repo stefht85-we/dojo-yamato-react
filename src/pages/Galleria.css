@@ -71,3 +71,32 @@
   cursor: pointer;
   z-index: 1000;
 }
+
+/* RESPONSIVE V15 - galleria */
+@media (max-width: 620px) {
+  .gallery-card {
+    border-radius: 14px;
+  }
+
+  .gallery-overlay {
+    opacity: 1;
+    padding: 14px;
+  }
+
+  .lightbox {
+    padding: 10px;
+  }
+
+  .lightbox-content img,
+  .lightbox-content video {
+    max-height: 74vh;
+    border-radius: 12px;
+  }
+
+  .lightbox-close {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+  }
+}

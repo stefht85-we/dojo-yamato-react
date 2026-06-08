@@ -549,18 +549,28 @@
   }
 }
 
-@media (max-width: 520px) {
+/* RESPONSIVE V15 - evento dettaglio extra safety */
+@media (max-width: 620px) {
   .event-detail-card {
     padding: 16px;
-    border-radius: 18px;
+    border-radius: 16px;
   }
 
-  .event-detail-image {
-    max-height: 260px;
+  .event-detail-main {
+    gap: 16px;
   }
 
   .event-detail-badges {
     gap: 8px;
   }
-}
 
+  .event-detail-image {
+    max-height: 260px;
+    border-radius: 14px;
+  }
+
+  .calendar-open-event-button {
+    width: 100%;
+    text-align: center;
+  }
+}

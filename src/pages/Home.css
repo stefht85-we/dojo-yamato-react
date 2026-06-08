@@ -72,42 +72,38 @@
   }
 }
 
-@media (max-width: 900px) {
+/* RESPONSIVE V15 - Home mobile refinement */
+@media (max-width: 620px) {
   .hero-content {
-    max-width: 100% !important;
+    width: 100% !important;
   }
 
-  .home-card-grid {
-    gap: 18px !important;
-  }
-}
-
-@media (max-width: 560px) {
   .hero-title {
-    font-size: 34px !important;
-    line-height: 1.05 !important;
+    font-size: clamp(34px, 10vw, 46px) !important;
+    line-height: 1.02 !important;
   }
 
   .hero-text {
     font-size: 16px !important;
-    line-height: 1.55 !important;
   }
 
-  .hero-buttons {
+  .hero-buttons,
+  .hero-actions {
     width: 100%;
     align-items: stretch !important;
   }
 
-  .hero-buttons .home-button,
-  .home-button {
-    width: 100%;
-    justify-content: center;
+  .home-button,
+  .hero-buttons a,
+  .hero-actions a {
+    width: 100% !important;
     text-align: center;
+    justify-content: center;
   }
 
-  .course-card:hover,
-  .home-button:hover {
-    transform: none;
+  .home-card-grid,
+  .course-grid,
+  .gallery-grid {
+    grid-template-columns: 1fr !important;
   }
 }
-
