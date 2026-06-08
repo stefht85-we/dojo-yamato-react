@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const navItems = [
@@ -20,6 +20,17 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -35,15 +46,23 @@ function Header() {
 
         <button
           type="button"
-          className="site-menu-button"
+          className={`site-menu-button${menuOpen ? ' site-menu-button--open' : ''}`}
           onClick={() => setMenuOpen((prev) => !prev)}
           aria-label={menuOpen ? 'Chiudi menu' : 'Apri menu'}
           aria-expanded={menuOpen}
+          aria-controls="site-mobile-nav"
         >
-          ☰
+          <span className="site-menu-button__line" />
+          <span className="site-menu-button__line" />
+          <span className="site-menu-button__line" />
         </button>
 
-        <nav className={`site-nav ${menuOpen ? 'site-nav--open' : ''}`} aria-label="Menu principale">
+        <nav
+          id="site-mobile-nav"
+          className={`site-nav${menuOpen ? ' site-nav--open' : ''}`}
+          data-open={menuOpen ? 'true' : 'false'}
+          aria-label="Menu principale"
+        >
           {navItems.map((item) => (
             <NavLink
               key={item.to}
