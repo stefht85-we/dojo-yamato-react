@@ -31,6 +31,11 @@ function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    document.body.classList.toggle('ym-mobile-menu-is-open', menuOpen)
+    return () => document.body.classList.remove('ym-mobile-menu-is-open')
+  }, [menuOpen])
+
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -46,29 +51,23 @@ function Header() {
 
         <button
           type="button"
-          className={`site-menu-button${menuOpen ? ' site-menu-button--open' : ''}`}
+          className={`site-menu-button ym-menu-button${menuOpen ? ' ym-menu-button--open' : ''}`}
           onClick={() => setMenuOpen((prev) => !prev)}
           aria-label={menuOpen ? 'Chiudi menu' : 'Apri menu'}
           aria-expanded={menuOpen}
-          aria-controls="site-mobile-nav"
+          aria-controls="ym-mobile-menu"
         >
-          <span className="site-menu-button__line" />
-          <span className="site-menu-button__line" />
-          <span className="site-menu-button__line" />
+          <span className="ym-menu-button__line" />
+          <span className="ym-menu-button__line" />
+          <span className="ym-menu-button__line" />
         </button>
 
-        <nav
-          id="site-mobile-nav"
-          className={`site-nav${menuOpen ? ' site-nav--open' : ''}`}
-          data-open={menuOpen ? 'true' : 'false'}
-          aria-label="Menu principale"
-        >
+        <nav className="site-nav ym-desktop-nav" aria-label="Menu principale desktop">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              onClick={closeMenu}
               className={({ isActive }) => `site-nav__link${isActive ? ' site-nav__link--active' : ''}`}
             >
               {item.label}
@@ -85,6 +84,34 @@ function Header() {
           </div>
         </nav>
       </div>
+
+      {menuOpen && (
+        <>
+          <button type="button" className="ym-mobile-menu-backdrop" aria-label="Chiudi menu" onClick={closeMenu} />
+          <nav id="ym-mobile-menu" className="ym-mobile-menu-panel" aria-label="Menu principale mobile">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={closeMenu}
+                className={({ isActive }) => `ym-mobile-menu-link${isActive ? ' ym-mobile-menu-link--active' : ''}`}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+
+            <div className="ym-mobile-social" aria-label="Social Dojo Yamato">
+              <a href="https://www.facebook.com/dojoyamatokarate/" target="_blank" rel="noreferrer" aria-label="Facebook Dojo Yamato">
+                <img src="/images/facebook.png" alt="Facebook" />
+              </a>
+              <a href="https://www.instagram.com/dojoyamatokarate/" target="_blank" rel="noreferrer" aria-label="Instagram Dojo Yamato">
+                <img src="/images/instagram.png" alt="Instagram" />
+              </a>
+            </div>
+          </nav>
+        </>
+      )}
     </header>
   )
 }

@@ -1007,3 +1007,199 @@ body {
     font-size: 11.2px !important;
   }
 }
+
+/* ==========================================================
+   MENU MOBILE V19 - pannello separato robusto
+   Il menu mobile non usa più .site-nav per l'apertura: viene
+   renderizzato come pannello dedicato solo quando menuOpen=true.
+   Questo evita conflitti CSS e problemi iPhone/cache su apertura.
+   ========================================================== */
+@media (max-width: 1180px) {
+  body.ym-mobile-menu-is-open {
+    overflow: hidden !important;
+  }
+
+  .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30000 !important;
+    overflow: visible !important;
+  }
+
+  .site-header__inner {
+    overflow: visible !important;
+  }
+
+  .ym-desktop-nav {
+    display: none !important;
+  }
+
+  .ym-menu-button,
+  .site-menu-button.ym-menu-button {
+    display: inline-flex !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    padding: 0 !important;
+    position: relative !important;
+    z-index: 30003 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+  }
+
+  .ym-menu-button__line {
+    display: block !important;
+    width: 24px !important;
+    height: 2px !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    transition: transform 0.18s ease, opacity 0.18s ease !important;
+  }
+
+  .ym-menu-button--open .ym-menu-button__line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg) !important;
+  }
+
+  .ym-menu-button--open .ym-menu-button__line:nth-child(2) {
+    opacity: 0 !important;
+  }
+
+  .ym-menu-button--open .ym-menu-button__line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg) !important;
+  }
+
+  .ym-mobile-menu-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 30001 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: rgba(0, 0, 0, 0.42) !important;
+    cursor: pointer !important;
+  }
+
+  .ym-mobile-menu-panel {
+    display: flex !important;
+    position: fixed !important;
+    top: calc(72px + env(safe-area-inset-top, 0px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    z-index: 30002 !important;
+    max-height: calc(100dvh - 86px - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 7px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    background: rgba(8, 11, 19, 0.992) !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.58) !important;
+  }
+
+  .ym-mobile-menu-link {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border-radius: 999px !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.055) !important;
+    text-decoration: none !important;
+    font-size: clamp(12px, 3.2vw, 13.5px) !important;
+    font-weight: 850 !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.12px !important;
+    white-space: normal !important;
+  }
+
+  .ym-mobile-menu-link--active {
+    background: linear-gradient(180deg, #d94a57 0%, #8f2430 100%) !important;
+    box-shadow: 0 8px 20px rgba(143, 36, 48, 0.35) !important;
+  }
+
+  .ym-mobile-social {
+    display: flex !important;
+    width: 100% !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 18px !important;
+    margin-top: 8px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  }
+
+  .ym-mobile-social a {
+    display: inline-flex !important;
+    width: 44px !important;
+    height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 15px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .ym-mobile-social img {
+    display: block !important;
+    width: 32px !important;
+    height: 32px !important;
+    object-fit: contain !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .ym-mobile-menu-panel {
+    top: calc(66px + env(safe-area-inset-top, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    max-height: calc(100dvh - 76px - env(safe-area-inset-bottom, 0px)) !important;
+    padding: 9px 10px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 5px !important;
+  }
+
+  .ym-mobile-menu-link {
+    min-height: 35px !important;
+    padding: 6px 10px !important;
+    font-size: clamp(11.2px, 3.15vw, 12.2px) !important;
+  }
+
+  .ym-mobile-social {
+    margin-top: 5px !important;
+    padding-top: 9px !important;
+  }
+
+  .ym-mobile-social a {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .ym-mobile-social img {
+    width: 30px !important;
+    height: 30px !important;
+  }
+}
+
+@media (min-width: 1181px) {
+  .ym-mobile-menu-backdrop,
+  .ym-mobile-menu-panel {
+    display: none !important;
+  }
+}
