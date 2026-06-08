@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+﻿import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -9,7 +9,7 @@ export async function handler(event: any) {
     const { nome, email, messaggio } = body
 
     const data = await resend.emails.send({
-      from: 'Dojo Yamato <info@asddojoyamato.it>',
+      from: process.env.RESEND_FROM_EMAIL || 'Dojo Yamato <noreply@asddojoyamato.it>',
       to: ['info@asddojoyamato.it'],
       subject: `Nuovo contatto da ${nome}`,
       reply_to: email,
