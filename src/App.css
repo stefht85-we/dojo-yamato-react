@@ -759,3 +759,85 @@ body {
     padding-right: 6px;
   }
 }
+
+/* ==========================================================
+   MENU MOBILE V17 - colonna singola compatta
+   Ripristina il menu hamburger in una sola colonna verticale,
+   evita griglie a 2 colonne e rende visibili anche le ultime voci
+   su iPhone piccoli.
+   ========================================================== */
+@media (max-width: 1180px) {
+  .site-nav {
+    display: none !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    left: 10px !important;
+    right: 10px !important;
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 86px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .site-nav--open {
+    display: flex !important;
+  }
+
+  .site-nav__link {
+    width: 100% !important;
+    min-height: 37px !important;
+    padding: 7px 12px !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border-radius: 999px !important;
+    font-size: clamp(11px, 3.15vw, 13px) !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.15px !important;
+    white-space: normal !important;
+  }
+
+  .site-social {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    margin: 6px 0 0 !important;
+    padding-top: 10px !important;
+  }
+
+  .site-social a {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .site-social img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .site-nav {
+    top: 72px !important;
+    max-height: calc(100dvh - 78px) !important;
+    gap: 5px !important;
+    padding-top: 8px !important;
+  }
+
+  .site-nav__link {
+    min-height: 34px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    font-size: 11.2px !important;
+  }
+
+  .site-social {
+    padding-top: 8px !important;
+    margin-top: 4px !important;
+  }
+}
