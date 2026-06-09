@@ -113,18 +113,6 @@ export default function Home() {
       </section>
 
       <section style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>
-            <Link to="/corsi" style={styles.sectionTitleLink}>
-              Corsi
-            </Link>
-          </h2>
-          <p style={styles.sectionSubtitle}>
-            Corsi dedicati a bambini, ragazzi e adulti, con percorsi adatti al livello
-            e all’età degli allievi.
-          </p>
-        </div>
-
         <div style={styles.coursesFeatureCard}>
           <div style={styles.coursesImageBox}>
             <img
@@ -136,6 +124,18 @@ export default function Home() {
           </div>
 
           <div style={styles.coursesContentBox}>
+            <div style={styles.coursesInlineHeader}>
+              <h2 style={styles.sectionTitle}>
+                <Link to="/corsi" style={styles.sectionTitleLink}>
+                  Corsi
+                </Link>
+              </h2>
+              <p style={styles.inlineSectionSubtitle}>
+                Corsi dedicati a bambini, ragazzi e adulti, con percorsi adatti al livello
+                e all’età degli allievi.
+              </p>
+            </div>
+
             <div style={styles.courseGrid}>
               <div style={styles.infoCard}>
                 <h3 style={styles.infoTitle}>Bambini e ragazzi</h3>
@@ -261,7 +261,7 @@ export default function Home() {
           </p>
         </div>
 
-        <PublicNews limit={3} compact />
+        <PublicNews limit={3} compact showTitle={false} />
       </section>
 
       <section style={styles.section}>
@@ -447,21 +447,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sectionTitle: {
     fontSize: 'clamp(2rem, 4vw, 3rem)',
-    margin: '0 0 14px',
+    margin: '0 0 24px',
     color: '#ffffff',
     letterSpacing: '-0.03em',
   },
   sectionTitleLink: {
     color: '#ffffff',
     textDecoration: 'none',
-    borderBottom: '2px solid rgba(185,68,79,0.75)',
-    paddingBottom: 4,
+    borderBottom: 'none',
+    paddingBottom: 0,
   },
   sectionSubtitle: {
     maxWidth: 680,
     margin: '0 auto',
     color: '#cbd5e1',
-    lineHeight: 1.7,
+    lineHeight: 1.8,
   },
   galleryGrid: {
     display: 'grid',
@@ -586,6 +586,15 @@ const styles: Record<string, React.CSSProperties> = {
     alignContent: 'center',
     gap: 18,
   },
+  coursesInlineHeader: {
+    textAlign: 'left',
+    marginBottom: 8,
+  },
+  inlineSectionSubtitle: {
+    color: '#cbd5e1',
+    lineHeight: 1.8,
+    margin: '0 0 6px',
+  },
   courseGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr',
@@ -640,7 +649,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 'clamp(2rem, 4vw, 3.3rem)',
     lineHeight: 1.05,
     letterSpacing: '-0.04em',
-    margin: '0 0 18px',
+    margin: '0 0 26px',
     color: '#ffffff',
   },
   competitionText: {
@@ -691,7 +700,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 'clamp(2rem, 4vw, 3.3rem)',
     lineHeight: 1.05,
     letterSpacing: '-0.04em',
-    margin: '0 0 18px',
+    margin: '0 0 26px',
     color: '#ffffff',
   },
   defensePromoText: {
