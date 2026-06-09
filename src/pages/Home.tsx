@@ -53,6 +53,23 @@ export default function Home() {
 
   return (
     <main style={styles.page}>
+      <style>{`
+        @media (max-width: 760px) {
+          .home-courses-card {
+            display: flex !important;
+            flex-direction: column !important;
+          }
+
+          .home-courses-content {
+            order: 1 !important;
+          }
+
+          .home-courses-image {
+            order: 2 !important;
+          }
+        }
+      `}</style>
+
       <section style={styles.hero}>
         <div style={styles.heroOverlay} />
 
@@ -113,8 +130,8 @@ export default function Home() {
       </section>
 
       <section style={styles.section}>
-        <div style={styles.coursesFeatureCard}>
-          <div style={styles.coursesImageBox}>
+        <div style={styles.coursesFeatureCard} className="home-courses-card">
+          <div style={styles.coursesImageBox} className="home-courses-image">
             <img
               src="/images/name.png"
               alt="Corsi Karate Dojo Yamato"
@@ -123,7 +140,7 @@ export default function Home() {
             />
           </div>
 
-          <div style={styles.coursesContentBox}>
+          <div style={styles.coursesContentBox} className="home-courses-content">
             <div style={styles.coursesInlineHeader}>
               <h2 style={styles.sectionTitle}>
                 <Link to="/corsi" style={styles.sectionTitleLink}>
