@@ -80,14 +80,197 @@ export default function Home() {
         </div>
       </section>
 
+      <section style={styles.aboutSection}>
+        <div style={styles.aboutCard}>
+          <div style={styles.aboutTextBox}>
+
+            <h2 style={styles.sectionTitle}>
+              <Link to="/chi-siamo" style={styles.sectionTitleLink}>
+                Chi siamo
+              </Link>
+            </h2>
+
+            <p style={styles.text}>
+              Il Dojo Yamato nasce con l’obiettivo di trasmettere il Karate Shotokan
+              come disciplina marziale, sportiva ed educativa. Ogni allenamento è un
+              percorso fatto di rispetto, impegno, autocontrollo e crescita personale.
+            </p>
+
+            <Link to="/chi-siamo" style={styles.primaryButton}>
+              Scopri il dojo
+            </Link>
+          </div>
+
+          <div style={styles.aboutImageBox}>
+            <img
+              src="/images/allenamenti.png"
+              alt="Allenamenti Dojo Yamato"
+              loading="lazy"
+              style={styles.aboutImage}
+            />
+          </div>
+        </div>
+      </section>
+
       <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>
+            <Link to="/corsi" style={styles.sectionTitleLink}>
+              Corsi
+            </Link>
+          </h2>
+          <p style={styles.sectionSubtitle}>
+            Corsi dedicati a bambini, ragazzi e adulti, con percorsi adatti al livello
+            e all’età degli allievi.
+          </p>
+        </div>
+
+        <div style={styles.coursesFeatureCard}>
+          <div style={styles.coursesImageBox}>
+            <img
+              src="/images/name.png"
+              alt="Corsi Karate Dojo Yamato"
+              loading="lazy"
+              style={styles.coursesImage}
+            />
+          </div>
+
+          <div style={styles.coursesContentBox}>
+            <div style={styles.courseGrid}>
+              <div style={styles.infoCard}>
+                <h3 style={styles.infoTitle}>Bambini e ragazzi</h3>
+                <p style={styles.compactText}>
+                  Coordinazione, concentrazione, regole e fiducia in sé stessi.
+                </p>
+              </div>
+
+              <div style={styles.infoCard}>
+                <h3 style={styles.infoTitle}>Adulti</h3>
+                <p style={styles.compactText}>
+                  Tecnica, postura, resistenza e consapevolezza del corpo.
+                </p>
+              </div>
+
+
+            </div>
+
+            <div style={styles.coursesButtonWrap}>
+              <Link to="/corsi" style={styles.primaryButton}>
+                Scopri tutti i corsi
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.competitionSection}>
+        <div style={styles.competitionCard}>
+          <div style={styles.competitionTextBox}>
+
+            <h2 style={styles.competitionTitle}>
+              <Link to="/competizioni" style={styles.sectionTitleLink}>
+                Competizioni
+              </Link>
+            </h2>
+
+            <p style={styles.competitionText}>
+              La competizione è proposta come esperienza educativa, sempre senza obbligo.
+              Aiuta gli allievi a gestire emozioni, concentrazione, confronto e rispetto
+              dell’avversario.
+            </p>
+
+            <p style={styles.competitionText}>
+              Il Dojo Yamato partecipa a competizioni provinciali, regionali e nazionali
+              nei circuiti CSI e FIJLKAM, accompagnando ogni atleta nel proprio percorso
+              con gradualità e attenzione.
+            </p>
+
+            <Link to="/competizioni" style={styles.primaryButton}>
+              Scopri le competizioni
+            </Link>
+          </div>
+
+          <div style={styles.competitionImagesGrid}>
+            <div style={styles.competitionImageBox}>
+              <img
+                src="/images/competizioni-1.png"
+                alt="Competizioni Karate Dojo Yamato"
+                loading="lazy"
+                style={styles.competitionImage}
+              />
+            </div>
+
+            <div style={styles.competitionImageBox}>
+              <img
+                src="/images/competizioni-2.png"
+                alt="Gare Karate Dojo Yamato"
+                loading="lazy"
+                style={styles.competitionImage}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.defensePromoSection}>
+        <div style={styles.defensePromoCard}>
+          <div>
+
+            <h2 style={styles.defensePromoTitle}>
+              <Link to="/difesa-personale" style={styles.sectionTitleLink}>
+                Difesa personale
+              </Link>
+            </h2>
+
+            <p style={styles.defensePromoText}>
+              A.S.D. Dojo Yamato organizza percorsi di difesa personale dedicati
+              a ragazze, donne e a chiunque desideri sentirsi più sicuro nella vita
+              quotidiana.
+            </p>
+
+            <p style={styles.defensePromoQuote}>
+              Non si tratta solo di tecniche: si tratta di attenzione, lucidità,
+              prevenzione e controllo delle proprie emozioni.
+            </p>
+
+            <Link to="/difesa-personale" style={styles.primaryButton}>
+              Scopri i corsi di difesa personale
+            </Link>
+          </div>
+
+          <div style={styles.defensePromoImageBox}>
+            <img
+              src="/images/difesa-personale.jpg"
+              alt="Difesa personale Dojo Yamato"
+              loading="lazy"
+              style={styles.defensePromoImage}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>
+            <Link to="/news" style={styles.sectionTitleLink}>
+              News
+            </Link>
+          </h2>
+          <p style={styles.sectionSubtitle}>
+            Aggiornamenti, comunicazioni e attività recenti dal Dojo Yamato.
+          </p>
+        </div>
+
         <PublicNews limit={3} compact />
       </section>
 
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
-          <p style={styles.kicker}>Galleria</p>
-          <h2 style={styles.sectionTitle}>Momenti dal dojo</h2>
+          <h2 style={styles.sectionTitle}>
+            <Link to="/galleria" style={styles.sectionTitleLink}>
+              Galleria
+            </Link>
+          </h2>
           <p style={styles.sectionSubtitle}>
             Alcuni momenti di allenamento, eventi, esami e attività del nostro dojo.
           </p>
@@ -140,167 +323,6 @@ export default function Home() {
           <Link to="/galleria" style={styles.secondaryButton}>
             Vai alla galleria
           </Link>
-        </div>
-      </section>
-
-      <section style={styles.aboutSection}>
-        <div style={styles.aboutCard}>
-          <div style={styles.aboutTextBox}>
-            <p style={styles.kicker}>Chi siamo</p>
-
-            <h2 style={styles.sectionTitle}>Una scuola di Karate, prima di tutto educativa</h2>
-
-            <p style={styles.text}>
-              Il Dojo Yamato nasce con l’obiettivo di trasmettere il Karate Shotokan
-              come disciplina marziale, sportiva ed educativa. Ogni allenamento è un
-              percorso fatto di rispetto, impegno, autocontrollo e crescita personale.
-            </p>
-
-            <Link to="/chi-siamo" style={styles.primaryButton}>
-              Scopri il dojo
-            </Link>
-          </div>
-
-          <div style={styles.aboutImageBox}>
-            <img
-              src="/images/allenamenti.png"
-              alt="Allenamenti Dojo Yamato"
-              loading="lazy"
-              style={styles.aboutImage}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <p style={styles.kicker}>Corsi</p>
-          <h2 style={styles.sectionTitle}>Karate per ogni età</h2>
-          <p style={styles.sectionSubtitle}>
-            Corsi dedicati a bambini, ragazzi e adulti, con percorsi adatti al livello
-            e all’età degli allievi.
-          </p>
-        </div>
-
-        <div style={styles.coursesFeatureCard}>
-          <div style={styles.coursesImageBox}>
-            <img
-              src="/images/name.png"
-              alt="Corsi Karate Dojo Yamato"
-              loading="lazy"
-              style={styles.coursesImage}
-            />
-          </div>
-
-          <div style={styles.coursesContentBox}>
-            <div style={styles.courseGrid}>
-              <div style={styles.infoCard}>
-                <h3 style={styles.infoTitle}>Bambini e ragazzi</h3>
-                <p style={styles.compactText}>
-                  Coordinazione, concentrazione, regole e fiducia in sé stessi.
-                </p>
-              </div>
-
-              <div style={styles.infoCard}>
-                <h3 style={styles.infoTitle}>Adulti</h3>
-                <p style={styles.compactText}>
-                  Tecnica, postura, resistenza e consapevolezza del corpo.
-                </p>
-              </div>
-
-
-            </div>
-
-            <div style={styles.coursesButtonWrap}>
-              <Link to="/corsi" style={styles.primaryButton}>
-                Scopri tutti i corsi
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={styles.competitionSection}>
-        <div style={styles.competitionCard}>
-          <div style={styles.competitionTextBox}>
-            <p style={styles.kicker}>Competizioni</p>
-
-            <h2 style={styles.competitionTitle}>
-              Confronto, emozioni e rispetto
-            </h2>
-
-            <p style={styles.competitionText}>
-              La competizione è proposta come esperienza educativa, sempre senza obbligo.
-              Aiuta gli allievi a gestire emozioni, concentrazione, confronto e rispetto
-              dell’avversario.
-            </p>
-
-            <p style={styles.competitionText}>
-              Il Dojo Yamato partecipa a competizioni provinciali, regionali e nazionali
-              nei circuiti CSI e FIJLKAM, accompagnando ogni atleta nel proprio percorso
-              con gradualità e attenzione.
-            </p>
-
-            <Link to="/competizioni" style={styles.primaryButton}>
-              Scopri le competizioni
-            </Link>
-          </div>
-
-          <div style={styles.competitionImagesGrid}>
-            <div style={styles.competitionImageBox}>
-              <img
-                src="/images/competizioni-1.png"
-                alt="Competizioni Karate Dojo Yamato"
-                loading="lazy"
-                style={styles.competitionImage}
-              />
-            </div>
-
-            <div style={styles.competitionImageBox}>
-              <img
-                src="/images/competizioni-2.png"
-                alt="Gare Karate Dojo Yamato"
-                loading="lazy"
-                style={styles.competitionImage}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={styles.defensePromoSection}>
-        <div style={styles.defensePromoCard}>
-          <div>
-            <p style={styles.kicker}>Difesa personale</p>
-
-            <h2 style={styles.defensePromoTitle}>
-              Più sicurezza, più consapevolezza, più fiducia
-            </h2>
-
-            <p style={styles.defensePromoText}>
-              A.S.D. Dojo Yamato organizza percorsi di difesa personale dedicati
-              a ragazze, donne e a chiunque desideri sentirsi più sicuro nella vita
-              quotidiana.
-            </p>
-
-            <p style={styles.defensePromoQuote}>
-              Non si tratta solo di tecniche: si tratta di attenzione, lucidità,
-              prevenzione e controllo delle proprie emozioni.
-            </p>
-
-            <Link to="/difesa-personale" style={styles.primaryButton}>
-              Scopri i corsi di difesa personale
-            </Link>
-          </div>
-
-          <div style={styles.defensePromoImageBox}>
-            <img
-              src="/images/difesa-personale.jpg"
-              alt="Difesa personale Dojo Yamato"
-              loading="lazy"
-              style={styles.defensePromoImage}
-            />
-          </div>
         </div>
       </section>
 
@@ -428,6 +450,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 0 14px',
     color: '#ffffff',
     letterSpacing: '-0.03em',
+  },
+  sectionTitleLink: {
+    color: '#ffffff',
+    textDecoration: 'none',
+    borderBottom: '2px solid rgba(185,68,79,0.75)',
+    paddingBottom: 4,
   },
   sectionSubtitle: {
     maxWidth: 680,
