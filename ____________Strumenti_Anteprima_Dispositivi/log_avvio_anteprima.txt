@@ -1,0 +1,18 @@
+================================================== 
+AVVIO STRUMENTI ANTEPRIMA DISPOSITIVI 
+Data/Ora: 10/06/2026  7: 42: 25.59 
+Cartella: C:\Users\caforst001\OneDrive - Prometeon\Desktop\PROGETTI\_____WebSITE___\dojo-yamato-react\____________Strumenti_Anteprima_Dispositivi 
+PS1: C:\Users\caforst001\OneDrive - Prometeon\Desktop\PROGETTI\_____WebSITE___\dojo-yamato-react\____________Strumenti_Anteprima_Dispositivi\02_lancia_menu_anteprima.ps1 
+PY: C:\Users\caforst001\OneDrive - Prometeon\Desktop\PROGETTI\_____WebSITE___\dojo-yamato-react\____________Strumenti_Anteprima_Dispositivi\anteprima_dispositivi_reali.py 
+================================================== 
+ 
+C:\Users\caforst001\AppData\Local\Programs\Python\Python313\python.exe
+C:\Users\caforst001\AppData\Local\Microsoft\WindowsApps\python.exe
+C:\Users\caforst001\AppData\Local\Python\bin\python.exe
+Avvio tramite PowerShell... 
+Avvio menu anteprima dispositivi reali...
+Cartella strumenti: C:\Users\caforst001\OneDrive - Prometeon\Desktop\PROGETTI\_____WebSITE___\dojo-yamato-react\____________Strumenti_Anteprima_Dispositivi
+
+C:\Users\caforst001\AppData\Local\Python\pythoncore-3.14-64\python.exe: can't open file 'C:\\Users\\caforst001\\OneDrive - Prometeon\\Desktop\\PROGETTI\\_____WebSITE___\\dojo-yamato-react\\____________Strumenti_Anteprima_Dispositivi\\.\x07nteprima_dispositivi_reali.py': [Errno 22] Invalid argument
+ 
+ExitCode: 0 
